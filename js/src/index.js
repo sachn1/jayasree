@@ -1,42 +1,41 @@
 /**
  * malayalam-stroker (JS)
  *
- * What you see: the ghost letter is already there (faint). A pen moves
- * along its natural curves and solid ink appears in its wake — exactly
- * like writing over a pencil sketch with ink. No border line. No stroke
- * outline. Just the filled letter growing as the pen moves.
+ * Self-contained. No server. No font file at runtime.
  *
- * How it works: a thick round brush sweeps along the glyph's contour
- * as an SVG mask. The brush is invisible — it only controls which part
- * of the solid fill is visible. As the brush moves, more of the solid
- * fill is revealed. The glowing stylus dot rides at the brush tip.
+ * Two data files, both committed to your repo:
  *
- * START_OVERRIDES (for coders, not end-users):
- * Set this object before calling play() to control where each glyph
- * starts. Key = glyphName (log trace.glyphs.map(g=>g.glyphName) to
- * find the names for your font). Value = one of:
- *   "leftmost" | "rightmost" | "topmost" | "bottommost"
- *   OR a number 0..1 (fraction along path arc-length)
- *   OR an array of the above, one per sub-contour
+ *   glyph-data.json   — font-specific: SVG outlines + advance widths for every
+ *                        cluster.  Re-generate when you change fonts:
+ *                          python tools/build_glyph_data.py [/path/to/Font.ttf]
+ *                        Defaults to the bundled Manjari-Regular.ttf.
  *
- * Example:
- *   import { createStrokeWriter, START_OVERRIDES } from "malayalam-stroker";
- *   START_OVERRIDES["n1"] = "topmost";
- *   START_OVERRIDES["k1sh"] = [0.25, "leftmost"];
- *   const writer = createStrokeWriter(container);
- *   await writer.play(trace);
+ *   stroke-data.json  — font-agnostic: hand-authored centerline strokes per
+ *                        cluster, produced by tools/stroke-recorder.html.
+ *                        Commit once; works across font choices.
+ *                        Falls back to outer-contour outline when missing.
+ *
+ * Basic usage:
+ *   import { createStrokeWriter } from "malayalam-stroker";
+ *   const writer = createStrokeWriter(document.getElementById("stage"));
+ *   await writer.load();                  // glyph-data.json (font outlines)
+ *   await writer.loadStrokes();           // stroke-data.json (authored paths) — optional
+ *   await writer.play("നന്ദി");
+ *
+ * START_OVERRIDES / DIRECTION_OVERRIDES: keyed by Unicode cluster ("ന", "ക്ഷ")
  */
 
-const SVGNS = "http://www.w3.org/2000/svg";
-const SAMPLE_STEPS = 140;   // polyline resolution for start-point rotation
-const PEN_LIFT_MS  = 80;    // pause between sub-contours (pen lifts between strokes)
+const SVGNS        = "http://www.w3.org/2000/svg";
+const SAMPLE_STEPS = 200;
+const PEN_LIFT_MS  = 120;
+const GLYPH_DATA_URL   = new URL("./glyph-data.json",   import.meta.url);
+const STROKE_DATA_URL  = new URL("./stroke-data.json",  import.meta.url);
 
-/**
- * Per-glyph start-point overrides. Edit this object in code — it's not
- * exposed in any UI. The right start point is the one that matches how
- * you'd pick up a pen and naturally begin that letter.
- */
-export const START_OVERRIDES = {};
+export const START_OVERRIDES     = {};
+export const DIRECTION_OVERRIDES = {};
+// Populated by loadStrokes() or by importing/merging your own stroke-data.json.
+// Keys are Unicode clusters ("ന", "ക്ഷ"). Values: { strokes: [{ d: "M ..." }] }
+export const STROKE_LIBRARY      = {};
 
 /* ── helpers ──────────────────────────────────────────────────────── */
 
@@ -46,189 +45,222 @@ function svgEl(tag, attrs) {
   return el;
 }
 
-function splitSubpaths(d) {
-  return d.match(/M[^M]*/g) ?? [d];
+function splitSubpaths(d) { return d.match(/M[^M]*/g) ?? [d]; }
+
+function resolveStart(cluster, i) {
+  const e = START_OVERRIDES[cluster];
+  if (e === undefined) return "leftmost";
+  return Array.isArray(e) ? (e[i] ?? "leftmost") : e;
 }
 
-function resolveOverride(glyphName, subIndex) {
-  const entry = START_OVERRIDES[glyphName];
-  if (entry === undefined) return "leftmost";
-  if (Array.isArray(entry)) return entry[subIndex] ?? "leftmost";
-  return entry;
+function resolveDirection(cluster, i) {
+  const e = DIRECTION_OVERRIDES[cluster];
+  if (e === undefined) return "forward";
+  return Array.isArray(e) ? (e[i] ?? "forward") : e;
 }
 
-/**
- * Resample `pathEl` into SAMPLE_STEPS points, rotate so the chosen
- * start point is first, return the resulting polyline as a 'd' string.
- * Only used for the invisible mask brush — the visible fill keeps the
- * original bezier path.
- */
-function rotatedPolyline(pathEl, override) {
+const HOLE_RATIO = 0.45;
+function classifySubpaths(subDs, scratch) {
+  const lens = subDs.map(d => { scratch.setAttribute("d", d); return scratch.getTotalLength(); });
+  const max  = Math.max(...lens);
+  return lens.map(l => l >= max * HOLE_RATIO);
+}
+
+function buildTracePath(pathEl, startOverride, direction) {
   const len = pathEl.getTotalLength();
-  if (len <= 0) return pathEl.getAttribute("d");
-
-  const pts = Array.from({ length: SAMPLE_STEPS }, (_, i) =>
+  if (len <= 0) return "";
+  let pts = Array.from({ length: SAMPLE_STEPS }, (_, i) =>
     pathEl.getPointAtLength((i / SAMPLE_STEPS) * len)
   );
-
-  let startIdx = 0;
-  if (typeof override === "number") {
-    startIdx = Math.round(override * SAMPLE_STEPS) % SAMPLE_STEPS;
+  let si = 0;
+  if (typeof startOverride === "number") {
+    si = Math.round(startOverride * SAMPLE_STEPS) % SAMPLE_STEPS;
   } else {
-    const axis    = { leftmost:"x", rightmost:"x", topmost:"y", bottommost:"y" }[override] ?? "x";
-    const prefer  = (override === "rightmost" || override === "bottommost")
-                    ? (a, b) => a > b : (a, b) => a < b;
+    const axis   = { leftmost:"x", rightmost:"x", topmost:"y", bottommost:"y" }[startOverride] ?? "x";
+    const prefer = (startOverride === "rightmost" || startOverride === "bottommost")
+                   ? (a, b) => a > b : (a, b) => a < b;
     let best = pts[0][axis];
     for (let i = 1; i < pts.length; i++) {
-      if (prefer(pts[i][axis], best)) { best = pts[i][axis]; startIdx = i; }
+      if (prefer(pts[i][axis], best)) { best = pts[i][axis]; si = i; }
     }
   }
+  pts = [...pts.slice(si), ...pts.slice(0, si)];
+  if (direction === "reverse") pts = [pts[0], ...pts.slice(1).reverse()];
+  return "M " + pts.map(p => `${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(" L ") + " Z";
+}
 
-  const rot = [...pts.slice(startIdx), ...pts.slice(0, startIdx)];
-  return "M " + rot.map(p => `${p.x} ${p.y}`).join(" L ") + " Z";
+/* ── Malayalam segmentation ─────────────────────────────────────────
+ * Longest-match: tries 3-char cluster (conjunct) → 2-char (consonant+matra) → 1-char.
+ */
+function segmentText(text, clusters) {
+  const segs = [];
+  let i = 0;
+  while (i < text.length) {
+    if (i + 2 < text.length && clusters[text.slice(i, i + 3)]) {
+      segs.push(text.slice(i, i + 3)); i += 3;
+    } else if (i + 1 < text.length && clusters[text.slice(i, i + 2)]) {
+      segs.push(text.slice(i, i + 2)); i += 2;
+    } else if (clusters[text[i]]) {
+      segs.push(text[i]); i++;
+    } else {
+      i++;
+    }
+  }
+  return segs;
 }
 
 /* ── main export ──────────────────────────────────────────────────── */
 
 export function createStrokeWriter(container, options = {}) {
-  // font-units of contour length revealed per second — tune to taste
-  const SPEED = options.speed ?? 8000;
-
+  const SPEED = options.speed ?? 6000;
   const state = { playToken: 0 };
-  let idSeed = 0;
-  let lastTrace = null;
+  let glyphData = options.glyphData ?? null;
+  let lastText  = null;
 
-  /* Build the full SVG stage for one trace ────────────────────────── */
+  async function load(url = GLYPH_DATA_URL) {
+    if (glyphData) return;
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error(`Failed to load glyph data: ${resp.status}`);
+    glyphData = await resp.json();
+  }
+
+  // Load hand-authored stroke paths from stroke-data.json (or any URL).
+  // Merges into the shared STROKE_LIBRARY so all writer instances benefit.
+  // Safe to call multiple times — existing keys are not overwritten.
+  async function loadStrokes(url = STROKE_DATA_URL) {
+    let resp;
+    try { resp = await fetch(url); } catch { return; }   // missing file = no-op
+    if (!resp.ok) return;                                // 404 = no-op
+    const data = await resp.json();
+    for (const [cluster, entry] of Object.entries(data)) {
+      if (!STROKE_LIBRARY[cluster]) STROKE_LIBRARY[cluster] = entry;
+    }
+  }
+
+  function buildTrace(text) {
+    if (!glyphData) throw new Error("Call writer.load() before writer.play()");
+    const { meta, clusters } = glyphData;
+    const segs = segmentText(text, clusters);
+    if (!segs.length) return null;
+    let penX = 0;
+    // Each segment becomes one group: authored strokes fire once per group.
+    // Components are the individual HarfBuzz glyphs that make up the cluster
+    // (e.g. "ജാ" = ജ-base glyph + ാ-matra glyph). They are used for the ghost
+    // and for the outline fallback, but NOT for authored stroke lookup.
+    const segGroups = [];
+    for (const seg of segs) {
+      const entry = clusters[seg];
+      if (!entry) continue;
+      const components = entry.glyphs.map(g => ({ d: g.d, x: penX + g.x, y: g.y }));
+      segGroups.push({ cluster: seg, components, groupX: penX });
+      penX += entry.advance;
+    }
+    return { unitsPerEm: meta.unitsPerEm, ascent: meta.ascent, descent: meta.descent, totalAdvance: penX, segGroups };
+  }
+
   function buildStage(trace) {
     container.innerHTML = "";
-    const { unitsPerEm, ascent, descent, totalAdvance, glyphs } = trace;
+    const { unitsPerEm, ascent, descent, totalAdvance, segGroups } = trace;
     const pad = unitsPerEm * 0.1;
-    const vb  = { x:-pad, y:-ascent-pad, w:totalAdvance+pad*2, h:ascent-descent+pad*2 };
+    const vb  = `${-pad} ${-ascent-pad} ${totalAdvance+pad*2} ${ascent-descent+pad*2}`;
+    const svg = svgEl("svg", { viewBox: vb });
 
-    const svg = svgEl("svg", { viewBox:`${vb.x} ${vb.y} ${vb.w} ${vb.h}` });
-
-    // Ghost: full word, always visible, acts as the tracing guide
+    // Ghost: all component paths for all clusters
     const ghostG = svgEl("g", { class:"ms-ghost" });
-    glyphs.forEach(g => ghostG.appendChild(
-      svgEl("path", { d:g.d, transform:`translate(${g.x},${g.y})` })
-    ));
+    segGroups.forEach(grp =>
+      grp.components.forEach(c =>
+        ghostG.appendChild(svgEl("path", { d:c.d, transform:`translate(${c.x},${c.y})` }))
+      )
+    );
     svg.appendChild(ghostG);
+    container.appendChild(svg);
 
     const defs = svgEl("defs", {});
     svg.appendChild(defs);
-
-    // Attach to DOM NOW — getBBox / getTotalLength need a live document
-    container.appendChild(svg);
-
-    // Scratch element for measurements (never rendered visually)
-    const scratch = svgEl("path", {});
+    const scratch = svgEl("path", { fill:"none", stroke:"none" });
     defs.appendChild(scratch);
 
-    // Stylus dot — rides at the leading edge of the brush
+    const sw = unitsPerEm * 0.022;
     const stylus = svgEl("circle", { class:"ms-stylus", r: unitsPerEm * 0.016 });
     stylus.style.opacity = "0";
     svg.appendChild(stylus);
 
-    /* Per-glyph build ─────────────────────────────────────────────── */
-    const glyphUnits = glyphs.map(g => {
-      const gEl     = svgEl("g", { transform:`translate(${g.x},${g.y})` });
-      const fillEl  = svgEl("path", { d:g.d, class:"ms-fill" });
-
-      // Mask: thick round brush sweeps the contour, revealing the fill
-      const maskId  = `ms-mask-${idSeed++}`;
-      const maskEl  = svgEl("mask", { id:maskId, maskUnits:"userSpaceOnUse" });
-      defs.appendChild(maskEl);
-      fillEl.setAttribute("mask", `url(#${maskId})`);
-
-      gEl.appendChild(fillEl);
-      svg.appendChild(gEl);
-
-      // Brush width = big enough to cover the full interior on one sweep.
-      // getBBox() works now because svg is already in the document.
-      const bbox       = fillEl.getBBox();
-      const brushWidth = Math.max(bbox.width, bbox.height) * 1.7 || unitsPerEm * 0.3;
-
-      const subDs = splitSubpaths(g.d);
-
-      const subUnits = subDs.map((subD, i) => {
-        // Build rotated polyline using scratch element
-        scratch.setAttribute("d", subD);
-        const override  = resolveOverride(g.glyphName, i);
-        const rotatedD  = rotatedPolyline(scratch, override);
-
-        const brush = svgEl("path", {
-          d: rotatedD, stroke:"white", fill:"none",
-          "stroke-linecap":"round", "stroke-linejoin":"round",
+    const glyphUnits = segGroups.map(grp => {
+      // Authored strokes — drawn ONCE per cluster group, regardless of component count.
+      // Strokes are authored relative to the cluster's pen origin (groupX).
+      const authored = STROKE_LIBRARY[grp.cluster];
+      if (authored?.strokes?.length) {
+        const gEl = svgEl("g", { transform:`translate(${grp.groupX},0)` });
+        svg.appendChild(gEl);
+        const tr = { x: grp.groupX, y: 0 };
+        const subUnits = authored.strokes.map(s => {
+          const el = svgEl("path", { d:s.d, class:"ms-stroke", "stroke-width":sw, "stroke-linecap":"round", "stroke-linejoin":"round" });
+          gEl.appendChild(el);
+          const len = el.getTotalLength();
+          if (len > 0) { el.setAttribute("stroke-dasharray", `${len} ${len}`); el.setAttribute("stroke-dashoffset", String(len)); }
+          return { strokeEl: el, len, tr };
         });
-        brush.setAttribute("stroke-width", brushWidth);
-        maskEl.appendChild(brush);
+        return { gEl, subUnits };
+      }
 
-        const len = brush.getTotalLength();
-
-        // Start fully hidden — no ink until this sub-contour's turn
-        if (len > 0) {
-          brush.setAttribute("stroke-dasharray",  `${len} ${len}`);
-          brush.setAttribute("stroke-dashoffset", String(len));
-        }
-
-        return { brush, len };
+      // Fallback: outer-contour outline per component.
+      // Each component is positioned with its own absolute translate.
+      let oi = 0;
+      const subUnits = grp.components.flatMap(c => {
+        const subDs   = splitSubpaths(c.d);
+        const isOuter = classifySubpaths(subDs, scratch);
+        return subDs.flatMap((subD, i) => {
+          if (!isOuter[i]) return [];
+          scratch.setAttribute("d", subD);
+          const td = buildTracePath(scratch, resolveStart(grp.cluster, oi), resolveDirection(grp.cluster, oi));
+          oi++;
+          if (!td) return [];
+          const cEl = svgEl("g", { transform:`translate(${c.x},${c.y})` });
+          svg.appendChild(cEl);
+          const el = svgEl("path", { d:td, class:"ms-stroke", "stroke-width":sw, "stroke-linecap":"round", "stroke-linejoin":"round" });
+          cEl.appendChild(el);
+          const len = el.getTotalLength();
+          if (len > 0) { el.setAttribute("stroke-dasharray", `${len} ${len}`); el.setAttribute("stroke-dashoffset", String(len)); }
+          return [{ strokeEl: el, len, tr: { x: c.x, y: c.y } }];
+        });
       });
-
-      return { gEl, fillEl, subUnits };
+      return { gEl: null, subUnits };
     });
 
     return { glyphUnits, stylus };
   }
 
-  /* Animate one sub-contour ─────────────────────────────────────────
-   * Sweeps dashoffset from len → 0, moving the stylus dot along the
-   * leading edge. No stroke drawn on screen — only the mask moves.    */
-  function revealSub(subUnit, stylus, glyphTranslate, durationMs, token) {
+  function traceSub(unit, stylus, token) {
     return new Promise(resolve => {
-      const { brush, len } = subUnit;
+      const { strokeEl, len, tr } = unit;
       if (len <= 0) return resolve();
-
-      // Stylus starts at point 0 of the rotated polyline
-      const p0 = brush.getPointAtLength(0);
-      stylus.setAttribute("cx", String(p0.x + glyphTranslate.x));
-      stylus.setAttribute("cy", String(p0.y + glyphTranslate.y));
+      const dMs = unit.dMs;
+      const p0 = strokeEl.getPointAtLength(0);
+      stylus.setAttribute("cx", String(p0.x + tr.x));
+      stylus.setAttribute("cy", String(p0.y + tr.y));
       stylus.style.opacity = "1";
-
-      const start = performance.now();
+      const t0 = performance.now();
       function frame(now) {
         if (token !== state.playToken) return resolve();
-        const t   = Math.max(0, Math.min(1, (now - start) / durationMs));
-        brush.setAttribute("stroke-dashoffset", String(len * (1 - t)));
-
-        // Move stylus dot to current pen tip position
-        const pt = brush.getPointAtLength(t * len);
-        stylus.setAttribute("cx", String(pt.x + glyphTranslate.x));
-        stylus.setAttribute("cy", String(pt.y + glyphTranslate.y));
-
-        if (t < 1) requestAnimationFrame(frame);
-        else resolve();
+        const t = Math.max(0, Math.min(1, (now - t0) / dMs));
+        strokeEl.setAttribute("stroke-dashoffset", String(len * (1 - t)));
+        const pt = strokeEl.getPointAtLength(t * len);
+        stylus.setAttribute("cx", String(pt.x + tr.x));
+        stylus.setAttribute("cy", String(pt.y + tr.y));
+        if (t < 1) requestAnimationFrame(frame); else resolve();
       }
       requestAnimationFrame(frame);
     });
   }
 
-  /* Animate one glyph (all its sub-contours, in sequence) ─────────── */
-  async function revealGlyph(unit, stylus, durationMs, token) {
-    const { gEl, subUnits } = unit;
-
-    // Parse the glyph's translate so we can position the stylus in SVG coords
-    const xform = gEl.getAttribute("transform") ?? "";
-    const m = xform.match(/translate\(([^,)]+)[, ]+([^)]+)\)/);
-    const translate = m ? { x: parseFloat(m[1]), y: parseFloat(m[2]) } : { x:0, y:0 };
-
-    const totalLen = subUnits.reduce((s, u) => s + u.len, 0) || 1;
-
-    for (const sub of subUnits) {
+  async function traceGlyph(unit, stylus, dMs, token) {
+    const tl = unit.subUnits.reduce((s, u) => s + u.len, 0) || 1;
+    // Attach dMs to each subUnit so traceSub can use it
+    unit.subUnits.forEach(u => { u.dMs = Math.max(80, dMs * (u.len / tl)); });
+    for (const sub of unit.subUnits) {
       if (token !== state.playToken) return;
-      const subDuration = Math.max(80, durationMs * (sub.len / totalLen));
-      await revealSub(sub, stylus, translate, subDuration, token);
-      if (sub !== subUnits[subUnits.length - 1]) {
-        // Pen lift between sub-contours
+      await traceSub(sub, stylus, token);
+      if (sub !== unit.subUnits[unit.subUnits.length - 1]) {
         stylus.style.opacity = "0";
         await new Promise(r => setTimeout(r, PEN_LIFT_MS));
       }
@@ -236,30 +268,25 @@ export function createStrokeWriter(container, options = {}) {
     stylus.style.opacity = "0";
   }
 
-  /* Public API ──────────────────────────────────────────────────────── */
-
-  async function play(trace, playOptions = {}) {
-    lastTrace = trace;
-    const speedMult = playOptions.speed ?? 1;
-    const token     = ++state.playToken;
+  async function play(text, playOptions = {}) {
+    if (!glyphData) await load();
+    lastText = text;
+    const trace = buildTrace(text);
+    if (!trace) return;
+    const sm    = playOptions.speed ?? 1;
+    const token = ++state.playToken;
     const { glyphUnits, stylus } = buildStage(trace);
-
     for (const unit of glyphUnits) {
       if (token !== state.playToken) return;
-      const totalLen   = unit.subUnits.reduce((s, u) => s + u.len, 0) || 1;
-      const duration   = Math.max(200, (totalLen / (SPEED * speedMult)) * 1000);
-      await revealGlyph(unit, stylus, duration, token);
+      const tl = unit.subUnits.reduce((s, u) => s + u.len, 0) || 1;
+      await traceGlyph(unit, stylus, Math.max(200, (tl / (SPEED * sm)) * 1000), token);
     }
     if (token === state.playToken) stylus.style.opacity = "0";
   }
 
-  function replay(playOptions = {}) {
-    return lastTrace ? play(lastTrace, playOptions) : Promise.resolve();
-  }
+  function replay(o = {})  { return lastText ? play(lastText, o) : Promise.resolve(); }
+  function cancel()         { state.playToken++; }
+  function destroy()        { cancel(); container.innerHTML = ""; lastText = null; }
 
-  function cancel() { state.playToken++; }
-
-  function destroy() { cancel(); container.innerHTML = ""; lastTrace = null; }
-
-  return { play, replay, cancel, destroy };
+  return { load, loadStrokes, play, replay, cancel, destroy };
 }

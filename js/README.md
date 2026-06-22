@@ -1,12 +1,88 @@
 # malayalam-stroker (JS)
 
-Renders a `StrokeTrace` JSON (produced by the companion
-[`malayalam-stroker` Python package](../python)) as an animated
-left-to-right ink reveal — each glyph's solid letterform fills in from
-its true leftmost point, no outline/border phase.
+Animates Malayalam text as handwriting — a pen traces each letter left to right,
+over a faint ghost of the complete letterform.
 
-No fetch, no modal, no app-specific markup baked in. Bring your own
-container element and your own JSON; wire it up however your app needs.
+Self-contained. No server. No font file at runtime. Glyph shapes are
+pre-computed and bundled in `glyph-data.json`.
+
+## Usage
+
+```js
+import { createStrokeWriter } from "malayalam-stroker";
+
+const writer = createStrokeWriter(document.getElementById("stage"));
+await writer.load();          // fetches glyph-data.json once
+await writer.loadStrokes();   // fetches stroke-data.json (no-op if absent)
+await writer.play("നന്ദി");   // any Malayalam Unicode text
+
+writer.replay();   // play the same text again
+writer.cancel();   // stop mid-animation
+writer.destroy();  // cancel + clear the container
+```
+
+Not published to npm yet — copy `js/src/` into your project or serve it
+locally. Plain ES modules, no build step required.
+
+## Two data files
+
+Both live in `js/` and should be committed to your repo:
+
+| File | What it contains | Font-specific? |
+|---|---|---|
+| `src/glyph-data.json` | SVG outlines + advance widths for every cluster | Yes — re-run `tools/build_glyph_data.py` when you change fonts |
+| `stroke-data.json` | Hand-authored centerline stroke paths | No — commit once, works across fonts |
+
+When `stroke-data.json` has coverage for a cluster, the pen follows those
+paths. Otherwise it falls back to tracing the outer contour of the font
+outline.
+
+## Regenerating glyph-data.json for a different font
+
+```bash
+cd python && poetry install
+# defaults to the bundled Manjari-Regular.ttf:
+poetry run python ../tools/build_glyph_data.py
+# or supply your own:
+poetry run python ../tools/build_glyph_data.py /path/to/MyFont.ttf
+```
+
+## Authoring stroke-data.json
+
+Open `tools/stroke-recorder.html` in a browser, draw strokes over each ghost
+glyph, and export. The output is keyed by Unicode cluster (`"ന"`, `"ക്ഷ"`).
+Save it as `js/stroke-data.json` and commit.
+
+## Configuring per-cluster behaviour
+
+```js
+import { createStrokeWriter, START_OVERRIDES, DIRECTION_OVERRIDES } from "malayalam-stroker";
+
+// Where on the contour the pen starts (fallback mode only)
+START_OVERRIDES["ന"] = "topmost";   // "leftmost" | "rightmost" | "topmost" | "bottommost" | 0..1 fraction
+START_OVERRIDES["ക"] = ["leftmost", 0.1]; // per sub-contour array
+
+// Which way around the contour the pen travels (fallback mode only)
+DIRECTION_OVERRIDES["ന"] = "reverse";  // "forward" | "reverse"
+```
+
+## Styling
+
+```css
+.my-stage {
+  --ms-ink-color:    #1a1a2e;   /* trace line */
+  --ms-ghost-color:  #e0daf5;   /* faint letterform behind the trace */
+  --ms-stylus-color: #e8b84b;   /* pen-tip dot */
+}
+```
+
+`.ms-ghost` and `.ms-stroke` are the two CSS classes on the rendered SVG.
+Skip the default `style.css` entirely and write your own if you prefer.
+
+## License
+
+MIT.
+
 
 ## Install
 
@@ -66,40 +142,68 @@ Anywhere that can run the shaping pipeline:
 `d` is an SVG path string in y-down coordinates. `x`/`y` are pen-position
 offsets to translate each glyph into place.
 
-## Configuring the reveal
+## Configuring the trace
 
 ```js
 const writer = createStrokeWriter(stage, {
-  speed: 1100,            // font-units of glyph width per second
-  revealPadRatio: 0.12,   // vertical clip padding, fraction of unitsPerEm
-  minGlyphDurationMs: 180,
+  speed: 6000,   // font-units of outer contour length traced per second
 });
 
-writer.play(trace, { speed: 1.8 }); // per-call speed multiplier, e.g. a "fast" button
+writer.play(trace, { speed: 1.8 }); // per-call speed multiplier
 ```
 
-The reveal always starts at each glyph's real leftmost point — measured
-with the browser's native `path.getBBox()`, not whatever vertex happens
-to come first in the font's path data. See the comment block at the top
-of `src/index.js` if you want to change the reveal direction (e.g.
-top-to-bottom) or otherwise customize the animation.
+### Start point — `START_OVERRIDES`
+
+Controls where on the outer contour the pen begins for each glyph.
+Find glyph names with `trace.glyphs.map(g => g.glyphName)`.
+
+```js
+import { createStrokeWriter, START_OVERRIDES } from "malayalam-stroker";
+
+START_OVERRIDES["n1"] = "topmost";      // start at the topmost point
+START_OVERRIDES["m1"] = 0.25;           // start 25% along the contour
+START_OVERRIDES["k1sh"] = ["leftmost", 0.1]; // per sub-contour, if the glyph has multiple
+```
+
+Accepted values: `"leftmost"` (default) | `"rightmost"` | `"topmost"` |
+`"bottommost"` | a `0..1` fraction of the contour's arc-length | an array
+of the above, one entry per outer sub-contour.
+
+### Direction — `DIRECTION_OVERRIDES`
+
+Controls which way around the contour the pen travels.
+
+```js
+import { createStrokeWriter, START_OVERRIDES, DIRECTION_OVERRIDES } from "malayalam-stroker";
+
+DIRECTION_OVERRIDES["n1"] = "reverse";  // go the other way around
+DIRECTION_OVERRIDES["lh"] = ["forward", "reverse"]; // per sub-contour
+```
+
+Accepted values: `"forward"` (default, follows the font's contour direction)
+| `"reverse"` (traces the contour in the opposite direction).
+
+For most Malayalam letters, one of the two directions will visually match
+how a native writer draws the letter. Set both overrides together to dial
+in the exact start point and direction that feel natural.
 
 ## Styling
 
-Two CSS classes on the rendered SVG, themeable via CSS custom
-properties:
+Two CSS classes on the rendered SVG, themeable via CSS custom properties:
 
 ```css
 .my-stage {
-  --ms-ink-color: #1a1a2e;
-  --ms-ghost-color: #e0daf5;
+  --ms-ink-color:    #1a1a2e;   /* trace line colour */
+  --ms-ghost-color:  #e0daf5;   /* ghosted letter behind the trace */
+  --ms-stylus-color: #e8b84b;   /* pen tip dot */
 }
 ```
 
-`.ms-fill` is the glyph ink; `.ms-ghost` is a faint full-word preview
-shown behind it. Skip `malayalam-stroker/style.css` entirely and write
-your own rules against these two classes if you'd rather not use CSS
-custom properties.
+`.ms-stroke` is the animated trace line; `.ms-ghost` is the faint
+complete letterform shown behind it. `stroke-width` on `.ms-stroke` is
+set automatically in JS (scales with `unitsPerEm`) but can be overridden
+in CSS. Skip `malayalam-stroker/style.css` entirely and write your own
+rules if you prefer.
 
 ## License
 

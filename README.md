@@ -1,90 +1,91 @@
 # malayalam-stroker
 
-Two small packages, one job: turn Malayalam (or any HarfBuzz-shapeable
-script) text into an animated stroke-trace / handwriting widget.
+A JavaScript library for animating Malayalam script as handwriting — showing
+*how* to write a letter or word, not just what it looks like. Think
+[Hanzi Writer](https://hanziwriter.org/) but for Malayalam.
 
-- **[`python/`](python)** — `pip install malayalam-stroker`. Shapes text
-  against a font (fontTools + uharfbuzz) and outputs per-glyph SVG path
-  JSON. Runs server-side, since shaping needs a font file on disk.
-- **[`js/`](js)** — `npm install malayalam-stroker`. Takes that JSON and
-  animates it client-side as a left-to-right ink reveal.
+The JS package is self-contained: glyph shapes are pre-computed and bundled.
+No server, no font file, no HarfBuzz at runtime.
 
-Neither package depends on the other at the code level — the contract
-between them is just the `StrokeTrace` JSON shape, documented in both
-READMEs. Use one without the other if that's all you need (e.g. the
-Python package alone for a stroke-order dataset; the JS package alone
-if you're generating/precomputing JSON some other way).
+## How it works
 
-## Why this exists
+```
+tools/build_glyph_data.py   ← run once (or when you change fonts)
+        │
+        ▼
+js/src/glyph-data.json      ← font outlines + advance widths (commit this)
 
-There's no equivalent of [Hanzi Writer](https://hanziwriter.org/) (the
-well-known CJK stroke-order JS library) for Malayalam. This is a first
-attempt at filling that gap, starting from a real integration
-([lingua·ആലയം](https://github.com/sachn1/linguaalayam), a Malayalam
-dictionary app) as the reference implementation.
+tools/stroke-recorder.html  ← native speakers draw centerline strokes
+        │
+        ▼
+js/stroke-data.json         ← hand-authored stroke paths (commit this)
+        │
+        ▼
+js/src/index.js             ← self-contained animator; no runtime dependencies
+```
+
+Two committed JSON files power the widget:
+
+- **`glyph-data.json`** — font-specific outlines used for the ghost letterform
+  and cluster segmentation. Re-generate if you switch fonts.
+- **`stroke-data.json`** — font-agnostic, hand-authored centerline strokes that
+  animate like a pen. Commit once; works across fonts. Falls back to
+  outer-contour tracing when missing.
 
 ## Quickstart
 
 ```bash
-# Server-side: shape a word
-pip install malayalam-stroker
-python -m malayalam_stroker Manjari-Regular.ttf "നന്ദി" > trace.json
-```
+git clone https://github.com/your-username/malayalam-stroker
+cd malayalam-stroker
 
-```js
-// Client-side: animate it
-import { createStrokeWriter } from "malayalam-stroker";
-const writer = createStrokeWriter(document.getElementById("stage"));
-writer.play(await fetch("/trace.json").then(r => r.json()));
-```
+# (optional) regenerate glyph-data.json for a different font:
+cd python && poetry install
+poetry run python ../tools/build_glyph_data.py /path/to/MyFont.ttf
 
-## Try it
-
-```bash
-pip install -e python/
+# run the demo (static file server, no shaping backend needed):
 python demo/serve.py
 ```
 
-Open http://127.0.0.1:8000/demo/ — type any Malayalam word, press Trace.
-This is the only piece in the repo that needs a server running: shaping
-happens server-side (HarfBuzz needs a font file on disk), so a plain
-static HTML page can't shape arbitrary typed text on its own. See
-`js/examples/demo.html` for the simpler static-JSON version (one
-pre-shaped word, no server, just `open` the file).
+Open http://127.0.0.1:8000/demo/ — type any Malayalam word and watch it animate.
 
-## Status
+## Using the JS library
 
-Early / v0.1.0. Extracted from a single real-world integration, not yet
-battle-tested across many fonts or many consuming apps. Issues and PRs
-welcome once this is public — see CONTRIBUTING below.
+```js
+import { createStrokeWriter } from "malayalam-stroker";
+
+const writer = createStrokeWriter(document.getElementById("stage"));
+await writer.load();          // fetches glyph-data.json once
+await writer.loadStrokes();   // fetches stroke-data.json (optional, graceful no-op if absent)
+await writer.play("നന്ദി");
+```
+
+Not published to npm yet. Copy `js/src/` into your project or serve it
+locally — it's plain ES modules, no build step required.
 
 ## Repo layout
 
 ```
 malayalam-stroker/
-├── python/        # PyPI package: malayalam-stroker
-├── js/            # npm package: malayalam-stroker
-├── demo/          # interactive live-typing demo (needs `python demo/serve.py`)
-└── README.md      # this file
+├── js/                    # the JS animator library
+│   ├── src/index.js       # main export
+│   ├── src/glyph-data.json  # pre-computed font outlines (commit)
+│   └── stroke-data.json   # hand-authored stroke paths (commit when ready)
+├── python/                # build-time shaper (Poetry project)
+│   └── src/malayalam_stroker/
+├── tools/
+│   ├── build_glyph_data.py    # generates js/src/glyph-data.json
+│   └── stroke-recorder.html   # browser tool for authoring stroke-data.json
+├── demo/
+│   ├── demo_index.html
+│   └── serve.py
+└── README.md
 ```
 
-Monorepo, not two separate repos — the two packages version together
-and share the same JSON contract, so keeping them in one place avoids
-drift between them. If that stops being true (e.g. the JS package grows
-its own independent release cadence, or someone wants to consume just
-one without cloning both), splitting is straightforward later.
+## Status
 
-## Publishing checklist (not yet done)
-
-- [ ] Confirm `your-name-here` / `your-username` placeholders replaced
-      throughout (pyproject.toml, package.json, LICENSE files)
-- [ ] Re-verify `malayalam-stroker` still free on PyPI + npm at publish
-      time (checked clear as of this writing, but registries change)
-- [ ] `python/`: `python -m build`, `twine upload dist/*`
-- [ ] `js/`: `npm publish`
-- [ ] Tag a GitHub release once pushed
-- [ ] Add CI (GitHub Actions: pytest for python/, a basic Playwright
-      smoke test for js/) — not included yet, worth adding before v1.0
+Early / v0.1.0. The font-outline fallback works end-to-end; hand-authored
+strokes in `stroke-data.json` are not yet populated (the recorder tool is
+ready — someone needs to sit down and draw them).
 
 ## License
 

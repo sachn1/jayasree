@@ -81,8 +81,24 @@
   <div id="stage"></div>
   <button id="replay" type="button">↺ Replay</button>
 
+  <!-- Stroke library loader -->
+  <div id="lib-bar" style="margin-top:1.2rem; padding-top:1rem; border-top:1px solid #e0daf5;">
+    <p style="font-size:0.8rem; color:#6b6591; margin-bottom:0.5rem;">
+      Load hand-authored strokes from the recorder:
+    </p>
+    <label id="lib-drop" style="
+      display:block; border:2px dashed #c4b5e8; border-radius:8px;
+      padding:0.6rem 1rem; font-size:0.82rem; color:#6b6591;
+      cursor:pointer; text-align:center; transition:border-color 0.15s;
+    ">
+      Drop <strong>stroke-library.json</strong> here or click to browse
+      <input type="file" id="lib-file" accept=".json" style="display:none" />
+    </label>
+    <p id="lib-status" style="font-size:0.78rem; color:#6d28d9; min-height:1rem; margin-top:0.3rem;"></p>
+  </div>
+
   <script type="module">
-    import { createStrokeWriter } from "../js/src/index.js";
+    import { createStrokeWriter, STROKE_LIBRARY } from "../js/src/index.js";
 
     const writer = createStrokeWriter(document.getElementById("stage"));
     const form   = document.getElementById("traceForm");
@@ -90,16 +106,18 @@
     const status = document.getElementById("status");
     const btn    = document.getElementById("traceBtn");
 
+    // Load bundled glyph data once — no server or font needed
+    await writer.load("../js/src/glyph-data.json");
+    // Load hand-authored stroke paths if available (silent no-op if file absent)
+    await writer.loadStrokes("../js/src/stroke-data.json");
+
     async function traceWord(word) {
       word = word.trim();
       if (!word) return;
       status.textContent = "";
       btn.disabled = true;
       try {
-        const res  = await fetch("/api/shape/" + encodeURIComponent(word));
-        const body = await res.json();
-        if (!res.ok) throw new Error(body.error || "shaping failed");
-        await writer.play(body);
+        await writer.play(word);
       } catch (err) {
         status.textContent = err.message;
       } finally {
@@ -112,6 +130,35 @@
       b.addEventListener("click", () => { input.value = b.dataset.word; traceWord(input.value); })
     );
     document.getElementById("replay").addEventListener("click", () => writer.replay());
+
+    // ── Stroke library drag-and-drop ──────────────────────────────────
+    const libDrop   = document.getElementById("lib-drop");
+    const libFile   = document.getElementById("lib-file");
+    const libStatus = document.getElementById("lib-status");
+
+    function loadLibrary(file) {
+      const reader = new FileReader();
+      reader.onload = ev => {
+        try {
+          const data = JSON.parse(ev.target.result);
+          const count = Object.keys(data).length;
+          Object.assign(STROKE_LIBRARY, data);
+          libStatus.textContent = `✓ Loaded ${count} glyph${count !== 1 ? "s" : ""} — replay to see authored strokes`;
+          libDrop.style.borderColor = "#6d28d9";
+          // Replay immediately so the result is visible right away
+          writer.replay();
+        } catch {
+          libStatus.textContent = "Could not parse JSON — is this a stroke-library export?";
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    libDrop.addEventListener("click",    () => libFile.click());
+    libFile.addEventListener("change",   () => libFile.files[0] && loadLibrary(libFile.files[0]));
+    libDrop.addEventListener("dragover",  e => { e.preventDefault(); libDrop.style.borderColor = "#6d28d9"; });
+    libDrop.addEventListener("dragleave", () => libDrop.style.borderColor = "#c4b5e8");
+    libDrop.addEventListener("drop",      e => { e.preventDefault(); libDrop.style.borderColor = "#c4b5e8"; e.dataTransfer.files[0] && loadLibrary(e.dataTransfer.files[0]); });
 
     traceWord(input.value);
   </script>

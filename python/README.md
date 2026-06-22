@@ -1,18 +1,77 @@
 # malayalam-stroker (Python)
 
-Shape Malayalam text against any font and get back per-glyph SVG stroke
-paths, ready for a handwriting-trace or stroke-order animation.
+Build-time tool: shapes Malayalam text against a font using HarfBuzz and
+outputs per-glyph SVG path data as JSON. Used to generate
+`js/src/glyph-data.json` — the file the JS animator bundles at runtime.
 
-It's the missing piece between "I have a font" and "I have a stroke-order
-JSON" — built on [fontTools](https://github.com/fonttools/fonttools) +
-[uharfbuzz](https://github.com/harfbuzz/uharfbuzz), so shaping correctly
-handles conjunct/ligature collapse and vowel-sign reordering rather than
-treating each Unicode codepoint as one glyph.
+Not a runtime dependency. Not published to PyPI. Run it once (or when you
+change fonts) and commit the output.
 
-Pairs with the companion JS package
-[`malayalam-stroker`](../js) for an animated widget that consumes the
-JSON this produces directly — but the output here is plain JSON, useful
-on its own too.
+## Setup
+
+```bash
+cd python && poetry install
+```
+
+Requires Python 3.10+. Dependencies: `fonttools`, `uharfbuzz`.
+
+## Generate glyph-data.json
+
+```bash
+# Uses the bundled Manjari-Regular.ttf by default:
+poetry run python ../tools/build_glyph_data.py
+
+# Supply a different font:
+poetry run python ../tools/build_glyph_data.py /path/to/MyFont.ttf
+```
+
+Output: `js/src/glyph-data.json` (~1 MB). Commit this file.
+
+## Shape individual words (CLI)
+
+```bash
+poetry run python -m malayalam_stroker Manjari-Regular.ttf "മലയാളം" "നന്ദി" > out.json
+```
+
+Prints a JSON array, one `StrokeTrace` object per word. Useful for
+inspecting shaped output or building one-off datasets.
+
+## Generate the full alphabet
+
+```bash
+poetry run python -m malayalam_stroker alphabet tests/fixtures/Manjari-Regular.ttf > alphabet.json
+```
+
+Produces a JSON array covering all Malayalam base characters and
+consonant-matra combinations — input for `tools/stroke-recorder.html`.
+
+## Why shaping matters
+
+Malayalam isn't a 1:1 codepoint-to-glyph mapping — consonant clusters
+collapse into ligatures, vowel signs reorder visually. HarfBuzz handles this
+correctly:
+
+```python
+>>> word = "ക്ഷമിക്കണം"
+>>> len(word)                                    # 10 Unicode codepoints
+10
+>>> len(shape_word(word, font)["glyphs"])        # 6 shaped glyphs
+6
+```
+
+Anything that walks codepoints and looks up the font's cmap directly will
+produce broken conjuncts.
+
+## Font
+
+The bundled font is `tests/fixtures/Manjari-Regular.ttf` (SIL OFL, free).
+Any font with proper Malayalam GSUB/GPOS tables works — pass its path to the
+build script or CLI.
+
+## License
+
+MIT.
+
 
 ## Install
 

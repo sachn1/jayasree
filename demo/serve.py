@@ -51,9 +51,9 @@ class DemoHandler(BaseHTTPRequestHandler):
         self._serve_static(parsed.path)
 
     def _serve_static(self, path: str) -> None:
-        rel = path.lstrip("/") or "demo/index.html"
+        rel = path.lstrip("/") or "demo/demo_index.html"
         if rel == "demo" or rel == "demo/":
-            rel = "demo/index.html"
+            rel = "demo/demo_index.html"
         file_path = (_REPO_ROOT / rel).resolve()
 
         # Don't serve anything outside the repo root.
