@@ -79,8 +79,11 @@ class DemoHandler(BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 8000
-    server = ThreadingHTTPServer(("127.0.0.1", port), DemoHandler)
+    server = ThreadingHTTPServer(("0.0.0.0", port), DemoHandler)
+    import socket
+    local_ip = socket.gethostbyname(socket.gethostname())
     print(f"malayalam-stroker demo running at http://127.0.0.1:{port}/demo/")
+    print(f"On your tablet (same Wi-Fi): http://{local_ip}:{port}/tools/stroke-recorder.html")
     print("Ctrl+C to stop.")
     try:
         server.serve_forever()
