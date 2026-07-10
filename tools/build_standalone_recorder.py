@@ -5,8 +5,8 @@ The output can be opened directly in any browser (file://) — no server needed.
 Copy it to your tablet once; it works fully offline.
 
 The generated file embeds a content hash of its stroke-recorder.{html,css,js}
-sources as an HTML comment, so staleness (editing the sources without
-regenerating) is always detectable on demand:
++ favicon.svg sources as an HTML comment, so staleness (editing the sources
+without regenerating) is always detectable on demand:
 
     python tools/build_standalone_recorder.py --check
 
@@ -18,6 +18,7 @@ Usage (from repo root):
 from __future__ import annotations
 
 import argparse
+import base64
 import hashlib
 import re
 import sys
@@ -27,6 +28,7 @@ ROOT = Path(__file__).resolve().parent.parent
 HTML_SRC = ROOT / "tools" / "stroke-recorder.html"
 CSS_SRC = ROOT / "tools" / "stroke-recorder.css"
 JS_SRC = ROOT / "tools" / "stroke-recorder.js"
+FAVICON_SRC = ROOT / "favicon.svg"
 GLYPH_DATA = ROOT / "js" / "src" / "glyph-data.json"
 STROKE_DATA_RAW = ROOT / "js" / "src" / "stroke-data.raw.json"
 OUT = ROOT / "tools" / "stroke-recorder-standalone.html"
@@ -36,8 +38,13 @@ _HASH_RE = re.compile(r"<!-- source-hash: ([0-9a-f]+)")
 
 
 def _source_hash() -> str:
-    """Hash the three stroke-recorder source files together."""
-    combined = HTML_SRC.read_bytes() + CSS_SRC.read_bytes() + JS_SRC.read_bytes()
+    """Hash the stroke-recorder source files (+ favicon) together."""
+    combined = (
+        HTML_SRC.read_bytes()
+        + CSS_SRC.read_bytes()
+        + JS_SRC.read_bytes()
+        + FAVICON_SRC.read_bytes()
+    )
     return hashlib.sha256(combined).hexdigest()[:16]
 
 
@@ -53,6 +60,16 @@ def build() -> None:
     html = re.sub(
         r'<link\s+rel="stylesheet"\s+href="stroke-recorder\.css"\s*/?>',
         f"<style>\n{css}\n</style>",
+        html,
+    )
+
+    # Inline the favicon as a data URI — an external ../favicon.svg reference
+    # would break once this file is copied somewhere on its own (the whole
+    # point of "standalone").
+    favicon_b64 = base64.b64encode(FAVICON_SRC.read_bytes()).decode("ascii")
+    html = re.sub(
+        r'<link\s+rel="icon"[^>]*href="\.\./favicon\.svg"\s*/?>',
+        f'<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,{favicon_b64}" />',
         html,
     )
 
