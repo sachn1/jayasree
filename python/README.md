@@ -2,7 +2,7 @@
 
 Build-time tool: shapes Malayalam text against a font using HarfBuzz and
 outputs per-glyph SVG path data as JSON. Used to generate
-`js/src/glyph-data.json` — the file the JS animator bundles at runtime.
+`js/src/glyph-data.json` - the file the JS animator bundles at runtime.
 
 Not a runtime dependency. Not published to PyPI. Run it once (or when you
 change fonts) and commit the output.
@@ -58,7 +58,7 @@ font's native y-up space), so you can drop it straight into an `<svg>`.
 ```
 
 `x`/`y` are pen-position offsets (already includes any HarfBuzz positioning
-adjustments) — translate each glyph's `<path d={d}>` by `(x, y)` to place it
+adjustments) - translate each glyph's `<path d={d}>` by `(x, y)` to place it
 correctly relative to the others.
 
 ## CLI
@@ -68,7 +68,7 @@ correctly relative to the others.
 # each with the input word attached as "word"), in input order:
 poetry run python -m malayalam_stroker Manjari-Regular.ttf "മലയാളം" "നന്ദി" > out.json
 
-# Shape the full Malayalam base alphabet as one trace — quick input for
+# Shape the full Malayalam base alphabet as one trace - quick input for
 # tools/stroke-recorder.html without running the full build pipeline:
 poetry run python -m malayalam_stroker alphabet tests/fixtures/Manjari-Regular.ttf > alphabet.json
 ```
@@ -76,7 +76,7 @@ poetry run python -m malayalam_stroker alphabet tests/fixtures/Manjari-Regular.t
 ## Why shaping matters
 
 Malayalam (like most Brahmic scripts) isn't a 1:1 codepoint-to-glyph
-mapping — consonant clusters collapse into ligatures, vowel signs can
+mapping - consonant clusters collapse into ligatures, vowel signs can
 reorder visually:
 
 ```python
@@ -93,17 +93,17 @@ font's cmap directly will get this wrong.
 
 ## Fonts
 
-This package doesn't bundle a font for its own distribution — bring your
+This package doesn't bundle a font for its own distribution - bring your
 own. Tested against [Manjari](https://fonts.google.com/specimen/Manjari)
 and [Chilanka](https://fonts.google.com/specimen/Chilanka) (both SIL OFL,
 free); any font with proper Malayalam GSUB/GPOS tables should work. No
-GSUB/GPOS support generally means broken conjuncts — check your font choice
+GSUB/GPOS support generally means broken conjuncts - check your font choice
 if shaped output looks wrong. The bundled *test* fixture is
-`tests/fixtures/Manjari-Regular.ttf` (SIL OFL — see `tests/fixtures/OFL.txt`).
+`tests/fixtures/Manjari-Regular.ttf` (SIL OFL - see `tests/fixtures/OFL.txt`).
 
 ## Scope
 
-Despite the name, nothing here is Malayalam-specific at the code level —
+Despite the name, nothing here is Malayalam-specific at the code level -
 `shape_word` will happily shape Latin, Devanagari, or anything else
 HarfBuzz and your font support. The name reflects the motivating use case
 (there wasn't an existing stroke-order tool for Malayalam).

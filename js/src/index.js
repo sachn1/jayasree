@@ -1,13 +1,13 @@
 /**
- * malayalam-stroker — self-contained stroke-trace animation library.
+ * malayalam-stroker - self-contained stroke-trace animation library.
  *
  * No server, no font file, no build step required at runtime.
  *
  * Two data files, both committed to the repo:
- *   glyph-data.json  — font-specific SVG outlines + advance widths.
+ *   glyph-data.json  - font-specific SVG outlines + advance widths.
  *                      Re-generate when the font changes:
  *                        python tools/build_glyph_data.py [/path/to/Font.ttf]
- *   stroke-data.json — font-agnostic hand-authored centerline strokes,
+ *   stroke-data.json - font-agnostic hand-authored centerline strokes,
  *                      produced by tools/stroke-recorder.html.
  *                      Falls back to outer-contour outline when absent.
  *
@@ -15,7 +15,7 @@
  * import { createStrokeWriter } from "malayalam-stroker";
  * const writer = createStrokeWriter(document.getElementById("stage"));
  * await writer.load();
- * await writer.loadStrokes();   // optional — silent no-op if file absent
+ * await writer.loadStrokes();   // optional - silent no-op if file absent
  * await writer.play("നന്ദി");
  *
  * @module malayalam-stroker
@@ -36,9 +36,9 @@ const REPLAY_PAUSE_MS = 500;
  * Default inter-cluster tightening, as a fraction of unitsPerEm, trimmed from
  * each cluster's advance before accumulating pen position.
  *
- * The font's advance width bakes in a trailing sidebearing gap — measured at
+ * The font's advance width bakes in a trailing sidebearing gap - measured at
  * a near-constant ~200/2048 em-units across this font's glyphs regardless of
- * glyph width, rather than a proportional amount — that reads as too loose
+ * glyph width, rather than a proportional amount - that reads as too loose
  * for this handwriting-trace UI. Trimming a fraction of it tightens
  * inter-character spacing without touching any cluster's own internal glyph
  * layout. Override per writer via `options.tighten` (see createStrokeWriter).
@@ -223,7 +223,7 @@ function composeMark(base, mark) {
 
 /**
  * Offset every absolute coordinate in an SVG path's `d` string by (dx, dy).
- * Mirrors tools/.../stroke_compose.py's `offset_svg_path` exactly — same
+ * Mirrors tools/.../stroke_compose.py's `offset_svg_path` exactly - same
  * regex-based approach, needed here to compose *stroke* paths at runtime
  * the same way {@link composeMark} composes glyph outlines.
  *
@@ -250,7 +250,7 @@ function offsetSvgPath(d, dx, dy) {
  * in application order (each applied to the *result* of the previous one).
  * ൊ/ോ/ൌ match their official Unicode canonical decomposition (NFD: ൊ→െ+ാ,
  * ോ→േ+ാ, ൌ→െ+ൗ); ൈ has no such decomposition and, in this font, shapes as a
- * single prefix-only glyph rather than two, so it's deliberately left out —
+ * single prefix-only glyph rather than two, so it's deliberately left out -
  * it composes fine as its own atom already (see {@link tryComposeStroke}).
  *
  * @type {Record<string, string[]>}
@@ -266,20 +266,20 @@ const SPLIT_VOWEL_PARTS = {
  * dotted-circle placeholder HarfBuzz inserts for a base-less combining
  * mark) naturally sits in that mark's standalone `clusters` entry.
  *
- * A suffix mark's standalone shaping is [circle, content] — HarfBuzz's own
- * cluster order — so content is the *last* glyph, typically offset well
+ * A suffix mark's standalone shaping is [circle, content] - HarfBuzz's own
+ * cluster order - so content is the *last* glyph, typically offset well
  * past 0 (the circle's own advance width). A prefix mark's standalone
  * shaping reorders to [content, circle] (prefix marks visually precede
  * their base, circle or not), so content is already the *first* glyph, at
- * x=0 — no correction needed there, which is why this is only read for the
+ * x=0 - no correction needed there, which is why this is only read for the
  * suffix case in {@link applyMarkStroke}.
  *
  * A hand-drawn stroke for that mark was traced over this same standalone
- * ghost, so it's anchored at this x, not 0 — unlike the marks-table's own
+ * ghost, so it's anchored at this x, not 0 - unlike the marks-table's own
  * `suffix` glyph array, which `_build_marks()` (tools/build_glyph_data.py)
  * already re-anchors to 0. Returns 0 (no correction) for marks with no
  * standalone `clusters` entry at all (the 2-char subjoined forms
- * ്യ/്വ/്ല, never added there — see `_standalone_inputs()`).
+ * ്യ/്വ/്ല, never added there - see `_standalone_inputs()`).
  *
  * @param {string} markKey
  * @param {Record<string, object>} clusters
@@ -296,10 +296,10 @@ function markContentAnchorX(markKey, clusters) {
  * mark's own recorded stroke, using the same shift/prefix/suffix recipe as
  * {@link composeMark}. This is what lets `stroke-data.json` stay small (just
  * the hand-authored + per-glyph-composed base) instead of pre-baking every
- * mark combination — the same principle already applied to `glyph-data.json`
+ * mark combination - the same principle already applied to `glyph-data.json`
  * via runtime composition, extended to strokes.
  *
- * Returns `null` for compound marks (both prefix and suffix parts) — only
+ * Returns `null` for compound marks (both prefix and suffix parts) - only
  * one recorded stroke exists for those, and it can't be cleanly offset
  * without also warping the gap in the middle to match the base's width.
  * {@link tryComposeStroke} handles that case instead, by applying the
@@ -328,7 +328,7 @@ function applyMarkStroke(baseStrokes, mark, markStrokes, baseAdvance, markAnchor
 
 /**
  * Apply a sequence of single-sided marks (each looked up and offset via
- * {@link applyMarkStroke}) to a base, one after another — used to compose a
+ * {@link applyMarkStroke}) to a base, one after another - used to compose a
  * compound vowel sign from its {@link SPLIT_VOWEL_PARTS} instead of needing
  * its own recorded stroke. Requires every part to already have a recorded
  * stroke in {@link STROKE_LIBRARY} (e.g. "െ" and "ാ" for ൊ); returns `null`
@@ -373,9 +373,9 @@ function tryDirectMarkStroke(baseStrokes, baseAdvance, markKey, marks, clusters)
 
 /**
  * Try composing a stroke for `cluster` from a shorter base plus a trailing
- * mark — mirrors {@link resolveSegments}'s glyph-level composition, one
+ * mark - mirrors {@link resolveSegments}'s glyph-level composition, one
  * level up. The base isn't required to already be in {@link STROKE_LIBRARY}
- * — if it's itself a multi-character cluster with no stroke yet (e.g.
+ * - if it's itself a multi-character cluster with no stroke yet (e.g.
  * "ദ്യ" while composing "ദ്യു"), it's composed recursively first, so a
  * chain of marks (conjunct + subjoined form + vowel sign) resolves down to
  * its recorded atoms instead of bailing at the first not-yet-cached link.
@@ -383,7 +383,7 @@ function tryDirectMarkStroke(baseStrokes, baseAdvance, markKey, marks, clusters)
  * out within `cluster.length` levels.
  *
  * A compound 1-char mark (both prefix and suffix, e.g. ൊ/ോ/ൌ) is composed
- * via its {@link SPLIT_VOWEL_PARTS} instead of its own stroke — see {@link
+ * via its {@link SPLIT_VOWEL_PARTS} instead of its own stroke - see {@link
  * applySequentialMarkStrokes}. Composed results are cached into {@link
  * STROKE_LIBRARY} under `cluster` so repeated traces of the same word (or
  * repeated use of the same intermediate base) don't recompose it.
@@ -418,10 +418,10 @@ function tryComposeStroke(cluster, glyphData) {
 
 /**
  * How far to shift character `ch`'s own recorded stroke so it lands at
- * `targetGx` within a larger cluster — mirrors
+ * `targetGx` within a larger cluster - mirrors
  * tools/.../stroke_compose.py's `_char_dx` exactly (same anchor
  * correction for a multi-glyph standalone entry, e.g. a mark's
- * circle+content ghost — see {@link markContentAnchorX}).
+ * circle+content ghost - see {@link markContentAnchorX}).
  *
  * @param {string} ch
  * @param {number} targetGx
@@ -441,23 +441,23 @@ function charDx(ch, targetGx, clusters) {
  * Last-resort composition: cluster not resolvable as base+mark (see {@link
  * tryComposeStroke}), so fall back to treating every character as its own
  * independent atom and placing each one's own recorded stroke at its glyph
- * slot — mirrors tools/.../stroke_compose.py's `compose_per_glyph` (the
+ * slot - mirrors tools/.../stroke_compose.py's `compose_per_glyph` (the
  * offline bake's equivalent fallback), restricted the same way: only when
  * the character count matches the glyph count, since a mismatch means some
  * character actually contributes more than one glyph (a mark attachment,
- * not independent characters side by side — see that function's docstring
+ * not independent characters side by side - see that function's docstring
  * for the concretely-verified failure mode of ignoring this).
  *
  * Also bails when any character is a *prefix*-type mark (e.g. െ/േ/ൈ) even
  * though the count matches: HarfBuzz visually reorders a prefix mark's
  * glyph *before* its base's, so glyph index no longer matches character
- * index — see `compose_per_glyph`'s docstring for the concretely-verified
+ * index - see `compose_per_glyph`'s docstring for the concretely-verified
  * "ടെ" failure this avoids (both characters' strokes landing on top of
  * each other at the mark's position).
  *
  * However imperfect the result (no font ligatures, just each atom's own
  * shape offset into place), it's still each atom in the position the font
- * says it belongs — closer to the real word than the plain outline-trace
+ * says it belongs - closer to the real word than the plain outline-trace
  * fallback for any cluster where every character actually has its own
  * recorded stroke.
  *
@@ -490,12 +490,12 @@ function tryComposeFromCharacters(cluster, glyphData) {
  * Resolve `text` into an ordered list of `{ cluster, entry }` pairs.
  *
  * Tries a direct longest-match lookup first, but only at 4/3/2 chars
- * (conjunct+matra → conjunct → consonant+matra) — 1-char is deliberately
+ * (conjunct+matra → conjunct → consonant+matra) - 1-char is deliberately
  * excluded here even though virama and every matra now have their own
  * `clusters` entry (added so the recorder has a real ghost to record them
  * against, see tools/build_glyph_data.py's `_standalone_inputs()`). A
  * length-1 slice that's *also* a registered mark must get first crack at
- * attaching onto the previously matched segment below — matching it
+ * attaching onto the previously matched segment below - matching it
  * directly here instead would render its isolated dotted-circle-placeholder
  * shape standalone, wrongly splitting it off the consonant it belongs to
  * (e.g. "ദ്യു" as "ദ്യ" + orphaned "ു" instead of one composed cluster).
@@ -503,21 +503,21 @@ function tryComposeFromCharacters(cluster, glyphData) {
  * A character with no 4/3/2-length direct match is composed onto the
  * *previously matched* segment (base and mark are adjacent by construction,
  * so "the segment just pushed" is exactly the base this mark attaches to)
- * — see {@link composeMark}. Mark lookup tries a 2-char tail first
- * (subjoined conjunct forms — virama plus a reduced ya/va/la, e.g. "്യ")
+ * - see {@link composeMark}. Mark lookup tries a 2-char tail first
+ * (subjoined conjunct forms - virama plus a reduced ya/va/la, e.g. "്യ")
  * before falling back to 1-char (virama or a dependent vowel sign alone).
  * Some marks (ു/ൂ/ൃ, and subjoined la) fuse into a glyph unique to the
- * specific preceding consonant in real shaping — composing them generically
+ * specific preceding consonant in real shaping - composing them generically
  * can't reproduce that exact fused glyph, so they render as the base's own
  * glyph plus the mark's separate standalone shape instead: less tightly
  * kerned than a true font ligature, but still correct and legible (see
  * glyphData.marks / tools/build_glyph_data.py's _build_marks() docstring
  * for the full derivation). Composition is skipped only for marks with a
- * prefix component when the base is more than one glyph — that reordering
+ * prefix component when the base is more than one glyph - that reordering
  * isn't safe on a non-ligating multi-glyph conjunct.
  *
- * Only once mark composition doesn't apply (no previous segment — start of
- * text — or that unsupported prefix+multi-glyph case) does a length-1
+ * Only once mark composition doesn't apply (no previous segment - start of
+ * text - or that unsupported prefix+multi-glyph case) does a length-1
  * direct match get tried, rendering the character's own isolated shape
  * (correct for e.g. a stray mark with nothing to attach to). Failing that,
  * the character is skipped with a console warning.
@@ -569,7 +569,7 @@ function resolveSegments(text, clusters, marks) {
       continue;
     }
 
-    console.warn(`malayalam-stroker: no glyph data for ${JSON.stringify(single)} in ${JSON.stringify(text)} — skipping`);
+    console.warn(`malayalam-stroker: no glyph data for ${JSON.stringify(single)} in ${JSON.stringify(text)} - skipping`);
     i++;
   }
   return segs;
@@ -624,7 +624,7 @@ export function createStrokeWriter(container, options = {}) {
   /**
    * Fetch stroke-data.json and merge into {@link STROKE_LIBRARY} (idempotent).
    *
-   * A missing file (404 or network error) is silently ignored — the library
+   * A missing file (404 or network error) is silently ignored - the library
    * simply falls back to outline-based animation for unrecognised clusters.
    * Existing keys are never overwritten so multiple calls are safe.
    *
@@ -652,7 +652,7 @@ export function createStrokeWriter(container, options = {}) {
    *
    * Each group corresponds to one Unicode cluster. Components are the
    * individual HarfBuzz glyphs that make up the cluster and are used for
-   * ghost rendering and outline fallback — authored strokes fire once per
+   * ghost rendering and outline fallback - authored strokes fire once per
    * group, not once per component.
    *
    * @param {string} text
@@ -938,7 +938,7 @@ export function createStrokeWriter(container, options = {}) {
 
 /**
  * Internal functions exposed only for unit testing (see tests/index.test.js).
- * Not part of the public API — no stability guarantee, may change shape or
+ * Not part of the public API - no stability guarantee, may change shape or
  * disappear without notice. Use {@link createStrokeWriter} for real usage.
  */
 export const _internal = {

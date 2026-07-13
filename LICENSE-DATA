@@ -1,0 +1,32 @@
+License for the data and artwork in this repository
+====================================================
+
+The *code* in this repository is MIT-licensed (see LICENSE). The following
+creative content is licensed separately, under the Creative Commons
+Attribution 4.0 International license (CC BY 4.0):
+
+  - js/src/stroke-data.raw.json   (the hand-drawn centerline strokes -
+                                   the original creative work at the heart
+                                   of this project)
+  - js/src/stroke-data.json       (processed/derived from the above)
+  - demo/jayasree.svg             (the animated wordmark)
+  - docs/centering-example/*.svg  (the pipeline illustrations)
+
+Full license text: https://creativecommons.org/licenses/by/4.0/legalcode
+
+What CC BY 4.0 means in practice: you may copy, redistribute, remix, and
+build on this content - including commercially - as long as you give
+appropriate credit. Please credit as:
+
+    "Jayasree / malayalam-stroker" by Sachin Nandakumar
+    https://github.com/sachn1/malayalam-stroker
+
+Third-party letterforms (Manjari)
+---------------------------------
+
+js/src/glyph-data.json, and the letterform outlines that appear inside the
+generated SVGs above, are derived from the Manjari typeface by Santhosh
+Thottingal / Swathanthra Malayalam Computing (https://smc.org.in/fonts/manjari),
+licensed under the SIL Open Font License 1.1. Manjari's copyright remains
+with its authors; if you regenerate glyph-data.json from a different font,
+that font's license applies to your output instead.

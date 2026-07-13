@@ -139,7 +139,7 @@ def build_reference_segments(glyph_glyphs: list[dict], field: DistField) -> list
 
     Each outer straight outline edge is sampled and gradient-ascended into
     the ink (:func:`~malayalam_stroker.centering.center_points`); a line fit
-    through the ascended points is kept only if it's clean (low residual) —
+    through the ascended points is kept only if it's clean (low residual) -
     this discards edges near corners/junctions where ascent can wander to
     the wrong local ridge.
 
@@ -199,7 +199,7 @@ def split_path_into_pieces(path: svgpathtools.Path) -> list[list]:
 
     Mirrors the corner detection in :mod:`malayalam_stroker.geometry`, but
     works directly off the parsed segments' tangents rather than resampled
-    points — the corner is already a real geometric feature of the smoothed
+    points - the corner is already a real geometric feature of the smoothed
     path (a tangent break between two pieces), not something that needs
     re-inferring.
 
@@ -327,7 +327,7 @@ def refine_stroke(stroke_d: str, refs: list[dict]) -> str:
     """Refine one stroke: match corner-free straight runs to reference segments.
 
     Each straight run is rigidly rotated about its (fixed) start point to the
-    matched reference's exact angle — correcting the drawn angle to the
+    matched reference's exact angle - correcting the drawn angle to the
     font's actual angle. Runs with no good match, or that aren't straight,
     are kept as authored (rigidly translated to stay attached at the corner
     after a neighboring correction).

@@ -1,8 +1,8 @@
-"""Tests for tools/validate_data.py — data-integrity checks for the committed files.
+"""Tests for tools/validate_data.py - data-integrity checks for the committed files.
 
 Deliberately script-agnostic: fixtures are synthetic stroke/glyph structures,
 not real Malayalam data (that's exercised separately by running the script
-against the real files in CI — see .github/workflows/ci.yml).
+against the real files in CI - see .github/workflows/ci.yml).
 """
 
 from __future__ import annotations

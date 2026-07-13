@@ -1,4 +1,4 @@
-"""Tests for malayalam_stroker._chars — the Malayalam Unicode character inventory.
+"""Tests for malayalam_stroker._chars - the Malayalam Unicode character inventory.
 
 Explicitly Malayalam-specific (unlike test_geometry.py/test_centering.py/
 test_ghost_reference.py/test_stroke_compose.py, which test the

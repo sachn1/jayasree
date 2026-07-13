@@ -40,7 +40,7 @@ SPECIAL_CONSONANTS: tuple[str, ...] = tuple("ളഴറ")
 RARE_CONSONANTS: tuple[str, ...] = ("ഩ", "ഺ")
 
 #: All 36 consonants (regular + special), in standard order.
-#: Does not include RARE_CONSONANTS — add those explicitly if needed.
+#: Does not include RARE_CONSONANTS - add those explicitly if needed.
 CONSONANTS: tuple[str, ...] = REGULAR_CONSONANTS + SPECIAL_CONSONANTS
 
 #: 6 chillu letters (pure consonants, no inherent vowel).
@@ -51,11 +51,11 @@ CHILLU: tuple[str, ...] = tuple("ൻർൽൾൺൿ")
 NUMERALS: tuple[str, ...] = tuple("൦൧൨൩൪൫൬൭൮൯")
 
 #: 12 dependent vowel signs (matras) for common Malayalam.
-#: Uses U+0D4C (ൌ) for the au vowel sign — this is the canonical form
+#: Uses U+0D4C (ൌ) for the au vowel sign - this is the canonical form
 #: that triggers the full split-vowel rendering (component before + after the base).
 MATRAS: tuple[str, ...] = tuple("ാിീുൂൃെേൈൊോൌ")
 
-#: Au length mark (U+0D57 ൗ) — a separate codepoint sometimes used standalone
+#: Au length mark (U+0D57 ൗ) - a separate codepoint sometimes used standalone
 #: or as a component; distinct from the au vowel sign U+0D4C in MATRAS above.
 AU_LENGTH_MARK: str = "\u0d57"
 
@@ -63,11 +63,11 @@ AU_LENGTH_MARK: str = "\u0d57"
 #: ൄ = vocalic RR sign (U+0D44), ൢ = vocalic L sign (U+0D62), ൣ = vocalic LL sign (U+0D63).
 RARE_MATRAS: tuple[str, ...] = ("\u0d44", "\u0d62", "\u0d63")
 
-#: Virama (chandrakkala) — suppresses the inherent vowel.
+#: Virama (chandrakkala) - suppresses the inherent vowel.
 VIRAMA: str = "\u0d4d"
 
-#: Anusvara — nasalisation sign ം.  # noqa: RUF003
+#: Anusvara - nasalisation sign ം.  # noqa: RUF003
 ANUSVARA: str = "\u0d02"
 
-#: Visarga — aspiration sign ഃ.
+#: Visarga - aspiration sign ഃ.
 VISARGA: str = "\u0d03"

@@ -1,7 +1,7 @@
 """Compose multi-character cluster strokes from individually-authored parts.
 
 Mark composition (consonant+virama, conjunct+matra, subjoined conjunct forms)
-is deliberately not done here — see js/src/index.js's tryComposeStroke() and
+is deliberately not done here - see js/src/index.js's tryComposeStroke() and
 docs/CENTERING_EXPERIMENTS.md's "Stroke composition" section for why.
 """
 
@@ -38,7 +38,7 @@ def offset_svg_path(d: str, dx: float, dy: float) -> str:
         elif upper == "V":
             shifted = [v + dy for v in coords]
         else:
-            # M, L, C, S, Q, T — pairs of (x, y)
+            # M, L, C, S, Q, T - pairs of (x, y)
             shifted = [v + dx if i % 2 == 0 else v + dy for i, v in enumerate(coords)]
         return f"{cmd} {' '.join(f'{v:.1f}' for v in shifted)}"
 
@@ -72,7 +72,7 @@ def find_matching_standalone_glyph_x(ch: str, clusters: dict) -> float:
     standalone_glyphs = char_entry["glyphs"]
     if len(standalone_glyphs) <= 1:
         return standalone_glyphs[0].get("x", 0) if standalone_glyphs else 0.0
-    # Multi-glyph standalone — the last glyph is the actual content
+    # Multi-glyph standalone - the last glyph is the actual content
     # (e.g. for ം: glyph[0]=base placeholder, glyph[1]=anusvara circle).
     return standalone_glyphs[-1].get("x", 0)
 
@@ -98,21 +98,21 @@ def compose_per_glyph(
     cluster (from ``glyph-data.json``).
 
     That last-glyph-count-mismatch case is exactly the shape of a mark
-    attachment (e.g. a compound vowel sign contributing 2 glyphs — a prefix
-    and a suffix piece — for 1 character), which this function assumes never
+    attachment (e.g. a compound vowel sign contributing 2 glyphs - a prefix
+    and a suffix piece - for 1 character), which this function assumes never
     happens: it walks `chars` and `glyphs` in lockstep, one glyph per
-    character. Attempting it anyway silently misassigns glyph slots —
+    character. Attempting it anyway silently misassigns glyph slots -
     verified concretely for "കൊ" (2 chars, 3 glyphs): ക's stroke was left
     unshifted instead of moving to the middle slot, and ൊ's own stroke
     absorbed a shift meant for a different sub-part, landing both in the
     wrong place. Per this module's docstring, mark attachment is runtime's
-    job (tryComposeStroke), not this one's — bailing here leaves it to
+    job (tryComposeStroke), not this one's - bailing here leaves it to
     compose correctly there.
 
     A *prefix*-type mark (e.g. െ/േ/ൈ) is a second, subtler case of the same
     principle even when the character count does equal the glyph count:
     HarfBuzz visually reorders a prefix mark's glyph *before* its base's own
-    glyph, so `glyphs`' order no longer matches `chars`' text order —
+    glyph, so `glyphs`' order no longer matches `chars`' text order -
     verified concretely for "ടെ" (2 chars, 2 glyphs): both ട's and െ's
     strokes landed on top of each other at the mark's position, ട's own
     slot left empty, because this function assumed glyph *i* belongs to
@@ -140,7 +140,7 @@ def compose_per_glyph(
         2 glyphs (a single-glyph ligature can't be decomposed this way),
         the character count doesn't match the glyph count, or any
         character is a prefix-type mark (glyph order wouldn't match text
-        order — see above).
+        order - see above).
     """
     chars = list(cluster_key)
     if len(chars) < 2:
@@ -188,7 +188,7 @@ def compose_all(glyph_data: dict, stroke_data: dict) -> tuple[dict, int, int]:
     Returns
     -------
     tuple[dict, int, int]
-        ``(out, generated, skipped)`` — `stroke_data` merged with newly
+        ``(out, generated, skipped)`` - `stroke_data` merged with newly
         composed clusters, the count generated, and the count skipped
         (clusters that couldn't be composed from existing parts).
     """

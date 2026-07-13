@@ -1,5 +1,5 @@
 /**
- * demo.js — interactive demo for malayalam-stroker.
+ * demo.js - interactive demo for malayalam-stroker.
  *
  * Loads glyph-data.json + stroke-data.json at startup, then wires up the
  * trace form, suggestion chips, replay button, and the stroke-library
@@ -9,7 +9,7 @@
 import { createStrokeWriter, STROKE_LIBRARY } from "../js/src/index.js";
 
 // Fetch + parse glyph-data.json once and hand the same parsed object to every
-// writer instance (main stage + logo) via the `glyphData` option — each
+// writer instance (main stage + logo) via the `glyphData` option - each
 // writer's own load() would otherwise independently re-fetch and, worse,
 // re-parse this file, and at its current (prototype-stage) size that
 // double parse is a real, noticeable chunk of page-load time.
@@ -24,7 +24,7 @@ const status = document.getElementById("status");
 const btn = document.getElementById("traceBtn");
 
 // Load stroke-data.json (processed: centered + smoothed + ghost-straightened +
-// expanded — see tools/process_strokes.py) first, then stroke-data.raw.json —
+// expanded - see tools/process_strokes.py) first, then stroke-data.raw.json -
 // loadStrokes() never overwrites a cluster already in STROKE_LIBRARY, so this
 // fills in any newly hand-drawn characters that haven't been through the
 // pipeline yet, without ever showing stale data for ones that have.
@@ -32,7 +32,7 @@ await writer.loadStrokes(`../js/src/stroke-data.json?v=${Date.now()}`);
 await writer.loadStrokes(`../js/src/stroke-data.raw.json?v=${Date.now()}`);
 
 // ---------------------------------------------------------------------------
-// Logo — the app showcases itself by animating its own Malayalam name.
+// Logo - the app showcases itself by animating its own Malayalam name.
 // Runs independently of the main writer so it doesn't delay the word trace.
 //
 // Two-stage reveal: the black outline traces first with the violet fill
@@ -53,7 +53,7 @@ if (logoStage) {
    *
    * `buildStage()` runs synchronously inside `play()`/`replay()` before their
    * first `await`, so the ghost element already exists in the DOM by the
-   * time the call returns — that's what lets us grab and clip it here
+   * time the call returns - that's what lets us grab and clip it here
    * without waiting for the trace to finish.
    *
    * @param {() => Promise<void>} trigger
@@ -96,13 +96,13 @@ if (logoStage) {
   }
 
   // glyphData is already supplied above, so play() resolves it synchronously
-  // (no fetch of its own) — no separate load() step needed here.
+  // (no fetch of its own) - no separate load() step needed here.
   playLogoWithReveal(() => logoWriter.play("ജയശ്രീ"));
   logoStage.addEventListener("click", () => playLogoWithReveal(() => logoWriter.replay()));
 }
 
 // ---------------------------------------------------------------------------
-// Controls — speed / thickness / repeat
+// Controls - speed / thickness / repeat
 // ---------------------------------------------------------------------------
 
 const speedCtl = document.getElementById("speedCtl");
@@ -135,7 +135,7 @@ function thicknessLabel(v) {
 }
 
 // strokeWidth is fixed at writer creation (it sizes every stroke element the
-// stage builds), so changing it means a fresh writer on the same stage —
+// stage builds), so changing it means a fresh writer on the same stage -
 // cheap, since the parsed glyphData object is shared and STROKE_LIBRARY is
 // module-global. `change` (not `input`) so it fires once per adjustment, not
 // per pixel of slider drag.
@@ -208,11 +208,11 @@ function loadLibrary(file) {
       const data = JSON.parse(ev.target.result);
       const count = Object.keys(data).length;
       Object.assign(STROKE_LIBRARY, data);
-      libStatus.textContent = `✓ Loaded ${count} glyph${count !== 1 ? "s" : ""} — replay to see authored strokes`;
+      libStatus.textContent = `✓ Loaded ${count} glyph${count !== 1 ? "s" : ""} - replay to see authored strokes`;
       libDrop.style.borderColor = "#6d28d9";
       writer.replay();
     } catch {
-      libStatus.textContent = "Could not parse JSON — is this a stroke-data export?";
+      libStatus.textContent = "Could not parse JSON - is this a stroke-data export?";
     }
   };
   reader.readAsText(file);

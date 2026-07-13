@@ -25,7 +25,7 @@ export default [
   {
     // Event-handler callbacks (onPointerUp, etc.) commonly take an event
     // param purely to match the addEventListener callback signature, even
-    // when the handler itself doesn't read it — not worth flagging.
+    // when the handler itself doesn't read it - not worth flagging.
     rules: {
       "no-unused-vars": ["error", { args: "none" }],
     },

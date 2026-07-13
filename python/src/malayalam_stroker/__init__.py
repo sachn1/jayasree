@@ -1,4 +1,4 @@
-"""Shape Malayalam text and extract per-glyph SVG stroke paths — see README.md for usage."""
+"""Shape Malayalam text and extract per-glyph SVG stroke paths - see README.md for usage."""
 
 from .strokes import MAX_WORD_LENGTH, Glyph, StrokeTrace, shape_word
 

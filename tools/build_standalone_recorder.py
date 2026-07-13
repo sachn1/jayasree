@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Bundle stroke-recorder.html + glyph-data.json into a single self-contained file.
 
-The output can be opened directly in any browser (file://) — no server needed.
+The output can be opened directly in any browser (file://) - no server needed.
 Copy it to your tablet once; it works fully offline.
 
 The generated file embeds a content hash of its stroke-recorder.{html,css,js}
@@ -63,7 +63,7 @@ def build() -> None:
         html,
     )
 
-    # Inline the favicon as a data URI — an external ../favicon.svg reference
+    # Inline the favicon as a data URI - an external ../favicon.svg reference
     # would break once this file is copied somewhere on its own (the whole
     # point of "standalone").
     favicon_b64 = base64.b64encode(FAVICON_SRC.read_bytes()).decode("ascii")
@@ -75,12 +75,12 @@ def build() -> None:
 
     # Inject glyph-data and the current stroke-data.raw.json as pre-loaded JS
     # variables before the main script, then patch the drop-zone so it
-    # auto-loads on page open — bundling the raw strokes too (not just the
+    # auto-loads on page open - bundling the raw strokes too (not just the
     # glyph outlines) means the reduced-set filter and "already recorded"
     # checkmarks are correct immediately, with no manual "Load existing
     # strokes" step needed before recording the remaining gaps.
     preload_script = f"""<script>
-// Data bundled at build time — no file drop needed.
+// Data bundled at build time - no file drop needed.
 const BUNDLED_GLYPH_DATA = {glyph_data};
 const BUNDLED_STROKE_DATA = {stroke_data_raw};
 </script>"""
@@ -92,12 +92,12 @@ window.addEventListener("DOMContentLoaded", () => {
     existingStrokeData = BUNDLED_STROKE_DATA;
     const count = Object.keys(existingStrokeData).length;
     document.getElementById("merge-status").textContent =
-      `✓ ${count} existing cluster(s) loaded — export will merge`;
+      `✓ ${count} existing cluster(s) loaded - export will merge`;
   }
   if (typeof BUNDLED_GLYPH_DATA !== "undefined") {
     parseGlyphData(JSON.stringify(BUNDLED_GLYPH_DATA));
     // Land directly on the first not-yet-recorded atom instead of index 0
-    // (almost always already-recorded) — removes any guesswork about where
+    // (almost always already-recorded) - removes any guesswork about where
     // to start.
     document.getElementById("next-missing-btn").click();
   }
@@ -118,7 +118,7 @@ window.addEventListener("DOMContentLoaded", () => {
     OUT.write_text(html, encoding="utf-8")
     size_kb = OUT.stat().st_size / 1024
     print(f"Written {OUT.relative_to(ROOT)}  ({size_kb:.0f} KB)")
-    print("Copy this single file to your tablet — opens offline in any browser.")
+    print("Copy this single file to your tablet - opens offline in any browser.")
 
 
 def check() -> None:

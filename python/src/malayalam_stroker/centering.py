@@ -11,7 +11,7 @@ from PIL import Image, ImageDraw
 from scipy.ndimage import distance_transform_edt
 from scipy.spatial import cKDTree
 
-RASTER_SIZE: int = 1024  # px — larger = finer gradient field
+RASTER_SIZE: int = 1024  # px - larger = finer gradient field
 BBOX_PAD: float = 100.0  # font units padding around outline bbox
 
 N_ASCENT_STEPS: int = 20  # gradient ascent iterations per point
@@ -185,7 +185,7 @@ def _ascend(field: DistField, row: float, col: float) -> tuple[float, float]:
 #: displacement field before it's applied. Gradient ascent moves each point
 #: independently, so on a narrow section of ink (a thin connecting stroke
 #: between two bowls, say) neighboring points can end up pulled toward
-#: slightly different parts of the ridge — small in absolute terms, but
+#: slightly different parts of the ridge - small in absolute terms, but
 #: large relative to how narrow the ink is there, which shows up as a
 #: visible bulge/doubling in an otherwise-single line. Smoothing the
 #: displacement *along the stroke* keeps the overall centering correction
@@ -202,7 +202,7 @@ def center_points(
     """Move each point toward the local center of the ink at its position.
 
     A point that would move further than *max_shift_fu* is blended back
-    toward its original position instead — a guard against the gradient
+    toward its original position instead - a guard against the gradient
     leading to the wrong local ridge on complex/self-intersecting shapes.
     The resulting per-point displacement is then smoothed along the stroke
     (see ``DISPLACEMENT_SMOOTHING_WINDOW``) before being applied, so the

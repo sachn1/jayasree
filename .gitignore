@@ -8,6 +8,6 @@ coverage/
 node_modules/
 dist/
 build/
-# generated outputs — re-create with build_glyph_data.py / alphabet CLI
+# generated outputs - re-create with build_glyph_data.py / alphabet CLI
 alphabet-trace.json
 python/alphabet-trace.json

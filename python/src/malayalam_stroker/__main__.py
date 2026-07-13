@@ -1,4 +1,4 @@
-"""Entry point for `python -m malayalam_stroker` — see cli.py for the actual logic."""
+"""Entry point for `python -m malayalam_stroker` - see cli.py for the actual logic."""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-/* demo.css — styles for the malayalam-stroker interactive demo */
+/* demo.css - styles for the malayalam-stroker interactive demo */
 
 body {
   font-family: system-ui, sans-serif;
@@ -29,7 +29,7 @@ body {
   overflow: visible;
 }
 
-/* Solid colored letterform instead of the default thin ghost wireframe —
+/* Solid colored letterform instead of the default thin ghost wireframe -
    a wordmark should stand out, not read as a faint tracing guide. */
 #logo-stage .ms-ghost path {
   fill: #a78bfa;

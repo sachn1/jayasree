@@ -1,4 +1,4 @@
-"""CLI: shape word(s) or the full alphabet against a font, print JSON — see README.md."""
+"""CLI: shape word(s) or the full alphabet against a font, print JSON - see README.md."""
 
 from __future__ import annotations
 
@@ -132,15 +132,15 @@ def main(argv: list[str] | None = None) -> int:
     # ── alphabet ─────────────────────────────────────────────────────────
     p_alpha = sub.add_parser(
         "alphabet",
-        help="Shape the full Malayalam base alphabet — ideal input for the stroke recorder",
+        help="Shape the full Malayalam base alphabet - ideal input for the stroke recorder",
     )
     p_alpha.add_argument("font_path", help="Path to a .ttf/.otf font file")
 
     # Backwards-compatible: no sub-command → treat all positional args as
     # font_path + words (old behaviour). Must happen *before* parse_args():
     # argparse's subparser positional matches (or rejects) the first token
-    # immediately, so an unrecognised first token — a font path, in the old
-    # calling convention — raises "invalid choice" and exits before any
+    # immediately, so an unrecognised first token - a font path, in the old
+    # calling convention - raises "invalid choice" and exits before any
     # after-the-fact fallback logic could run.
     raw = argv if argv is not None else sys.argv[1:]
     if not raw:

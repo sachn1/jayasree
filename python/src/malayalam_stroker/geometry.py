@@ -9,7 +9,7 @@ import svgpathtools
 #: treated as a genuine corner rather than part of a continuous curve.
 #: A single global spline forces C1 continuity everywhere, so a real
 #: corner (e.g. a stroke reversing from a downstroke into a foot) makes it
-#: swing wide to stay smooth — that overshoot is what produces spurious
+#: swing wide to stay smooth - that overshoot is what produces spurious
 #: loops. Splitting into independent pieces at these corners lets the fit
 #: break tangent cleanly instead.
 CORNER_ANGLE_DEG: float = 50.0
@@ -128,7 +128,7 @@ def split_at_corners(
     """Split a waypoint polyline into pieces at sharp direction changes.
 
     Consecutive pieces share their boundary waypoint so the fitted curve
-    stays positionally connected, while each piece is fit independently —
+    stays positionally connected, while each piece is fit independently -
     letting the curve break tangent sharply at a real corner instead of
     being forced smooth across it by one global spline.
 
@@ -166,15 +166,15 @@ def fit_piece(pts: np.ndarray) -> list[str]:
     Each consecutive pair of waypoints becomes one cubic bezier segment,
     using a centripetal-Catmull-Rom tangent at each waypoint (estimated
     from its immediate neighbors only) converted to Hermite-equivalent
-    bezier control points. This is a *local* fit — each segment's shape
-    depends only on that waypoint and its neighbors — deliberately unlike a
+    bezier control points. This is a *local* fit - each segment's shape
+    depends only on that waypoint and its neighbors - deliberately unlike a
     single global interpolating spline through the whole piece, which
     forces every segment to satisfy one shared curvature constraint. That
     global constraint is what previously made an otherwise-straight run
     bulge into a visible wave whenever it followed a very differently
     curved section (e.g. a loop feeding into a straight downstroke, which
     share a piece whenever their junction isn't a sharp-enough corner to
-    split on) — verified concretely on ബ's middle stroke, whose straight
+    split on) - verified concretely on ബ's middle stroke, whose straight
     vertical connector was rendered as a curve for exactly this reason
     before switching to local tangents.
 

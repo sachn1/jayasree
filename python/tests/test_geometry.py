@@ -1,8 +1,8 @@
-"""Tests for malayalam_stroker.geometry — pure path/point-array geometry.
+"""Tests for malayalam_stroker.geometry - pure path/point-array geometry.
 
 Deliberately script-agnostic: every fixture here is a synthetic shape (line,
 L-bend, zigzag), never a real letterform. This module has no Malayalam-specific
-logic at all, so its tests shouldn't depend on Malayalam-specific data either —
+logic at all, so its tests shouldn't depend on Malayalam-specific data either -
 adding a new script's stroke pipeline should never require touching this file.
 """
 
@@ -94,7 +94,7 @@ class TestRdp:
 
     def test_recurses_past_a_single_split(self) -> None:
         """Ensure that RDP recurses to simplify both sides of an outlier, not just one."""
-        # Two distinct bumps far off the baseline chord — a single split isn't
+        # Two distinct bumps far off the baseline chord - a single split isn't
         # enough; both halves need their own outlier kept.
         pts = np.array(
             [[x, 0.0] for x in range(0, 41, 10)]
@@ -197,7 +197,7 @@ class TestFitPiece:
         Regression test for a real bug: a piece combining a loop with a
         straight tail was previously fit as one global interpolating spline,
         which bulged the straight tail to stay smooth through the loop's
-        curvature. Local (Catmull-Rom) tangents fix this — verified against
+        curvature. Local (Catmull-Rom) tangents fix this - verified against
         ബ's actual recorded stroke (see docs/CENTERING_EXPERIMENTS.md).
         """
         loop = [
@@ -207,7 +207,7 @@ class TestFitPiece:
         pts = np.array(loop + tail)
         commands = fit_piece(pts)
 
-        # The last two segments are the straight tail — their bezier control
+        # The last two segments are the straight tail - their bezier control
         # points should stay on the vertical line (x == 100), not bow outward.
         for c in commands[-2:]:
             nums = [float(v) for v in c[2:].split()]
@@ -234,7 +234,7 @@ class TestSmoothPoints:
         """Ensure that a stroke with a genuine corner is fit as multiple pieces.
 
         A single global spline would need to overshoot to stay smooth through a
-        sharp corner (see CORNER_ANGLE_DEG's docstring) — splitting at the corner
+        sharp corner (see CORNER_ANGLE_DEG's docstring) - splitting at the corner
         means the output has more than one C-command "run" stitched together.
         """
         pts = sample_path(L_BEND_D, 60)

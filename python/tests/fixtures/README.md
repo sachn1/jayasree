@@ -7,4 +7,4 @@ dependency of the package and is not distributed in the published wheel.
 
 Manjari is designed by Santhosh Thottingal for Swathanthra Malayalam
 Computing (https://gitlab.com/smc/fonts/manjari), licensed under the SIL
-Open Font License 1.1 — see OFL.txt in this directory.
+Open Font License 1.1 - see OFL.txt in this directory.

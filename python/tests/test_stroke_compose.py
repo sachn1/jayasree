@@ -1,9 +1,9 @@
-"""Tests for malayalam_stroker.stroke_compose — per-glyph stroke composition.
+"""Tests for malayalam_stroker.stroke_compose - per-glyph stroke composition.
 
 Deliberately script-agnostic: fixtures use synthetic single-letter "clusters"
 (A, B, M) shaped like glyph-data.json entries, never real Malayalam clusters.
 The composition algorithm only cares about character/glyph counts and x/y
-offsets — it has no Malayalam-specific logic, so a new script's stroke
+offsets - it has no Malayalam-specific logic, so a new script's stroke
 pipeline should never need to touch this file or its tests.
 """
 
@@ -18,7 +18,7 @@ from malayalam_stroker.stroke_compose import (
 )
 
 # "M" mimics a mark like anusvara: 2 standalone glyphs (placeholder at x=0,
-# real content at x=30) — see find_matching_standalone_glyph_x's docstring.
+# real content at x=30) - see find_matching_standalone_glyph_x's docstring.
 CLUSTERS = {
     "A": {"glyphs": [{"x": 0.0, "y": 0.0}], "advance": 100.0},
     "B": {"glyphs": [{"x": 0.0, "y": 0.0}], "advance": 100.0},
@@ -141,7 +141,7 @@ class TestComposePerGlyph:
         Regression test for a real bug: for cluster "ടെ" (2 chars, 2
         glyphs), HarfBuzz visually reorders the prefix vowel sign's glyph
         *before* the consonant's own glyph, so glyph index no longer
-        matches character index — composing it as if they still matched
+        matches character index - composing it as if they still matched
         put both characters' strokes on top of each other at the mark's
         position, leaving the base's own slot empty.
         """

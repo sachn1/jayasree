@@ -1,4 +1,4 @@
-"""Tests for malayalam_stroker.centering — gradient-ascent stroke centering.
+"""Tests for malayalam_stroker.centering - gradient-ascent stroke centering.
 
 Deliberately script-agnostic: the fixture "glyph" is a synthetic rectangular
 bar, not a real letterform. Centering is pure geometry over an arbitrary
@@ -86,7 +86,7 @@ class TestCenterPoints:
         """Ensure that a point near one edge of the bar shifts toward its centerline.
 
         Gradient ascent takes a fixed, small number of steps per call (see
-        N_ASCENT_STEPS/ASCENT_STEP_PX) — a deliberate "nudge toward center"
+        N_ASCENT_STEPS/ASCENT_STEP_PX) - a deliberate "nudge toward center"
         rather than a full snap, so the assertion checks direction and a
         modest minimum movement, not that it reaches x=100.
         """

@@ -37,7 +37,7 @@ _FONT = (
 )
 
 #: Compound vowel signs with a canonical (or, for ai, font-specific) split
-#: into simpler marks — see js/src/index.js's SPLIT_VOWEL_PARTS. These never
+#: into simpler marks - see js/src/index.js's SPLIT_VOWEL_PARTS. These never
 #: need their own recorded stroke or standalone ghost; they're composed from
 #: their parts at runtime instead.
 _SPLIT_VOWELS = ("ൊ", "ോ", "ൌ")  # ൊ ോ ൌ
@@ -59,7 +59,7 @@ def _standalone_inputs() -> list[str]:
     # conjuncts), so they need their own glyph-data entries.
     inputs += [ANUSVARA, VISARGA, AU_LENGTH_MARK]
 
-    # Virama and matras — give the recorder a real dotted-circle ghost to
+    # Virama and matras - give the recorder a real dotted-circle ghost to
     # trace over (same reasoning as above) rather than recording these blind
     # via the recorder's custom-cluster field. _SPLIT_VOWELS are excluded:
     # they compose from simpler marks already covered here instead of
@@ -82,7 +82,7 @@ def _conjunct_inputs() -> list[str]:
     consonant+virama (dead-consonant forms) and conjunct+matra are NOT
     brute-forced here (that was 36 + 36*36*12 extra shape_word calls,
     ballooning glyph-data.json from ~5.4MB to 63MB). Both compose cleanly at
-    runtime from a base cluster + a mark's prefix/suffix recipe — see
+    runtime from a base cluster + a mark's prefix/suffix recipe - see
     _build_marks() below and js/src/index.js's composeCluster().
     """
     return [c1 + VIRAMA + c2 for c1 in CONSONANTS for c2 in CONSONANTS]
@@ -168,7 +168,7 @@ def _shape_all(inputs: list[str], font: str) -> dict:
 #: Combining marks composable onto an arbitrary base cluster at runtime
 #: (virama + every dependent vowel sign, common and rare), plus subjoined
 #: conjunct forms (the reduced ya/va/la shape a second consonant takes when
-#: attached under a preceding one, e.g. the tail in ക്യ) — verified to
+#: attached under a preceding one, e.g. the tail in ക്യ) - verified to
 #: follow the exact same dotted-circle-placeholder pattern as ordinary
 #: marks: shaping "്യ"/"്വ"/"്ല" alone gives a 2-glyph placeholder+suffix
 #: result just like shaping "ീ" alone does, so they need no separate
@@ -176,18 +176,18 @@ def _shape_all(inputs: list[str], font: str) -> dict:
 #: ്യ/്വ verified exact-match across 35/36 consonants (the only non-match
 #: is the nonsensical self-pairing case, e.g. യ+്യ, which never occurs in
 #: real text). ്ല is mixed (22/36 simple-suffix, 12/36 font-specific
-#: fusion, 2/36 three-glyph outliers) — uses the same "compose as separate
+#: fusion, 2/36 three-glyph outliers) - uses the same "compose as separate
 #: entities" fallback as ു/ൂ/ൃ below.
 _COMPOSABLE_MARKS = [
     VIRAMA,
     *MATRAS,
     *RARE_MATRAS,
-    AU_LENGTH_MARK,  # ൗ — suffix half of ൌ's decomposition (see index.js's SPLIT_VOWEL_PARTS)
+    AU_LENGTH_MARK,  # ൗ - suffix half of ൌ's decomposition (see index.js's SPLIT_VOWEL_PARTS)
     VIRAMA + "യ",
     VIRAMA + "വ",
     VIRAMA + "ല",
-    ANUSVARA,  # ം — only pre-shaped as a *direct* cluster for single-char bases  # noqa: RUF003
-    VISARGA,  # ഃ — (_anusvara_visarga_inputs); a conjunct base needs this recipe instead
+    ANUSVARA,  # ം - only pre-shaped as a *direct* cluster for single-char bases  # noqa: RUF003
+    VISARGA,  # ഃ - (_anusvara_visarga_inputs); a conjunct base needs this recipe instead
 ]
 
 
@@ -195,22 +195,22 @@ def _build_marks(font: str) -> dict:
     """Shape each composable mark alone and split it into prefix/suffix parts.
 
     HarfBuzz auto-inserts a dotted-circle placeholder glyph when a combining
-    mark has no preceding base — its position tells us exactly how the mark
+    mark has no preceding base - its position tells us exactly how the mark
     attaches to *any* base: glyphs before the placeholder print as a prefix
     (the base shifts right by the placeholder's position); glyphs after it
     print as a suffix (positioned right after the base's own advance, flush
-    against it — the placeholder's own arbitrary width is irrelevant and
+    against it - the placeholder's own arbitrary width is irrelevant and
     discarded, not added).
 
     Verified empirically against real HarfBuzz output across every consonant
     (virama, subjoined ya/va/la) and ~700 conjunct+matra combinations: exact
     match for simple suffix marks (ാ/ി/ീ), virama, and subjoined ya/va on
     any base, and for prefix/compound marks (െ/േ/ൈ/ൊ/ോ/ൌ) *when the base
-    is a single glyph* — composing those onto a multi-glyph (non-ligating)
+    is a single glyph* - composing those onto a multi-glyph (non-ligating)
     conjunct base can reorder incorrectly, so callers must check ``prefix``
     is non-empty against the base's glyph count. ു/ൂ/ൃ and subjoined la
     fuse into a glyph unique to the specific preceding consonant in real
-    shaping (~45% mismatch composing these generically in testing) —
+    shaping (~45% mismatch composing these generically in testing) -
     composed the same way as any other suffix mark, they render as the
     base's own glyph plus the mark's separate standalone shape: less
     tightly kerned than the true font ligature, but still correct and
@@ -230,7 +230,7 @@ def _build_marks(font: str) -> dict:
         prefix = [{"d": g["d"], "x": g["x"], "y": g["y"]} for g in glyphs[:circle_idx]]
         suffix_glyphs = glyphs[circle_idx + 1 :]
         # Anchor suffix offsets to the first suffix glyph's own position (not
-        # `shift`) — the placeholder's own on-screen width is an artifact of
+        # `shift`) - the placeholder's own on-screen width is an artifact of
         # the dotted-circle glyph, not something a real base should inherit.
         anchor = suffix_glyphs[0]["x"] if suffix_glyphs else shift
         suffix = [{"d": g["d"], "x": g["x"] - anchor, "y": g["y"]} for g in suffix_glyphs]

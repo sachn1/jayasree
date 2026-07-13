@@ -2,13 +2,13 @@
 """Validate the structural integrity of the committed data files.
 
 Catches accidental corruption (malformed JSON, empty/invalid stroke paths,
-missing required keys) before it's committed — run via pre-commit/CI, or:
+missing required keys) before it's committed - run via pre-commit/CI, or:
 
     python tools/validate_data.py
 
 Also owns the stroke-data.raw.json content-hash snapshot used by
 python/tests/test_data_snapshot.py (a *content* check, complementing this
-file's *structural* one — see that test's docstring). Regenerate it after a
+file's *structural* one - see that test's docstring). Regenerate it after a
 deliberate, reviewed change to previously-recorded data:
 
     python tools/validate_data.py --update-snapshot
@@ -87,7 +87,7 @@ def validate_stroke_data(data: Any, filename: str) -> list[str]:
             continue
         if not strokes:
             errors.append(
-                f"{where}.strokes: empty — a recorded cluster must have at least one stroke"
+                f"{where}.strokes: empty - a recorded cluster must have at least one stroke"
             )
         for i, stroke in enumerate(strokes):
             if not isinstance(stroke, dict) or "d" not in stroke:
@@ -141,7 +141,7 @@ def validate_glyph_data(data: Any) -> list[str]:
                 errors.append(f"{where}.glyphs[{i}]: missing 'd' key")
                 continue
             # A glyph's own outline `d` may legitimately be empty (a space
-            # character has no ink) — only check well-formedness when present.
+            # character has no ink) - only check well-formedness when present.
             if glyph["d"] and not _SVG_PATH_RE.match(glyph["d"]):
                 errors.append(
                     f"{where}.glyphs[{i}]: 'd' does not start with a valid moveto command"
@@ -273,7 +273,7 @@ def main() -> int:
     n_glyph_clusters = len(glyph_data["clusters"])
     print(
         f"OK: {len(raw)} raw clusters, {len(processed)} processed clusters, "
-        f"{n_glyph_clusters} glyph clusters — all valid."
+        f"{n_glyph_clusters} glyph clusters - all valid."
     )
     return 0
 

@@ -5,7 +5,7 @@ Replaces the earlier separate snap_strokes.py / straighten_lines.py /
 refine_with_ghost.py / center_strokes_v2.py / expand_combinations.py scripts
 (and their six intermediate/duplicate output files) with one configurable
 pass over the hand-authored js/src/stroke-data.raw.json, writing a single
-UI-ready file: js/src/stroke-data.json — the name index.js's loadStrokes()
+UI-ready file: js/src/stroke-data.json - the name index.js's loadStrokes()
 already defaults to fetching, and the file demo.js loads. Re-running this
 script always refreshes that one file in place, so it's always the latest
 processed version; js/src/stroke-data.raw.json (edited by
@@ -15,7 +15,7 @@ flags is always possible without re-recording anything.
 Stages (each independently toggleable):
   --center      Gradient-ascent centering onto the glyph's ink ridge
                 (malayalam_stroker.centering)
-  --smooth      Corner-aware piecewise spline fit — the baseline cleanup
+  --smooth      Corner-aware piecewise spline fit - the baseline cleanup
                 (malayalam_stroker.geometry)
   --straighten  Ghost-guided angle correction: straight runs are matched
                 against reference segments derived from the font outline
@@ -25,7 +25,7 @@ Stages (each independently toggleable):
                 character already has its own authored stroke gets one
                 composed from them (malayalam_stroker.stroke_compose).
                 Mark composition (consonant+virama, conjunct+matra,
-                subjoined conjunct forms) is *not* done here — it happens
+                subjoined conjunct forms) is *not* done here - it happens
                 at runtime in js/src/index.js instead, so stroke-data.json
                 doesn't pre-bake a candidate for every base times every
                 mark regardless of whether it's ever traced.
@@ -97,14 +97,14 @@ def _reference_glyphs(cluster: str, cluster_info: dict, marks: dict) -> list[dic
 
     A single-character mark's own standalone entry includes HarfBuzz's
     dotted-circle placeholder (see tools/build_glyph_data.py's
-    ``_standalone_inputs()``) alongside its real content glyph — the human
+    ``_standalone_inputs()``) alongside its real content glyph - the human
     only traced the content, so the placeholder must be excluded here, or
     it corrupts the distance field with a second, spurious "ink" blob the
     gradient ascent can wander into (shows up as wiggle right where the
     content starts, next to where the circle would have been). ``marks``
     already knows, per mark, whether content is glyphs[0] (prefix marks,
     which render before the circle) or glyphs[-1] (suffix marks, circle
-    first) — see ``_build_marks()``'s docstring in build_glyph_data.py.
+    first) - see ``_build_marks()``'s docstring in build_glyph_data.py.
     """
     glyphs = cluster_info["glyphs"]
     if len(cluster) != 1 or len(glyphs) != 2:
@@ -149,7 +149,7 @@ def main() -> None:
     args.output = args.output.resolve()
     if not (args.center or args.smooth or args.straighten or args.expand):
         print(
-            "Nothing to do — pass --preset=malayalam or at least one stage flag.",
+            "Nothing to do - pass --preset=malayalam or at least one stage flag.",
             file=sys.stderr,
         )
         sys.exit(1)

@@ -1,12 +1,12 @@
-"""Snapshot test for js/src/stroke-data.raw.json — the hand-authored source of truth.
+"""Snapshot test for js/src/stroke-data.raw.json - the hand-authored source of truth.
 
 Every *previously-snapshotted* cluster's stroke content is hashed and
 compared against a committed snapshot
 (python/tests/snapshots/stroke_data_raw_snapshot.json). This fails if an
-existing cluster disappears or its content silently changes — whether from
+existing cluster disappears or its content silently changes - whether from
 an accidental edit, a bad merge, or a future script/feature change that
 touches this file unexpectedly. New clusters (recording work in progress)
-are *not* flagged — only regressions to what was already there.
+are *not* flagged - only regressions to what was already there.
 
 A deliberate, reviewed change to an *existing* cluster (a re-recorded
 improvement, an intentional removal) is expected to fail here until you
@@ -16,7 +16,7 @@ explicitly run:
 
 and commit the updated snapshot alongside your data change. That's the
 point: every change to previously-recorded data should be a conscious,
-reviewed one — not a silent side effect of something else.
+reviewed one - not a silent side effect of something else.
 """
 
 from __future__ import annotations
@@ -59,6 +59,6 @@ def test_raw_stroke_data_matches_snapshot() -> None:
         f"`python tools/validate_data.py --update-snapshot` and commit the result."
     )
     # New clusters (added, not in the old snapshot) are fine and expected as
-    # recording work continues — not asserted on, just informational.
+    # recording work continues - not asserted on, just informational.
     if added:
         print(f"\n{len(added)} new cluster(s) not yet in the snapshot: {added[:10]}...")

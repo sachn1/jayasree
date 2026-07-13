@@ -28,7 +28,7 @@ _CONTENT_TYPES = {
 class DemoHandler(BaseHTTPRequestHandler):
     """HTTP request handler for static files and the /api/shape/ endpoint."""
 
-    def do_GET(self) -> None:  # noqa: N802 — name required by BaseHTTPRequestHandler
+    def do_GET(self) -> None:  # noqa: N802 - name required by BaseHTTPRequestHandler
         """Handle GET requests, routing to static or shape handler."""
         parsed = urlparse(self.path)
         if parsed.path.startswith("/api/shape/"):
@@ -38,7 +38,7 @@ class DemoHandler(BaseHTTPRequestHandler):
 
     def _serve_static(self, path: str) -> None:
         """Serve a file from the repo root, rejecting path-traversal attempts."""
-        rel = path.lstrip("/") or "demo/demo_index.html"
+        rel = path.lstrip("/") or "index.html"
         if rel == "demo" or rel == "demo/":
             rel = "demo/demo_index.html"
         file_path = (_REPO_ROOT / rel).resolve()

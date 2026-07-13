@@ -4,29 +4,30 @@
 	validate-data precommit \
 	ci ci-py ci-js \
 	demo record build-glyph-data process-strokes build-recorder update-snapshot \
-	clean
+	bump clean
 
 # Single source of truth for the commands used both by contributors locally
-# and by .github/workflows/ci.yml — the workflow calls `make ci-py`/`make
+# and by .github/workflows/ci.yml - the workflow calls `make ci-py`/`make
 # ci-js` rather than duplicating these commands, so there's exactly one place
 # that defines "lint" or "test" for this repo.
 
 help:
-	@echo "malayalam-stroker — common commands"
+	@echo "malayalam-stroker - common commands"
 	@echo ""
 	@echo "  make install        install both Python (poetry) and JS (npm) dependencies"
 	@echo "  make lint           lint Python + JS"
-	@echo "  make format         auto-fix formatting (Python only — see lint-js for JS)"
+	@echo "  make format         auto-fix formatting (Python only - see lint-js for JS)"
 	@echo "  make test           run Python + JS test suites"
 	@echo "  make validate-data  structural validation of the 3 committed JSON data files"
 	@echo "  make precommit      run every pre-commit hook against all files"
 	@echo "  make ci             everything CI runs, for both languages, in one shot"
 	@echo "  make demo           serve the demo AND the stroke recorder (same server, see"
-	@echo "                      its printed URLs) at :8000 — alias: make record"
+	@echo "                      its printed URLs) at :8000 - alias: make record"
 	@echo "  make build-glyph-data [FONT=/path/to/Font.ttf]   regenerate glyph-data.json"
 	@echo "  make process-strokes                              regenerate stroke-data.json"
 	@echo "  make build-recorder                                bundle the standalone recorder"
 	@echo "  make update-snapshot                               re-approve the data snapshot"
+	@echo "  make bump           cut a release: bump semver from commit history, tag, changelog"
 	@echo "  make clean          remove venvs/node_modules/coverage artifacts"
 
 # ── Install ──────────────────────────────────────────────────────────────
@@ -73,13 +74,20 @@ validate-data:
 update-snapshot:
 	python3 tools/validate_data.py --update-snapshot
 
+# ── Release ──────────────────────────────────────────────────────────────
+
+# Runs from the repo root on purpose: cz reads [tool.commitizen] from the
+# root pyproject.toml (poetry -C only selects the venv, not the cwd).
+bump:
+	poetry -C python run cz bump
+
 # ── Everything at once ───────────────────────────────────────────────────
 
 precommit:
 	cd python && poetry run pre-commit run --all-files
 
 # ci-py / ci-js mirror the two parallel jobs in .github/workflows/ci.yml
-# exactly — each is what that job's "run" steps reduce to after checkout
+# exactly - each is what that job's "run" steps reduce to after checkout
 # and toolchain setup (which only make sense inside the runner, not here).
 ci-py: install-py lint-py test-py validate-data
 
@@ -91,7 +99,7 @@ ci: ci-py ci-js
 
 # One server, two jobs: it serves the interactive demo (demo/demo_index.html)
 # *and* the whole repo as static files, which is what makes the stroke
-# recorder (tools/stroke-recorder.html) reachable through it too — serve.py
+# recorder (tools/stroke-recorder.html) reachable through it too - serve.py
 # prints both URLs on startup for exactly this reason. `record` is just a
 # more discoverable name for anyone who only wants the recorder.
 # Runs inside the poetry venv: serve.py imports malayalam_stroker (uharfbuzz)

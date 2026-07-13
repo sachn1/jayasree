@@ -1,6 +1,6 @@
 # Roadmap
 
-Things worth doing that aren't done yet — not commitments or a schedule,
+Things worth doing that aren't done yet - not commitments or a schedule,
 just a running list so ideas raised in passing (in an issue, a chat, a
 review comment) don't get lost. Move an item out once it's actually done
 (delete it here, mention it in the README/CHANGELOG instead of duplicating
@@ -8,16 +8,14 @@ it forever).
 
 ## Docs & discoverability
 
-- **A github.io page.** The README now has step-by-step instructions, but a
-  dedicated GitHub Pages site could host the same content plus a *live*
-  interactive version of `docs/CENTERING_EXPERIMENTS.md`'s worked example —
-  a word typed in, with sliders/tabs to flip between raw → centered →
-  smoothed → straightened in real time, instead of four static SVGs. Explicitly
-  deferred for now (see that doc's intro) in favor of expanding the README
-  first; revisit once the pipeline itself is stable enough that a fancier
-  presentation is worth the upkeep.
+- **Live pipeline explorer on the Pages site.** The GitHub Pages site
+  (landing page + demo, deployed by `.github/workflows/pages.yml`) shows the
+  worked example as four static SVGs; a *live* version - a word typed in,
+  with sliders/tabs to flip between raw → centered → smoothed → straightened
+  in real time - is still open. Revisit once the pipeline is stable enough
+  that a fancier presentation is worth the upkeep.
 - **Publish the packages.** Neither `js/` nor `python/` is published yet
-  (`README.md`, `python/README.md`) — both `authors`/repo URLs are still
+  (`README.md`, `python/README.md`) - both `authors`/repo URLs are still
   placeholders. Once the API is stable enough to commit to: `npm publish`
   for the JS package, and a PyPI release for the Python one (currently
   positioned as a build-time-only tool, so this may never be worth doing
@@ -27,7 +25,7 @@ it forever).
 
 - **"Vanilla form" tooltips for fused/compound clusters** (opt-in, e.g.
   `explain: true` on `createStrokeWriter`; default off). Malayalam can write
-  the same thing fused or spelled out — a conjunct like ഴ്ച where ച written bellow ഴ is nothing but ഴ + ് + ച and a learner meeting the fused shape has no way to know that. A small tap/click
+  the same thing fused or spelled out - a conjunct like ഴ്ച where ച written bellow ഴ is nothing but ഴ + ് + ച and a learner meeting the fused shape has no way to know that. A small tap/click
   affordance (ⓘ per cluster; hover alone won't work on tablets) showing the
   cluster's parts *as rendered glyphs* (standalone entries already exist in
   glyph-data.json) bridges that gap: "this shape, in its vanilla form, is
@@ -36,11 +34,11 @@ it forever).
   Deliberately curated, not blanket: per the project owner, only *some*
   cluster types genuinely confuse (ു/ൂ-type fused vowel signs, chandrakkala
   conjuncts, ...), and they'll label/select which categories warrant a
-  tooltip — so the design needs an inclusion list (by mark/cluster type, not
+  tooltip - so the design needs an inclusion list (by mark/cluster type, not
   per-cluster hand-authoring), not "tooltip on everything."
 
   Implementation sketch: decomposition comes free from the cluster string
-  itself (the *text-level* Unicode sequence — correct even for true
+  itself (the *text-level* Unicode sequence - correct even for true
   ligatures like ക്ഷ where stroke composition is bypassed); the only new
   data is a small display-name table for marks (chandrakkala, each matra,
   anusvaram, ...). Also expose the raw data as a public
@@ -62,12 +60,12 @@ conversations about this project) means:
   a sibling per script.
 - Splitting the committed JSON data per script (`glyph-data.ml.json`,
   `glyph-data.ta.json`, ...) so a page using one language doesn't fetch
-  another's data — see "Data size & deployment" in the README. The format
+  another's data - see "Data size & deployment" in the README. The format
   is already per-cluster keyed, so this is a file-naming/build-tooling
   change, not a data-model rewrite.
-- Re-auditing every place that currently assumes "the only script" — the
+- Re-auditing every place that currently assumes "the only script" - the
   segmentation regex bounds in `index.js`, the CLI's standalone-alphabet
-  list, `validate_data.py`'s hardcoded filenames — for hidden Malayalam-only
+  list, `validate_data.py`'s hardcoded filenames - for hidden Malayalam-only
   assumptions.
 - A second recorder pass with native speakers of the new language, plus
   re-running the centering/straightening pipeline against a font that
@@ -76,7 +74,7 @@ conversations about this project) means:
 ## Data & scale
 
 - **Git LFS**, once the committed JSON data (currently low hundreds of KB)
-  grows into the tens of MB — from a second language, or a much larger
+  grows into the tens of MB - from a second language, or a much larger
   font's outlines. See the README's "Data size & deployment" section for
   the full reasoning; not needed yet.
 - **Prune `glyph-data.json`** to only the consonant+vowel-sign/conjunct
@@ -86,29 +84,28 @@ conversations about this project) means:
 
 ## Deployment
 
-The library is fully static today (`index.js` fetches the two JSON files at
-runtime; nothing is built server-side — see the README). Nothing here is
-blocking, but worth deciding deliberately rather than by default once there's
-a real hosted deployment target:
+The site (landing page + demo + recorder) deploys to GitHub Pages via
+`.github/workflows/pages.yml` - decided against a custom domain for now;
+`<user>.github.io/malayalam-stroker` is enough. Still open:
 
-- A domain + hosting choice for a live demo (GitHub Pages is the free
-  default; a custom domain is a separate, optional step on top of that).
 - Cache headers / CDN in front of the JSON data files once real traffic
-  exists — they're static and content-hashed-by-commit, so they're
-  trivially cacheable, just not configured anywhere yet.
+  exists - they're static and content-hashed-by-commit, so they're
+  trivially cacheable, but GitHub Pages' default caching is what we get
+  until/unless the site moves somewhere configurable.
+- A custom domain, if the project ever outgrows the github.io URL.
 
 ## Testing & tooling
 
-- **Headless-browser coverage for `index.js`'s DOM-dependent code** — the
+- **Headless-browser coverage for `index.js`'s DOM-dependent code** - the
   actual SVG animation (`buildStage`, `traceSub`, `buildTracePath`) needs
   real `getTotalLength()`/`getPointAtLength()`, which jsdom doesn't
   implement, so it's currently only exercised manually via the demo. A
   Playwright-driven test (or visual-regression check) would close this gap;
   deliberately not added yet to avoid pulling in a browser-binary dependency
-  for what's still a small project — see the discussion in the session that
+  for what's still a small project - see the discussion in the session that
   rebuilt `demo/jayasree.svg`, which hit this exact limitation.
 - **Ligature coverage for the vowel signs that currently compose
-  imperfectly** — ു/ൂ/ൃ and the reduced la-form fuse into a
+  imperfectly** - ു/ൂ/ൃ and the reduced la-form fuse into a
   consonant-specific shape in real font rendering that generic mark
   composition can't reproduce (see README's "Composing combinations"
   section); they're recorded as separate atoms instead of true ligatures.

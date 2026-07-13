@@ -1,5 +1,5 @@
 """Tests for malayalam_stroker.strokes, run offline against the bundled
-test fixture font (tests/fixtures/Manjari-Regular.ttf, SIL OFL — see
+test fixture font (tests/fixtures/Manjari-Regular.ttf, SIL OFL - see
 tests/fixtures/OFL.txt). This fixture exists purely for deterministic
 testing; the package itself does not bundle or require this specific
 font.
@@ -93,7 +93,7 @@ def test_rejects_missing_font() -> None:
 
 
 def test_works_with_non_malayalam_text() -> None:
-    """The package is script-agnostic by design — anything HarfBuzz +
+    """The package is script-agnostic by design - anything HarfBuzz +
     the font can shape should work, not just Malayalam.
     """
     trace = shape_word("hello", FONT)

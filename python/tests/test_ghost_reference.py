@@ -1,7 +1,7 @@
-"""Tests for malayalam_stroker.ghost_reference — ghost-outline-guided straightening.
+"""Tests for malayalam_stroker.ghost_reference - ghost-outline-guided straightening.
 
 Deliberately script-agnostic: the fixture "glyph" is a synthetic rectangle,
-not a real letterform — straightening works from any filled outline's own
+not a real letterform - straightening works from any filled outline's own
 straight edges, with no Malayalam-specific logic. A new script's stroke
 pipeline should never need to touch this file or its tests.
 """
@@ -215,7 +215,7 @@ class TestRefineStroke:
 
         The reference's angle is derived from a real rectangle's horizontal
         edge (~179.4 degrees, i.e. very close to exactly horizontal after
-        gradient-ascent into the ink) — a hand-drawn run at a slightly
+        gradient-ascent into the ink) - a hand-drawn run at a slightly
         different angle should be rotated (about its fixed start point) to
         match it, changing its end y-coordinate but not its start.
         """
@@ -227,5 +227,5 @@ class TestRefineStroke:
 
         assert result.startswith("M 20.0 -5.0")
         # End y-coordinate corrected toward the reference's near-horizontal
-        # angle — no longer -12 (the drawn, uncorrected slope).
+        # angle - no longer -12 (the drawn, uncorrected slope).
         assert " -12.0" not in result

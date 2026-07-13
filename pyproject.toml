@@ -1,11 +1,26 @@
-# Repo-wide tool config — deliberately at the repo root, not python/pyproject.toml,
+# Repo-wide tool config - deliberately at the repo root, not python/pyproject.toml,
 # so it's discovered for every Python file in the repo, including tools/*.py and
 # demo/serve.py, not just python/src. Ruff (and most Python tools) only walk up
 # from a file's own directory looking for the nearest config, so a config nested
 # inside python/ was silently invisible to anything outside that subtree.
 #
-# This is a config-only pyproject.toml — not a package manifest. The actual
+# This is a config-only pyproject.toml - not a package manifest. The actual
 # installable package's manifest is python/pyproject.toml.
+
+# Semantic versioning via commitizen (conventional commits). The version here
+# is the single source of truth; `make bump` (cz bump) derives the next
+# version from the commit history and rewrites every file in version_files.
+[tool.commitizen]
+name = "cz_conventional_commits"
+version = "0.1.0"
+tag_format = "v$version"
+update_changelog_on_bump = true
+version_files = [
+    "python/pyproject.toml:^version",
+    "python/src/malayalam_stroker/__init__.py:^__version__",
+    "js/package.json:\"version\":",
+    "index.html:cz-version",
+]
 
 [tool.ruff]
 line-length = 100
@@ -24,13 +39,13 @@ select = [
     "RUF", # ruff-specific
 ]
 ignore = [
-    "D205",   # blank-line-after-summary — conflicts with NumPy 1-liner style
+    "D205",   # blank-line-after-summary - conflicts with NumPy 1-liner style
     "D415",   # ends-with-period
     "ANN401", # Any type allowed in some positions
 ]
 
 [tool.ruff.lint.per-file-ignores]
-# Malayalam characters cited as concrete examples in docs/comments —
+# Malayalam characters cited as concrete examples in docs/comments -
 # legitimately ambiguous-looking, not a mistake, and RUF002 can't be
 # suppressed with an inline noqa when it's inside a docstring.
 "python/src/malayalam_stroker/stroke_compose.py" = ["RUF002", "RUF003"]

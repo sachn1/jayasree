@@ -1,7 +1,7 @@
 
 # malayalam-stroker (JS)
 
-Animates Malayalam text as handwriting — a pen traces each letter left to right,
+Animates Malayalam text as handwriting - a pen traces each letter left to right,
 over a faint ghost of the complete letterform.
 
 Self-contained. No server. No font file at runtime. Glyph shapes are
@@ -22,7 +22,7 @@ writer.cancel();   // stop mid-animation
 writer.destroy();  // cancel + clear the container
 ```
 
-Not published to npm yet — copy `js/src/` into your project or serve it
+Not published to npm yet - copy `js/src/` into your project or serve it
 locally. Plain ES modules, no build step required.
 
 ## Two data files
@@ -31,8 +31,8 @@ Both live in `js/` and should be committed to your repo:
 
 | File | What it contains | Font-specific? |
 |---|---|---|
-| `src/glyph-data.json` | SVG outlines + advance widths for every cluster | Yes — re-run `tools/build_glyph_data.py` when you change fonts |
-| `stroke-data.json` | Hand-authored centerline stroke paths | No — commit once, works across fonts |
+| `src/glyph-data.json` | SVG outlines + advance widths for every cluster | Yes - re-run `tools/build_glyph_data.py` when you change fonts |
+| `stroke-data.json` | Hand-authored centerline stroke paths | No - commit once, works across fonts |
 
 When `stroke-data.json` has coverage for a cluster, the pen follows those
 paths. Otherwise it falls back to tracing the outer contour of the font
@@ -108,21 +108,21 @@ writer.destroy();         // cancel + clear the container
 ```
 
 See [`examples/demo.html`](examples/demo.html) for a minimal working
-page — one pre-shaped word, no server, just open the file. It does not
+page - one pre-shaped word, no server, just open the file. It does not
 have a text input; shaping a word you type requires a server (HarfBuzz
 needs a font file on disk), so for an actual "type any word" experience
 see [`../demo`](../demo) at the repo root instead
-(`python demo/serve.py`, then open the page — it has a real, editable
+(`python demo/serve.py`, then open the page - it has a real, editable
 text field wired to live shaping).
 
 ## Where does the JSON come from?
 
 Anywhere that can run the shaping pipeline:
 
-- The [Python package](../python) (`pip install malayalam-stroker`) —
+- The [Python package](../python) (`pip install malayalam-stroker`) -
   typically run server-side, since it needs HarfBuzz + a font file.
 - Precomputed JSON checked into your app for a fixed alphabet/word list.
-- Any other implementation that produces the same shape (see below) —
+- Any other implementation that produces the same shape (see below) -
   this package doesn't care how the JSON was made.
 
 ## StrokeTrace JSON shape
@@ -153,7 +153,7 @@ const writer = createStrokeWriter(stage, {
 writer.play(trace, { speed: 1.8 }); // per-call speed multiplier
 ```
 
-### Start point — `START_OVERRIDES`
+### Start point - `START_OVERRIDES`
 
 Controls where on the outer contour the pen begins for each glyph.
 Find glyph names with `trace.glyphs.map(g => g.glyphName)`.
@@ -170,7 +170,7 @@ Accepted values: `"leftmost"` (default) | `"rightmost"` | `"topmost"` |
 `"bottommost"` | a `0..1` fraction of the contour's arc-length | an array
 of the above, one entry per outer sub-contour.
 
-### Direction — `DIRECTION_OVERRIDES`
+### Direction - `DIRECTION_OVERRIDES`
 
 Controls which way around the contour the pen travels.
 

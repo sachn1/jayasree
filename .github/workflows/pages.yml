@@ -1,0 +1,49 @@
+name: Deploy GitHub Pages
+
+# The whole site is static (see README's "Data size & deployment") - the demo
+# fetches glyph-data.json / stroke-data.json at runtime and serve.py's only
+# dynamic endpoint (/api/shape) is unused by the demo UI. So deployment is
+# just: publish a filtered copy of the repo as the Pages artifact.
+#
+# One-time repo setup: Settings → Pages → Source: "GitHub Actions".
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never run two deploys concurrently; latest push wins.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Assemble site
+        run: |
+          mkdir -p _site
+          cp index.html favicon.svg _site/
+          cp -r js demo tools docs _site/
+          # Not useful on the website; keep the artifact lean.
+          rm -f _site/demo/serve.py _site/tools/*.py
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - id: deployment
+        uses: actions/deploy-pages@v4

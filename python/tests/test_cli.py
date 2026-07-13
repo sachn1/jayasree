@@ -1,4 +1,4 @@
-"""Tests for malayalam_stroker.cli — the `shape`/`alphabet` CLI.
+"""Tests for malayalam_stroker.cli - the `shape`/`alphabet` CLI.
 
 Uses the same bundled test fixture font as test_strokes.py (see that
 module's docstring). The CLI's argument-parsing/dispatch logic is
@@ -34,7 +34,7 @@ def test_dash_m_invocation_reaches_cli_main_via_the_shim() -> None:
 
 
 class TestShapeCommand:
-    """`malayalam_stroker shape <font> <words...>` — explicit sub-command form."""
+    """`malayalam_stroker shape <font> <words...>` - explicit sub-command form."""
 
     def test_shapes_a_single_word(self, capsys: pytest.CaptureFixture[str]) -> None:
         """Ensure that shaping one word prints a one-element JSON array."""
@@ -84,7 +84,7 @@ class TestImplicitShapeCommand:
 
 
 class TestAlphabetCommand:
-    """`malayalam_stroker alphabet <font>` — shape the full base alphabet."""
+    """`malayalam_stroker alphabet <font>` - shape the full base alphabet."""
 
     def test_produces_a_standalone_entry_and_matra_syllables(
         self, capsys: pytest.CaptureFixture[str]

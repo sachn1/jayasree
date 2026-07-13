@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Jayasree - Malayalam handwriting, animated</title>
+    <meta
+      name="description"
+      content="A self-contained JavaScript library that animates Malayalam script as handwriting - showing how to write a letter or word, not just what it looks like."
+    />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <style>
+      :root {
+        --ink: #1a1a2e;
+        --violet: #6d28d9;
+        --violet-soft: #a78bfa;
+        --line: #e0daf5;
+        --muted: #6b6591;
+        --bg-soft: #f8f7fc;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        font-family: system-ui, sans-serif;
+        margin: 0;
+        color: var(--ink);
+        line-height: 1.6;
+      }
+      main {
+        max-width: 720px;
+        margin: 0 auto;
+        padding: 0 1.2rem 4rem;
+      }
+
+      /* ── Hero ── */
+      header {
+        text-align: center;
+        padding: 3.5rem 1rem 2.5rem;
+      }
+      #wordmark {
+        cursor: pointer;
+        display: inline-block;
+      }
+      #wordmark img {
+        height: 110px;
+        width: auto;
+        max-width: 100%;
+      }
+      h1 {
+        font-size: 1.15rem;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        text-transform: lowercase;
+        color: var(--muted);
+        margin: 0.4rem 0 0.2rem;
+      }
+      .tagline {
+        color: var(--muted);
+        font-size: 0.95rem;
+        max-width: 34rem;
+        margin: 0.6rem auto 1.6rem;
+      }
+      .cta {
+        display: inline-block;
+        padding: 0.6rem 1.5rem;
+        margin: 0.25rem;
+        border-radius: 10px;
+        text-decoration: none;
+        font-size: 0.95rem;
+      }
+      .cta.primary {
+        background: var(--violet);
+        color: #fff;
+      }
+      .cta.primary:hover {
+        background: #5b21b6;
+      }
+      .cta.secondary {
+        color: var(--violet);
+        border: 1px solid var(--violet-soft);
+      }
+      .cta.secondary:hover {
+        background: var(--bg-soft);
+      }
+      .replay-hint {
+        font-size: 0.75rem;
+        color: var(--muted);
+      }
+      .version {
+        color: var(--violet);
+        font-weight: 500;
+      }
+
+      /* ── Sections ── */
+      section {
+        margin-top: 3.2rem;
+      }
+      h2 {
+        font-size: 1.25rem;
+        border-bottom: 1px solid var(--line);
+        padding-bottom: 0.4rem;
+      }
+      p,
+      li {
+        font-size: 0.95rem;
+      }
+      .muted {
+        color: var(--muted);
+      }
+      code {
+        background: var(--bg-soft);
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        padding: 0.05rem 0.35rem;
+        font-size: 0.85em;
+      }
+      pre {
+        background: var(--bg-soft);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 1rem;
+        overflow-x: auto;
+        font-size: 0.82rem;
+        line-height: 1.5;
+      }
+      pre code {
+        background: none;
+        border: none;
+        padding: 0;
+      }
+
+      /* ── Pipeline steps ── */
+      ol.pipeline {
+        padding-left: 1.2rem;
+      }
+      ol.pipeline li {
+        margin-bottom: 0.7rem;
+      }
+
+      /* ── Stage gallery ── */
+      .stages {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 0.8rem;
+        margin-top: 1rem;
+      }
+      .stages figure {
+        margin: 0;
+        text-align: center;
+      }
+      .stages img {
+        width: 100%;
+        height: auto;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: #fff;
+      }
+      .stages figcaption {
+        font-size: 0.78rem;
+        color: var(--muted);
+        margin-top: 0.3rem;
+      }
+
+      /* ── Footer ── */
+      footer {
+        border-top: 1px solid var(--line);
+        margin-top: 4rem;
+        padding: 1.5rem 1.2rem 2.5rem;
+        text-align: center;
+        font-size: 0.8rem;
+        color: var(--muted);
+      }
+      footer a {
+        color: var(--violet);
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <span id="wordmark" title="Click to replay">
+        <img src="demo/jayasree.svg" alt="ജയശ്രീ - animated stroke trace of the word Jayasree" />
+      </span>
+      <h1>
+        jayasree &middot; malayalam stroker &middot;
+        <!-- cz-version --><span class="version">v0.1.0</span>
+      </h1>
+      <p class="tagline">
+        A self-contained JavaScript library that animates Malayalam script as
+        <em>handwriting</em> - showing how a letter or word is written, stroke by
+        stroke, not just what it looks like. Think Hanzi Writer, for Malayalam.
+      </p>
+      <a class="cta primary" href="demo/">Try the live demo</a>
+      <a class="cta secondary" href="https://github.com/sachn1/malayalam-stroker">GitHub</a>
+      <p class="replay-hint">(click the wordmark to replay it)</p>
+    </header>
+
+    <main>
+      <section id="how">
+        <h2>How it works</h2>
+        <p>
+          Everything is static - no server, no font file, no shaping engine in the
+          browser. Three committed JSON files power the widget, produced by a
+          small offline pipeline:
+        </p>
+        <ol class="pipeline">
+          <li>
+            <strong>Shape.</strong> Every Malayalam cluster (~2050 of them) is shaped
+            once through HarfBuzz and its outlines saved to
+            <code>glyph-data.json</code> - the ghost letterform you see behind the pen.
+          </li>
+          <li>
+            <strong>Record.</strong> A native speaker traces each character's real
+            stroke order over that ghost in a browser recorder - but only ~290
+            <em>atoms</em> need drawing; everything else composes from them.
+          </li>
+          <li>
+            <strong>Refine.</strong> Each hand-drawn stroke is centered onto the
+            letter's ink, smoothed, and straightened against the font's own edges
+            (see the pictures below).
+          </li>
+          <li>
+            <strong>Compose.</strong> Consonant+vowel-sign, conjuncts, and mark
+            chains are assembled from the recorded atoms - ~290 drawings become
+            ~2000 animatable clusters.
+          </li>
+        </ol>
+      </section>
+
+      <section id="stages">
+        <h2>One stroke through the pipeline</h2>
+        <p>
+          ജ (ja)'s recorded stroke at each stage, over its ghost outline:
+        </p>
+        <div class="stages">
+          <figure>
+            <img src="docs/centering-example/raw.svg" alt="ജ: raw recorded stroke" />
+            <figcaption>1 · raw, as drawn</figcaption>
+          </figure>
+          <figure>
+            <img src="docs/centering-example/centered.svg" alt="ജ: centered stroke" />
+            <figcaption>2 · centered onto the ink</figcaption>
+          </figure>
+          <figure>
+            <img src="docs/centering-example/smoothed.svg" alt="ജ: smoothed stroke" />
+            <figcaption>3 · smoothed</figcaption>
+          </figure>
+          <figure>
+            <img src="docs/centering-example/straightened.svg" alt="ജ: straightened stroke" />
+            <figcaption>4 · straightened</figcaption>
+          </figure>
+        </div>
+        <p class="muted">
+          The full engineering story - including the approaches that <em>didn't</em>
+          work - is in
+          <a href="https://github.com/sachn1/malayalam-stroker/blob/HEAD/docs/CENTERING_EXPERIMENTS.md"
+            >CENTERING_EXPERIMENTS.md</a
+          >.
+        </p>
+      </section>
+
+      <section id="use">
+        <h2>Use it in your page</h2>
+        <pre><code>import { createStrokeWriter } from "malayalam-stroker";
+
+const writer = createStrokeWriter(document.getElementById("stage"));
+await writer.load();          // glyph outlines
+await writer.loadStrokes();   // hand-authored strokes
+await writer.play("നന്ദി", { speed: 1, count: 1 });</code></pre>
+        <p>
+          Plain ES modules, no build step. Options for pen speed, ink thickness,
+          spacing, and repeat count are documented in the
+          <a href="https://github.com/sachn1/malayalam-stroker#using-the-js-library">README</a>.
+        </p>
+      </section>
+
+      <section id="contribute">
+        <h2>Contribute</h2>
+        <p>
+          The most valuable contribution is <strong>stroke data</strong>: a native
+          speaker's hand tracing characters in the
+          <a href="tools/stroke-recorder.html">browser recorder</a> - no coding
+          required. Code contributions are welcome too; see
+          <a href="https://github.com/sachn1/malayalam-stroker/blob/HEAD/CONTRIBUTING.md"
+            >CONTRIBUTING.md</a
+          >
+          for the ground rules (clean code, tests, and never breaking an existing
+          language's data).
+        </p>
+      </section>
+    </main>
+
+    <footer>
+      <p>
+        Code: <a href="https://github.com/sachn1/malayalam-stroker/blob/HEAD/js/LICENSE">MIT</a>
+        &nbsp;·&nbsp; Hand-drawn stroke data &amp; generated artwork:
+        <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a> - free to
+        use, <strong>please credit “Jayasree / malayalam-stroker”</strong> with a link
+        back.
+      </p>
+      <p>
+        Letterforms derive from the
+        <a href="https://smc.org.in/fonts/manjari">Manjari</a> typeface (SIL OFL 1.1)
+        by Santhosh Thottingal &amp; Swathanthra Malayalam Computing.
+      </p>
+    </footer>
+
+    <script>
+      // Replay the SMIL-animated wordmark by re-inserting the <img> - SMIL
+      // timelines restart when the element is (re)loaded.
+      const wordmark = document.getElementById("wordmark");
+      wordmark.addEventListener("click", () => {
+        const img = wordmark.querySelector("img");
+        const clone = img.cloneNode(true);
+        clone.src = "demo/jayasree.svg?" + Date.now();
+        img.replaceWith(clone);
+      });
+    </script>
+  </body>
+</html>

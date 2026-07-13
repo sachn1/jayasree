@@ -5,12 +5,12 @@
  * Deliberately script-agnostic: fixtures use synthetic single-letter
  * "clusters" (A, B, s) shaped like glyph-data.json entries, never real
  * Malayalam clusters. The engine only cares about character/glyph counts
- * and x/y offsets — a new script's stroke pipeline should never need to
+ * and x/y offsets - a new script's stroke pipeline should never need to
  * touch this file. The one exception is the SPLIT_VOWEL_PARTS test, which
  * is explicitly checking Malayalam-specific decomposition data.
  *
  * DOM-dependent parts of index.js (buildStage, animation timing) aren't
- * covered here — they need real SVG geometry APIs (getTotalLength etc.)
+ * covered here - they need real SVG geometry APIs (getTotalLength etc.)
  * that jsdom doesn't implement; verify those via the `run` skill or a
  * manual browser check instead.
  */
@@ -252,7 +252,7 @@ describe("tryComposeFromCharacters", () => {
   it("returns null when a character is a prefix-type mark", () => {
     // Regression test for "ടെ": HarfBuzz visually reorders a prefix mark's
     // glyph before its base's, so glyph index no longer matches character
-    // index — composing it lockstep put both strokes on top of each other.
+    // index - composing it lockstep put both strokes on top of each other.
     const marks = { B: { prefix: [{ d: "M0 0", x: 0, y: 0 }] } };
     expect(tryComposeFromCharacters("AB", { clusters, marks })).toBeNull();
   });

@@ -1,5 +1,5 @@
 /**
- * stroke-recorder.js — logic for the stroke recorder tool.
+ * stroke-recorder.js - logic for the stroke recorder tool.
  *
  * Depends on:
  *   - A <div id="drop-zone"> with <input type="file" id="file-input">
@@ -59,10 +59,10 @@ let existingStrokeData = null;
  * drawn on, erased, or undone).
  *
  * Without this, navigating to an already-recorded character and drawing an
- * additional stroke would silently start from an empty array — the
+ * additional stroke would silently start from an empty array - the
  * existing strokes wouldn't show on the canvas, and worse, export would
  * overwrite them entirely with just the new stroke (export layers
- * `strokeData` over `existingStrokeData` per-cluster, not per-stroke — see
+ * `strokeData` over `existingStrokeData` per-cluster, not per-stroke - see
  * the export-btn handler).
  *
  * @param {string} clusterStr
@@ -79,7 +79,7 @@ function ensureStrokes(clusterStr) {
 /**
  * Per-cluster stack of strokes removed by Undo, restorable via Redo.
  * Cleared for a cluster whenever a new stroke is drawn, or its strokes are
- * cleared/erased — same rule as any standard undo/redo history.
+ * cleared/erased - same rule as any standard undo/redo history.
  *
  * @type {Record<string, { d: string }[]>}
  */
@@ -95,7 +95,7 @@ const ERASER_RADIUS = 30;
 let showAllClusters = false;
 
 /**
- * Clusters added this session via "+ Add" — always treated as atoms
+ * Clusters added this session via "+ Add" - always treated as atoms
  * regardless of the reduced-set filter, so a deliberately-added new
  * combination is never hidden from its own recording session.
  *
@@ -105,7 +105,7 @@ const manuallyAddedClusters = new Set();
 
 /**
  * Compound vowel signs composed from simpler marks at runtime (see
- * js/src/index.js's SPLIT_VOWEL_PARTS) — never need their own recorded
+ * js/src/index.js's SPLIT_VOWEL_PARTS) - never need their own recorded
  * stroke, so they're excluded from the atom set even though they are
  * single codepoints.
  */
@@ -117,7 +117,7 @@ const DEPRECATED_ATOMS = new Set(["ൊ", "ോ", "ൌ"]); // ൊ ോ ൌ
  * from other atoms at runtime (see README's "Composing combinations instead
  * of pre-shaping every one").
  *
- * Single codepoints (letters, digits, virama, matras) are always atoms —
+ * Single codepoints (letters, digits, virama, matras) are always atoms -
  * they can't be decomposed further. A multi-character cluster is an atom
  * only if it's already known to need its own stroke: either it's already
  * recorded in the loaded stroke-data.raw.json (the existing 292-ish
@@ -182,7 +182,7 @@ function toSvgPt(svg, e) {
 }
 
 // ---------------------------------------------------------------------------
-// Stroke smoothing — Catmull-Rom → cubic bezier
+// Stroke smoothing - Catmull-Rom → cubic bezier
 // ---------------------------------------------------------------------------
 
 /**
@@ -395,7 +395,7 @@ function renderGlyph() {
   svg.setAttribute("viewBox", `${vbX} ${vbY} ${vbW} ${vbH}`);
   svg.style.cssText = "display:block; width:100%; max-height:300px;";
 
-  // Ghost letterform — all sub-glyphs for this cluster
+  // Ghost letterform - all sub-glyphs for this cluster
   for (const p of g.paths) {
     const ghost = svgEl("path", {
       d: p.d,
@@ -409,7 +409,7 @@ function renderGlyph() {
     svg.appendChild(ghost);
   }
 
-  // Previously recorded strokes with numbered start-point badges — seeded
+  // Previously recorded strokes with numbered start-point badges - seeded
   // from existingStrokeData on first visit via ensureStrokes, so loaded
   // strokes actually show up here instead of only at export time.
   const strokes = ensureStrokes(g.clusterStr);
@@ -703,7 +703,7 @@ function downloadText(text, filename) {
 }
 
 // ---------------------------------------------------------------------------
-// Event wiring — runs after DOM is ready
+// Event wiring - runs after DOM is ready
 // ---------------------------------------------------------------------------
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -752,7 +752,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const order = [...visible.slice(pos + 1), ...visible.slice(0, pos + 1)];
     const next = order.find((i) => !isRecorded(trace.glyphs[i].clusterStr));
     if (next === undefined) {
-      alert("Nothing missing in the current view — every visible cluster already has a stroke.");
+      alert("Nothing missing in the current view - every visible cluster already has a stroke.");
       return;
     }
     glyphIndex = next;
@@ -880,9 +880,9 @@ document.addEventListener("DOMContentLoaded", () => {
         existingStrokeData = JSON.parse(ev.target.result);
         const count = Object.keys(existingStrokeData).length;
         document.getElementById("merge-status").textContent =
-          `✓ ${count} existing cluster(s) loaded — export will merge`;
+          `✓ ${count} existing cluster(s) loaded - export will merge`;
         // Loaded strokes redefine which multi-char clusters count as atoms
-        // (see isAtom) and which show as already-recorded — refresh both.
+        // (see isAtom) and which show as already-recorded - refresh both.
         if (trace) {
           populateSelect();
           renderGlyph();
