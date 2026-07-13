@@ -240,8 +240,16 @@ await writer.loadStrokes();   // fetches stroke-data.json (optional, graceful no
 await writer.play("നന്ദി");
 ```
 
-Not published to npm yet. Copy `js/src/` into your project or serve it
-locally - it's plain ES modules, no build step required.
+```bash
+npm install jayasree
+```
+
+Published at [npmjs.com/package/jayasree](https://www.npmjs.com/package/jayasree).
+`.github/workflows/publish.yml` publishes future version bumps automatically
+on a version tag push (or a manual run), once the `NPM_TOKEN` repo secret is
+set - until then, cut releases with `npm publish --access public` from `js/`.
+You can still copy `js/src/` into your project or serve it locally instead -
+it's plain ES modules, no build step required.
 
 ### Configurable options
 

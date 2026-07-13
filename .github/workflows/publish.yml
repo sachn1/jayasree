@@ -1,0 +1,32 @@
+name: Publish to npm
+# Fires only on a real version tag (i.e. after `make bump` / `cz bump` pushes
+# one) or a manual run - never on every push to master. npm publishes are
+# effectively permanent, so this deliberately mirrors `make bump` being a
+# manual, deliberate action rather than continuous per-commit automation.
+#
+# One-time setup: add an npm "Automation" token (from npmjs.com -> Access
+# Tokens) as the repo secret NPM_TOKEN.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # for npm provenance
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Publish js/ to npm
+        run: cd js && npm publish --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

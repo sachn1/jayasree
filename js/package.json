@@ -6,7 +6,10 @@
   "main": "src/index.js",
   "module": "src/index.js",
   "files": [
-    "src",
+    "src/index.js",
+    "src/style.css",
+    "src/glyph-data.json",
+    "src/stroke-data.json",
     "README.md",
     "LICENSE"
   ],
