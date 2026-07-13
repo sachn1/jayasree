@@ -131,14 +131,6 @@
         padding: 0;
       }
 
-      /* ── Pipeline steps ── */
-      ol.pipeline {
-        padding-left: 1.2rem;
-      }
-      ol.pipeline li {
-        margin-bottom: 0.7rem;
-      }
-
       /* ── Stage gallery ── */
       .stages {
         display: grid;
@@ -192,40 +184,21 @@
         stroke, not just what it looks like. Think Hanzi Writer, for Malayalam.
       </p>
       <a class="cta primary" href="demo/">Try the live demo</a>
-      <a class="cta secondary" href="https://github.com/sachn1/malayalam-stroker">GitHub</a>
-      <p class="replay-hint">(click the wordmark to replay it)</p>
+      <a class="cta secondary" href="https://github.com/sachn1/jayasree">GitHub</a>
     </header>
 
     <main>
       <section id="how">
         <h2>How it works</h2>
         <p>
-          Everything is static - no server, no font file, no shaping engine in the
-          browser. Three committed JSON files power the widget, produced by a
-          small offline pipeline:
+          Everything is static - no server, no font file, no shaping engine in
+          the browser. Glyph outlines are pre-shaped offline, a native speaker
+          records real stroke order for ~290 <em>atoms</em> in a browser
+          recorder, each stroke is refined against the font (pictures below),
+          and composition turns those atoms into ~2000 animatable clusters.
+          The <a href="https://github.com/sachn1/jayasree#how-it-works">README</a>
+          has the full pipeline walkthrough, file by file.
         </p>
-        <ol class="pipeline">
-          <li>
-            <strong>Shape.</strong> Every Malayalam cluster (~2050 of them) is shaped
-            once through HarfBuzz and its outlines saved to
-            <code>glyph-data.json</code> - the ghost letterform you see behind the pen.
-          </li>
-          <li>
-            <strong>Record.</strong> A native speaker traces each character's real
-            stroke order over that ghost in a browser recorder - but only ~290
-            <em>atoms</em> need drawing; everything else composes from them.
-          </li>
-          <li>
-            <strong>Refine.</strong> Each hand-drawn stroke is centered onto the
-            letter's ink, smoothed, and straightened against the font's own edges
-            (see the pictures below).
-          </li>
-          <li>
-            <strong>Compose.</strong> Consonant+vowel-sign, conjuncts, and mark
-            chains are assembled from the recorded atoms - ~290 drawings become
-            ~2000 animatable clusters.
-          </li>
-        </ol>
       </section>
 
       <section id="stages">
@@ -254,7 +227,7 @@
         <p class="muted">
           The full engineering story - including the approaches that <em>didn't</em>
           work - is in
-          <a href="https://github.com/sachn1/malayalam-stroker/blob/HEAD/docs/CENTERING_EXPERIMENTS.md"
+          <a href="https://github.com/sachn1/jayasree/blob/HEAD/docs/CENTERING_EXPERIMENTS.md"
             >CENTERING_EXPERIMENTS.md</a
           >.
         </p>
@@ -262,7 +235,7 @@
 
       <section id="use">
         <h2>Use it in your page</h2>
-        <pre><code>import { createStrokeWriter } from "malayalam-stroker";
+        <pre><code>import { createStrokeWriter } from "jayasree";
 
 const writer = createStrokeWriter(document.getElementById("stage"));
 await writer.load();          // glyph outlines
@@ -271,7 +244,7 @@ await writer.play("നന്ദി", { speed: 1, count: 1 });</code></pre>
         <p>
           Plain ES modules, no build step. Options for pen speed, ink thickness,
           spacing, and repeat count are documented in the
-          <a href="https://github.com/sachn1/malayalam-stroker#using-the-js-library">README</a>.
+          <a href="https://github.com/sachn1/jayasree#using-the-js-library">README</a>.
         </p>
       </section>
 
@@ -282,7 +255,7 @@ await writer.play("നന്ദി", { speed: 1, count: 1 });</code></pre>
           speaker's hand tracing characters in the
           <a href="tools/stroke-recorder.html">browser recorder</a> - no coding
           required. Code contributions are welcome too; see
-          <a href="https://github.com/sachn1/malayalam-stroker/blob/HEAD/CONTRIBUTING.md"
+          <a href="https://github.com/sachn1/jayasree/blob/HEAD/CONTRIBUTING.md"
             >CONTRIBUTING.md</a
           >
           for the ground rules (clean code, tests, and never breaking an existing
@@ -293,7 +266,7 @@ await writer.play("നന്ദി", { speed: 1, count: 1 });</code></pre>
 
     <footer>
       <p>
-        Code: <a href="https://github.com/sachn1/malayalam-stroker/blob/HEAD/js/LICENSE">MIT</a>
+        Code: <a href="https://github.com/sachn1/jayasree/blob/HEAD/js/LICENSE">MIT</a>
         &nbsp;·&nbsp; Hand-drawn stroke data &amp; generated artwork:
         <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a> - free to
         use, <strong>please credit “Jayasree / malayalam-stroker”</strong> with a link

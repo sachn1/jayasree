@@ -1,7 +1,7 @@
 {
-  "name": "malayalam-stroker-repo",
+  "name": "jayasree-repo",
   "private": true,
-  "description": "Repo-level dev tooling (linting) for malayalam-stroker. The publishable package lives in js/.",
+  "description": "Repo-level dev tooling (linting) for jayasree. The publishable package lives in js/.",
   "type": "module",
   "scripts": {
     "lint": "eslint js/src tools/*.js demo/*.js tests/*.js",

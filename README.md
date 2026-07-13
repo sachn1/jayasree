@@ -7,7 +7,7 @@ A JavaScript library for animating Malayalam script as handwriting - showing
 *how* to write a letter or word, not just what it looks like. Think
 [Hanzi Writer](https://hanziwriter.org/) but for Malayalam.
 
-**Live site & demo:** <https://sachn1.github.io/malayalam-stroker/> -
+**Live site & demo:** <https://sachn1.github.io/jayasree/> -
 deployed from this repo by `.github/workflows/pages.yml` (one-time setup:
 repo Settings → Pages → Source: *GitHub Actions*).
 
@@ -216,8 +216,8 @@ letting it grow unchecked:
 ## Quickstart
 
 ```bash
-git clone https://github.com/sachn1/malayalam-stroker
-cd malayalam-stroker
+git clone https://github.com/sachn1/jayasree
+cd jayasree
 make install
 
 # (optional) regenerate glyph-data.json for a different font:
@@ -232,7 +232,7 @@ Open http://127.0.0.1:8000/demo/ - type any Malayalam word and watch it animate.
 ## Using the JS library
 
 ```js
-import { createStrokeWriter } from "malayalam-stroker";
+import { createStrokeWriter } from "jayasree";
 
 const writer = createStrokeWriter(document.getElementById("stage"));
 await writer.load();          // fetches glyph-data.json once
@@ -277,7 +277,7 @@ await writer.replay({ speed: 0.5, count: 2 }); // replay slower, twice
 ## Repo layout
 
 ```
-malayalam-stroker/
+jayasree/
 ├── js/
 │   ├── src/index.js               # main export - segmentation, composition, animation
 │   ├── src/glyph-data.json        # pre-computed font outlines + marks table (commit)
@@ -299,7 +299,7 @@ malayalam-stroker/
 │   ├── stroke-recorder.html/.css/.js  # browser tool for authoring stroke-data.raw.json
 │   └── build_standalone_recorder.py   # bundles the recorder into one offline file
 ├── demo/
-│   ├── demo_index.html / demo.js / demo.css
+│   ├── index.html / demo.js / demo.css
 │   ├── logo-preview.html          # standalone preview of the animated wordmark
 │   └── serve.py
 ├── docs/

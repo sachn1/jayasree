@@ -39,8 +39,9 @@ class DemoHandler(BaseHTTPRequestHandler):
     def _serve_static(self, path: str) -> None:
         """Serve a file from the repo root, rejecting path-traversal attempts."""
         rel = path.lstrip("/") or "index.html"
+        # Mirror GitHub Pages' directory-index behavior for the demo URL.
         if rel == "demo" or rel == "demo/":
-            rel = "demo/demo_index.html"
+            rel = "demo/index.html"
         file_path = (_REPO_ROOT / rel).resolve()
 
         # Don't serve anything outside the repo root.

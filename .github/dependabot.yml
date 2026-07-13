@@ -1,0 +1,18 @@
+# Keeps the three toolchains' dependencies fresh via automated PRs.
+# Monthly cadence: this is a small project; weekly would be mostly noise.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: monthly
+
+  - package-ecosystem: pip # reads python/pyproject.toml + poetry.lock
+    directory: /python
+    schedule:
+      interval: monthly

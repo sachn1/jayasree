@@ -1,5 +1,5 @@
 {
-  "name": "malayalam-stroker",
+  "name": "jayasree",
   "version": "0.1.0",
   "description": "Animated stroke-trace widget for Malayalam (or any script) - renders the JSON produced by the malayalam-stroker Python package as a left-to-right ink reveal",
   "type": "module",
@@ -25,9 +25,9 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/sachn1/malayalam-stroker"
+    "url": "https://github.com/sachn1/jayasree"
   },
-  "homepage": "https://github.com/sachn1/malayalam-stroker#readme",
+  "homepage": "https://github.com/sachn1/jayasree#readme",
   "devDependencies": {},
   "engines": {
     "node": ">=14"

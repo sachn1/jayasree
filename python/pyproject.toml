@@ -28,8 +28,8 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/sachn1/malayalam-stroker"
-Repository = "https://github.com/sachn1/malayalam-stroker"
+Homepage = "https://github.com/sachn1/jayasree"
+Repository = "https://github.com/sachn1/jayasree"
 
 [project.scripts]
 malayalam-stroker = "malayalam_stroker.cli:main"

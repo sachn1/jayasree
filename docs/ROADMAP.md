@@ -15,11 +15,10 @@ it forever).
   in real time - is still open. Revisit once the pipeline is stable enough
   that a fancier presentation is worth the upkeep.
 - **Publish the packages.** Neither `js/` nor `python/` is published yet
-  (`README.md`, `python/README.md`) - both `authors`/repo URLs are still
-  placeholders. Once the API is stable enough to commit to: `npm publish`
-  for the JS package, and a PyPI release for the Python one (currently
-  positioned as a build-time-only tool, so this may never be worth doing
-  for it specifically).
+  (`README.md`, `python/README.md`). Once the API is stable enough to
+  commit to: `npm publish` for the JS package, and a PyPI release for the
+  Python one (currently positioned as a build-time-only tool, so this may
+  never be worth doing for it specifically).
 
 ## Learning features
 
@@ -86,7 +85,7 @@ conversations about this project) means:
 
 The site (landing page + demo + recorder) deploys to GitHub Pages via
 `.github/workflows/pages.yml` - decided against a custom domain for now;
-`<user>.github.io/malayalam-stroker` is enough. Still open:
+`<user>.github.io/jayasree` is enough. Still open:
 
 - Cache headers / CDN in front of the JSON data files once real traffic
   exists - they're static and content-hashed-by-commit, so they're

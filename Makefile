@@ -12,7 +12,7 @@
 # that defines "lint" or "test" for this repo.
 
 help:
-	@echo "malayalam-stroker - common commands"
+	@echo "jayasree - common commands"
 	@echo ""
 	@echo "  make install        install both Python (poetry) and JS (npm) dependencies"
 	@echo "  make lint           lint Python + JS"

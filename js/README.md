@@ -10,7 +10,7 @@ pre-computed and bundled in `glyph-data.json`.
 ## Usage
 
 ```js
-import { createStrokeWriter } from "malayalam-stroker";
+import { createStrokeWriter } from "jayasree";
 
 const writer = createStrokeWriter(document.getElementById("stage"));
 await writer.load();          // fetches glyph-data.json once
@@ -57,7 +57,7 @@ Save it as `js/stroke-data.json` and commit.
 ## Configuring per-cluster behaviour
 
 ```js
-import { createStrokeWriter, START_OVERRIDES, DIRECTION_OVERRIDES } from "malayalam-stroker";
+import { createStrokeWriter, START_OVERRIDES, DIRECTION_OVERRIDES } from "jayasree";
 
 // Where on the contour the pen starts (fallback mode only)
 START_OVERRIDES["ന"] = "topmost";   // "leftmost" | "rightmost" | "topmost" | "bottommost" | 0..1 fraction
@@ -94,7 +94,7 @@ npm install malayalam-stroker
 ## Usage
 
 ```js
-import { createStrokeWriter } from "malayalam-stroker";
+import { createStrokeWriter } from "jayasree";
 import "malayalam-stroker/style.css"; // optional default styling
 
 const writer = createStrokeWriter(document.getElementById("stage"));
@@ -159,7 +159,7 @@ Controls where on the outer contour the pen begins for each glyph.
 Find glyph names with `trace.glyphs.map(g => g.glyphName)`.
 
 ```js
-import { createStrokeWriter, START_OVERRIDES } from "malayalam-stroker";
+import { createStrokeWriter, START_OVERRIDES } from "jayasree";
 
 START_OVERRIDES["n1"] = "topmost";      // start at the topmost point
 START_OVERRIDES["m1"] = 0.25;           // start 25% along the contour
@@ -175,7 +175,7 @@ of the above, one entry per outer sub-contour.
 Controls which way around the contour the pen travels.
 
 ```js
-import { createStrokeWriter, START_OVERRIDES, DIRECTION_OVERRIDES } from "malayalam-stroker";
+import { createStrokeWriter, START_OVERRIDES, DIRECTION_OVERRIDES } from "jayasree";
 
 DIRECTION_OVERRIDES["n1"] = "reverse";  // go the other way around
 DIRECTION_OVERRIDES["lh"] = ["forward", "reverse"]; // per sub-contour
