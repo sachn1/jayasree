@@ -95,19 +95,25 @@ def parse_args() -> argparse.Namespace:
 def _reference_glyphs(cluster: str, cluster_info: dict, marks: dict) -> list[dict]:
     """Return the glyphs to use as the centering/straightening reference for `cluster`.
 
-    A single-character mark's own standalone entry includes HarfBuzz's
-    dotted-circle placeholder (see tools/build_glyph_data.py's
-    ``_standalone_inputs()``) alongside its real content glyph - the human
-    only traced the content, so the placeholder must be excluded here, or
-    it corrupts the distance field with a second, spurious "ink" blob the
-    gradient ascent can wander into (shows up as wiggle right where the
-    content starts, next to where the circle would have been). ``marks``
-    already knows, per mark, whether content is glyphs[0] (prefix marks,
-    which render before the circle) or glyphs[-1] (suffix marks, circle
-    first) - see ``_build_marks()``'s docstring in build_glyph_data.py.
+    A mark's own standalone entry includes HarfBuzz's dotted-circle
+    placeholder (see tools/build_glyph_data.py's ``_standalone_inputs()``)
+    alongside its real content glyph - the human only traced the content, so
+    the placeholder must be excluded here, or it corrupts the distance field
+    with a second, spurious "ink" blob the gradient ascent can wander into
+    (shows up as wiggle right where the content starts, next to where the
+    circle would have been). ``marks`` already knows, per mark, whether
+    content is glyphs[0] (prefix marks, which render before the circle) or
+    glyphs[-1] (suffix marks, circle first) - see ``_build_marks()``'s
+    docstring in build_glyph_data.py.
+
+    Gated on glyph count + a `marks` entry rather than `len(cluster) == 1`:
+    ്ര is a 2-codepoint mark (VIRAMA + "ര") with this exact same
+    circle+content shape once it's in `_standalone_inputs()` - a
+    single-codepoint-only check would silently skip the exclusion for it
+    and corrupt its reference field the same way.
     """
     glyphs = cluster_info["glyphs"]
-    if len(cluster) != 1 or len(glyphs) != 2:
+    if len(glyphs) != 2:
         return glyphs
     mark = marks.get(cluster)
     if not mark:

@@ -112,17 +112,32 @@ const manuallyAddedClusters = new Set();
 const DEPRECATED_ATOMS = new Set(["ൊ", "ോ", "ൌ"]); // ൊ ോ ൌ
 
 /**
+ * Cluster strings present in the loaded glyph-data.json's `marks` map (e.g.
+ * "്ര") - populated by parseGlyphData. A multi-character mark given its own
+ * `clusters` entry (see build_glyph_data.py's `_standalone_inputs()`)
+ * genuinely needs its own recorded stroke, same as any single-codepoint
+ * mark - it just isn't one. Doesn't affect marks-only entries like
+ * ്യ/്വ/്ല, which have no `clusters` ghost at all and so never appear in
+ * `trace.glyphs` in the first place.
+ *
+ * @type {Set<string>}
+ */
+const composableMarkClusters = new Set();
+
+/**
  * Whether `clusterStr` belongs to the reduced "needs its own hand-drawn
  * stroke" atom set, as opposed to a combination that composes automatically
  * from other atoms at runtime (see README's "Composing combinations instead
  * of pre-shaping every one").
  *
  * Single codepoints (letters, digits, virama, matras) are always atoms -
- * they can't be decomposed further. A multi-character cluster is an atom
- * only if it's already known to need its own stroke: either it's already
- * recorded in the loaded stroke-data.raw.json (the existing 292-ish
- * hand-picked fused/conjunct forms), or it was just added this session via
- * "+ Add".
+ * they can't be decomposed further. A multi-character mark given its own
+ * `clusters` ghost (e.g. ്ര - see composableMarkClusters) is an atom for
+ * the same reason: it's a mark in its own right, just not a single
+ * codepoint. Any other multi-character cluster is an atom only if it's
+ * already known to need its own stroke: either it's already recorded in
+ * the loaded stroke-data.raw.json (the existing 292-ish hand-picked
+ * fused/conjunct forms), or it was just added this session via "+ Add".
  *
  * @param {string} clusterStr
  * @returns {boolean}
@@ -130,6 +145,7 @@ const DEPRECATED_ATOMS = new Set(["ൊ", "ോ", "ൌ"]); // ൊ ോ ൌ
 function isAtom(clusterStr) {
   if (DEPRECATED_ATOMS.has(clusterStr)) return false;
   if (clusterStr.length === 1) return true;
+  if (composableMarkClusters.has(clusterStr)) return true;
   if (manuallyAddedClusters.has(clusterStr)) return true;
   return !!existingStrokeData?.[clusterStr]?.strokes?.length;
 }
@@ -264,6 +280,8 @@ function parseGlyphData(text) {
       paths: entry.glyphs,
       advance: entry.advance,
     }));
+    composableMarkClusters.clear();
+    for (const markKey of Object.keys(parsed.marks ?? {})) composableMarkClusters.add(markKey);
   } else {
     // Legacy StrokeTrace array from the Python CLI
     const sources = Array.isArray(parsed) ? parsed : [parsed];
