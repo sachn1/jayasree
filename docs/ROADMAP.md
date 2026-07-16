@@ -14,12 +14,10 @@ it forever).
   with sliders/tabs to flip between raw → centered → smoothed → straightened
   in real time - is still open. Revisit once the pipeline is stable enough
   that a fancier presentation is worth the upkeep.
-- **Publish the packages.** Neither `js/` nor `python/` is published yet
-  (`README.md`, `python/README.md`). Once the API is stable enough to
-  commit to: `npm publish` for the JS package, and a PyPI release for the
-  Python one (currently positioned as a build-time-only tool, so this may
-  never be worth doing for it specifically).
-
+- **Publish the Python package**, if it's ever worth it. `js/` publishes to
+  npm now (Trusted Publishing via `.github/workflows/publish.yml`); `python/`
+  is still deliberately unpublished - a build-time-only tool
+  (`python/README.md`), so this may never be worth doing for it specifically.
 ## Learning features
 
 - **"Vanilla form" tooltips for fused/compound clusters** (opt-in, e.g.
@@ -49,7 +47,7 @@ it forever).
 ## Multi-language support
 
 Everything Malayalam-specific currently lives in one place per layer:
-`python/src/malayalam_stroker/_chars.py` (character inventory) and the two
+`python/src/jayasree/_chars.py` (character inventory) and the two
 committed JSON files (`js/src/glyph-data.json`, `stroke-data(.raw).json`).
 Adding a second script (Tamil is the obvious next candidate, per early
 conversations about this project) means:
@@ -92,41 +90,6 @@ The site (landing page + demo + recorder) deploys to GitHub Pages via
   trivially cacheable, but GitHub Pages' default caching is what we get
   until/unless the site moves somewhere configurable.
 - A custom domain, if the project ever outgrows the github.io URL.
-
-### Automated releases on PR merge (manual releases stay manual)
-
-Right now every release is manual: `make bump` (`cz bump`) locally computes
-the version from conventional-commit history, updates version_files +
-CHANGELOG.md, and tags - then `git push --follow-tags` is what actually
-triggers `publish.yml` (it only fires on a `v*` tag arriving, never on an
-ordinary push - see that workflow's own header comment). Nothing
-auto-releases today, on a PR merge or otherwise.
-
-Decided direction (not yet built): keep it that way for direct pushes to
-master, but auto-release when a PR is merged - the PR-review act itself is
-the "deliberate, reviewed" signal that a plain push doesn't have. The two
-paths are genuinely distinguishable in GitHub Actions, not just a
-convention to self-enforce:
-
-- **PR merged to master** → a new job triggered by `pull_request: types:
-  [closed]` with `if: github.event.pull_request.merged == true` (a
-  different trigger than `push` entirely) runs an automated release - e.g.
-  release-please, which maintains a standing "Release PR" that accumulates
-  pending changes and computes the next version, so the actual publish
-  moment is still one deliberate merge, just of the release PR instead of a
-  manual `make bump` run.
-- **Direct push to master** → unchanged: `make bump` + `git push
-  --follow-tags`, same as today.
-
-Commit *type* already does the "which changes count as a release" filtering
-for free under the Conventional Commits convention release-please and
-similar tools follow: `feat`/`fix`/breaking-change commits trigger a
-version bump, `docs`/`chore`/`ci`/`test`/non-breaking `refactor` don't - no
-extra scoping rule needed for e.g. CI-only changes to be excluded.
-
-Deliberately not built yet: there's no real PR workflow to exercise it
-against currently (solo dev, direct pushes only) - worth building once PRs
-are actually in use, not speculatively ahead of that.
 
 ## Bug-report → data pipeline
 
@@ -187,6 +150,6 @@ person reading the source. Needs a proper pipeline:
 - **Ligature coverage for the vowel signs that currently compose
   imperfectly** - ു/ൂ/ൃ and the reduced la-form fuse into a
   consonant-specific shape in real font rendering that generic mark
-  composition can't reproduce (see README's "Composing combinations"
+  composition can't reproduce (see `docs/ARCHITECTURE.md`'s "Composition"
   section); they're recorded as separate atoms instead of true ligatures.
   Revisit if this becomes visually noticeable enough to matter.

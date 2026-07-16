@@ -4,7 +4,7 @@
 	validate-data precommit \
 	ci ci-py ci-js \
 	demo record build-glyph-data process-strokes build-recorder update-snapshot \
-	bump clean
+	bump bump-ci clean
 
 # Single source of truth for the commands used both by contributors locally
 # and by .github/workflows/ci.yml - the workflow calls `make ci-py`/`make
@@ -91,6 +91,16 @@ update-snapshot:
 bump:
 	python/.venv/bin/cz bump
 
+# Same as `bump`, but non-interactive (`--yes`) for the automated
+# release-on-PR-merge workflow (.github/workflows/release-on-merge.yml) -
+# see that target's comment above for why this still doesn't go through
+# `poetry run`/`poetry -C`. Exits non-zero (21 if the merged commits don't
+# include anything release-worthy, e.g. a docs-only PR; 3 if there are no
+# new commits at all) when there's nothing to release - the caller decides
+# whether that's a real failure or just a no-op.
+bump-ci:
+	python/.venv/bin/cz bump --yes
+
 # ── Everything at once ───────────────────────────────────────────────────
 
 precommit:
@@ -112,7 +122,7 @@ ci: ci-py ci-js
 # recorder (tools/stroke-recorder.html) reachable through it too - serve.py
 # prints both URLs on startup for exactly this reason. `record` is just a
 # more discoverable name for anyone who only wants the recorder.
-# Runs inside the poetry venv: serve.py imports malayalam_stroker (uharfbuzz)
+# Runs inside the poetry venv: serve.py imports jayasree (uharfbuzz)
 # for its /api/shape endpoint, which a bare system python3 won't have.
 demo record:
 	cd python && poetry run python ../demo/serve.py

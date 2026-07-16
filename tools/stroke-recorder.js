@@ -11,6 +11,22 @@
 
 const SVGNS = "http://www.w3.org/2000/svg";
 
+/**
+ * Language-agnostic whitespace/punctuation - keys only, kept in sync by
+ * hand with UNIVERSAL_CHARS in js/src/index.js (the canonical definition,
+ * which also has each one's advance width). Deliberately NOT a dynamic
+ * `import()` of that module: tools/stroke-recorder-standalone.html is
+ * explicitly designed to open via `file://` with no server (see
+ * build_standalone_recorder.py's docstring), where a cross-file ES module
+ * import can fail under browsers' file:// CORS restrictions - a plain
+ * embedded object has no such risk. These never need a recorded stroke (see
+ * UNIVERSAL_CHARS's docstring for why), so isAtom/the "Add custom cluster"
+ * handler both refuse to let one in here at all.
+ *
+ * @type {Set<string>}
+ */
+const UNIVERSAL_CHARS = new Set([" ", ".", ",", "!", "?", ";", ":", "-", "'", '"', "(", ")"]);
+
 /** Catmull-Rom tension for live stroke preview. */
 const TENSION = 0.4;
 
@@ -275,11 +291,18 @@ function parseGlyphData(text) {
 
   if (parsed.meta && parsed.clusters) {
     ({ unitsPerEm, ascent, descent } = parsed.meta);
-    glyphs = Object.entries(parsed.clusters).map(([clusterStr, entry]) => ({
-      clusterStr,
-      paths: entry.glyphs,
-      advance: entry.advance,
-    }));
+    // Universal whitespace/punctuation (see UNIVERSAL_CHARS above) never
+    // needs a recorded stroke - excluded here as defense in depth in case
+    // glyph-data.json ever has one, on top of the "Add custom cluster"
+    // guard below (that guard covers typed-in entries; this covers loaded
+    // ones).
+    glyphs = Object.entries(parsed.clusters)
+      .filter(([clusterStr]) => !UNIVERSAL_CHARS.has(clusterStr))
+      .map(([clusterStr, entry]) => ({
+        clusterStr,
+        paths: entry.glyphs,
+        advance: entry.advance,
+      }));
     composableMarkClusters.clear();
     for (const markKey of Object.keys(parsed.marks ?? {})) composableMarkClusters.add(markKey);
   } else {
@@ -869,6 +892,13 @@ document.addEventListener("DOMContentLoaded", () => {
     const input = document.getElementById("add-input");
     const cluster = input.value.trim();
     if (!cluster || !trace) return;
+    if (UNIVERSAL_CHARS.has(cluster)) {
+      alert(
+        `${JSON.stringify(cluster)} is universal whitespace/punctuation, not a language-specific glyph - it's rendered as static text at runtime (see UNIVERSAL_CHARS in js/src/index.js) and should never have a recorded stroke.`
+      );
+      input.value = "";
+      return;
+    }
     const existingIdx = trace.glyphs.findIndex((g) => g.clusterStr === cluster);
     if (existingIdx !== -1) {
       glyphIndex = existingIdx;

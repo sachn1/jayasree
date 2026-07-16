@@ -1,5 +1,5 @@
 /**
- * malayalam-stroker - self-contained stroke-trace animation library.
+ * jayasree - self-contained stroke-trace animation library.
  *
  * No server, no font file, no build step required at runtime.
  *
@@ -12,13 +12,13 @@
  *                      Falls back to outer-contour outline when absent.
  *
  * @example
- * import { createStrokeWriter } from "malayalam-stroker";
+ * import { createStrokeWriter } from "jayasree";
  * const writer = createStrokeWriter(document.getElementById("stage"));
  * await writer.load();
  * await writer.loadStrokes();   // optional - silent no-op if file absent
  * await writer.play("നന്ദി");
  *
- * @module malayalam-stroker
+ * @module jayasree
  */
 
 const SVGNS = "http://www.w3.org/2000/svg";
@@ -50,6 +50,46 @@ const DEFAULT_TIGHTEN_FRACTION = 0.06;
  * writer via `options.strokeWidth` (see createStrokeWriter).
  */
 const DEFAULT_STROKE_WIDTH_FRACTION = 0.022;
+
+/**
+ * Language-agnostic whitespace/punctuation, rendered as plain static text
+ * instead of animated handwriting - these aren't part of any script's
+ * letterforms (every language's text uses the same ".", "!", ";", " ", ...),
+ * so they don't need, and don't make sense with, hand-stroke tracing the
+ * way an actual Malayalam glyph does. Never touches glyph-data.json or
+ * stroke-data.json: no font-shaping, no ghost outline, no recorded stroke -
+ * just a fixed advance width (fraction of unitsPerEm) and the character
+ * itself drawn as text, appearing immediately with the rest of the trace.
+ *
+ * Deliberately script-independent - adding a second language (see
+ * docs/ROADMAP.md's "Multi-language support") never means touching this:
+ * it's checked before any language-specific cluster/mark lookup in
+ * resolveSegments, and stays exactly the same regardless of which
+ * language's glyph-data/stroke-data is loaded.
+ *
+ * Exported (not just internal) so tooling - specifically
+ * tools/stroke-recorder.js - can import this same set at runtime and refuse
+ * to ever let one of these get recorded into stroke-data(.raw).json; see
+ * also tools/validate_data.py's matching (necessarily duplicated - Python
+ * can't import a JS module - but minimal and clearly cross-referenced)
+ * check.
+ *
+ * @type {Record<string, number>}
+ */
+export const UNIVERSAL_CHARS = {
+  " ": 0.28,
+  ".": 0.15,
+  ",": 0.15,
+  "!": 0.18,
+  "?": 0.24,
+  ";": 0.15,
+  ":": 0.13,
+  "-": 0.18,
+  "'": 0.12,
+  '"': 0.16,
+  "(": 0.15,
+  ")": 0.15,
+};
 
 /** Default URL for the bundled glyph data. */
 const GLYPH_DATA_URL = new URL("./glyph-data.json", import.meta.url);
@@ -88,6 +128,43 @@ export const STROKE_LIBRARY = {};
 // ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------
+
+/**
+ * Legacy chillu encoding (base consonant + virama U+0D4D + ZWJ U+200D) mapped
+ * to its atomic Unicode 5.1+ chillu codepoint. glyph-data.json/stroke-data.json
+ * only key clusters by the atomic form, so text using the legacy 3-codepoint
+ * sequence - very common in real-world/pasted Malayalam text, and what old
+ * fonts/keyboards produce - would otherwise fall through to the plain
+ * consonant+virama rendering instead of the authored chillu glyph.
+ *
+ * @type {Record<string, string>}
+ */
+const LEGACY_CHILLU = {
+  // Each key is 3 codepoints (consonant + U+0D4D + U+200D); each value is 1
+  // (the atomic chillu). They render identically - only the string length
+  // (and which lookup key matches glyph-data.json) differs.
+  "ണ്‍": "ൺ", // ണ (U+0D23) + ് (U+0D4D) + ZWJ (U+200D)  ->  ൺ (U+0D7A)
+  "ന്‍": "ൻ", // ന (U+0D28) + ് (U+0D4D) + ZWJ (U+200D)  ->  ൻ (U+0D7B)
+  "ര്‍": "ർ", // ര (U+0D30) + ് (U+0D4D) + ZWJ (U+200D)  ->  ർ (U+0D7C)
+  "ല്‍": "ൽ", // ല (U+0D32) + ് (U+0D4D) + ZWJ (U+200D)  ->  ൽ (U+0D7D)
+  "ള്‍": "ൾ", // ള (U+0D33) + ് (U+0D4D) + ZWJ (U+200D)  ->  ൾ (U+0D7E)
+  "ക്‍": "ൿ", // ക (U+0D15) + ് (U+0D4D) + ZWJ (U+200D)  ->  ൿ (U+0D7F)
+};
+
+/**
+ * Replace legacy consonant+virama+ZWJ chillu sequences with their atomic
+ * codepoint equivalent. See {@link LEGACY_CHILLU}.
+ *
+ * @param {string} text
+ * @returns {string}
+ */
+function normalizeChillus(text) {
+  let result = text;
+  for (const [legacy, atomic] of Object.entries(LEGACY_CHILLU)) {
+    result = result.split(legacy).join(atomic);
+  }
+  return result;
+}
 
 /**
  * Create an SVG element with the given attributes.
@@ -219,6 +296,39 @@ function composeMark(base, mark) {
     ...mark.suffix.map((s) => ({ d: s.d, x: mark.shift + base.advance + s.x, y: s.y })),
   ];
   return { glyphs, advance: mark.shift + base.advance + mark.trailingWidth };
+}
+
+/**
+ * Return a copy of `marks` with every prefix mark's `shift` trimmed by
+ * `tightenUnits`, clamped to 0.
+ *
+ * `shift` is a prefix mark's own measured advance (literally where HarfBuzz
+ * placed the dotted-circle placeholder after it - see `_build_marks()`'s
+ * docstring in build_glyph_data.py), so it bakes in the same kind of
+ * trailing-sidebearing looseness `DEFAULT_TIGHTEN_FRACTION` already exists
+ * to trim from every cluster's own `advance` - but until now, only
+ * inter-cluster spacing (the `penX` accumulation in buildTrace) got that
+ * trim; a prefix mark's *internal* gap before its base (e.g. ്ര's base
+ * consonant, shifted 615 units right of the prefix curl) never did,
+ * making some atom pairings read as far more loosely spaced than others
+ * for no principled reason - see the ചന്ദ്രൻ example this was found from.
+ *
+ * Applying the exact same flat per-writer trim here as everywhere else
+ * (rather than a separate constant/formula) is what keeps spacing
+ * consistent without needing to hand-tune each mark: every gap in a trace,
+ * inter-cluster or intra-cluster, narrows by the same fixed amount.
+ *
+ * @param {Record<string, { shift: number, prefix: object[], suffix: object[], trailingWidth: number }>} marks
+ * @param {number} tightenUnits
+ * @returns {Record<string, object>}
+ */
+function tightenMarks(marks, tightenUnits) {
+  const out = {};
+  for (const [key, mark] of Object.entries(marks)) {
+    out[key] =
+      mark.prefix.length > 0 ? { ...mark, shift: Math.max(0, mark.shift - tightenUnits) } : mark;
+  }
+  return out;
 }
 
 /**
@@ -547,15 +657,25 @@ function tryComposeFromCharacters(cluster, glyphData) {
  * glyph plus the mark's separate standalone shape instead: less tightly
  * kerned than a true font ligature, but still correct and legible (see
  * glyphData.marks / tools/build_glyph_data.py's _build_marks() docstring
- * for the full derivation). Composition is skipped only for marks with a
- * prefix component when the base is more than one glyph - that reordering
- * isn't safe on a non-ligating multi-glyph conjunct.
+ * for the full derivation).
+ *
+ * A prefix mark (െ/േ/ൈ) composes onto a multi-glyph base the same way as
+ * any other base: {@link composeMark} shifts the *entire* base - however
+ * many glyphs it has - right as one block by the mark's `shift`, then
+ * prepends the mark's own prefix glyphs at x=0. An earlier version of this
+ * function skipped composition here (base.glyphs.length > 1) on the theory
+ * that this reordering wasn't safe for a non-ligating multi-glyph conjunct
+ * (see _build_marks()'s docstring) - but that guard's fallback (rendering
+ * the mark as its own isolated dotted-circle-placeholder shape, floating
+ * disconnected from the base it belongs to) was strictly worse than the
+ * shift it was trying to avoid: real words like "പ്രത്യേക" (േ prefixing
+ * "ത്യ", a 2-glyph subjoined conjunct) and "ജ്യോതി" render correctly
+ * composed, with no observed reordering, so the guard was removed.
  *
  * Only once mark composition doesn't apply (no previous segment - start of
- * text - or that unsupported prefix+multi-glyph case) does a length-1
- * direct match get tried, rendering the character's own isolated shape
- * (correct for e.g. a stray mark with nothing to attach to). Failing that,
- * the character is skipped with a console warning.
+ * text) does a length-1 direct match get tried, rendering the character's
+ * own isolated shape (correct for e.g. a stray mark with nothing to attach
+ * to). Failing that, the character is skipped with a console warning.
  *
  * @param {string} text
  * @param {Record<string, unknown>} clusters - The `clusters` map from glyph-data.json.
@@ -563,13 +683,23 @@ function tryComposeFromCharacters(cluster, glyphData) {
  * @returns {{ cluster: string, entry: { glyphs: object[], advance: number } }[]}
  */
 function resolveSegments(text, clusters, marks) {
+  const normalized = normalizeChillus(text);
   const segs = [];
   let i = 0;
-  while (i < text.length) {
+  while (i < normalized.length) {
+    if (Object.hasOwn(UNIVERSAL_CHARS, normalized[i])) {
+      segs.push({
+        cluster: normalized[i],
+        entry: { glyphs: [], advanceFraction: UNIVERSAL_CHARS[normalized[i]], universal: true },
+      });
+      i++;
+      continue;
+    }
+
     let matched = false;
     for (const len of [4, 3, 2]) {
-      if (i + len > text.length) continue;
-      const slice = text.slice(i, i + len);
+      if (i + len > normalized.length) continue;
+      const slice = normalized.slice(i, i + len);
       if (!clusters[slice]) continue;
       // A registered mark (e.g. ്ര's own standalone glyph-data entry, kept
       // only so the stroke recorder has a real ghost to record it against
@@ -588,12 +718,11 @@ function resolveSegments(text, clusters, marks) {
 
     let composed = false;
     for (const markLen of [2, 1]) {
-      if (i + markLen > text.length) continue;
-      const markCh = text.slice(i, i + markLen);
+      if (i + markLen > normalized.length) continue;
+      const markCh = normalized.slice(i, i + markLen);
       const mark = marks[markCh];
       const prev = segs[segs.length - 1];
       if (!mark || !prev) continue;
-      if (mark.prefix.length > 0 && prev.entry.glyphs.length > 1) continue;
       segs[segs.length - 1] = {
         cluster: prev.cluster + markCh,
         entry: composeMark(prev.entry, mark),
@@ -604,14 +733,14 @@ function resolveSegments(text, clusters, marks) {
     }
     if (composed) continue;
 
-    const single = text[i];
+    const single = normalized[i];
     if (clusters[single]) {
       segs.push({ cluster: single, entry: clusters[single] });
       i++;
       continue;
     }
 
-    console.warn(`malayalam-stroker: no glyph data for ${JSON.stringify(single)} in ${JSON.stringify(text)} - skipping`);
+    console.warn(`jayasree: no glyph data for ${JSON.stringify(single)} in ${JSON.stringify(text)} - skipping`);
     i++;
   }
   return segs;
@@ -703,10 +832,17 @@ export function createStrokeWriter(container, options = {}) {
   function buildTrace(text) {
     if (!glyphData) throw new Error("Call writer.load() before writer.play()");
     const { meta, clusters, marks } = glyphData;
-    const segs = resolveSegments(text, clusters, marks ?? {});
+    const tightenUnits = TIGHTEN * meta.unitsPerEm;
+    // Prefix-mark shifts get the same trim as inter-cluster advances below -
+    // see tightenMarks's docstring. Threaded through as a modified glyphData
+    // (rather than a new parameter on every composition function) so
+    // buildStage's tryComposeStroke/tryComposeFromCharacters calls - which
+    // need the *same* tightened shifts to keep the animated ink aligned
+    // with this ghost - can reuse it via `trace.glyphData` below.
+    const tightenedGlyphData = { ...glyphData, marks: tightenMarks(marks ?? {}, tightenUnits) };
+    const segs = resolveSegments(text, clusters, tightenedGlyphData.marks);
     if (!segs.length) return null;
 
-    const tightenUnits = TIGHTEN * meta.unitsPerEm;
     let penX = 0;
     const segGroups = [];
     for (const { cluster, entry } of segs) {
@@ -714,8 +850,14 @@ export function createStrokeWriter(container, options = {}) {
         cluster,
         components: entry.glyphs.map((g) => ({ d: g.d, x: penX + g.x, y: g.y })),
         groupX: penX,
+        universal: !!entry.universal,
       });
-      penX += Math.max(0, entry.advance - tightenUnits);
+      // Universal chars use their own fixed advance as-is - `tighten` only
+      // compensates for a font's own sidebearing looseness, which doesn't
+      // apply to a hand-picked width that was never font-shaped.
+      penX += entry.universal
+        ? entry.advanceFraction * meta.unitsPerEm
+        : Math.max(0, entry.advance - tightenUnits);
     }
 
     return {
@@ -724,6 +866,7 @@ export function createStrokeWriter(container, options = {}) {
       descent: meta.descent,
       totalAdvance: penX,
       segGroups,
+      glyphData: tightenedGlyphData,
     };
   }
 
@@ -737,7 +880,8 @@ export function createStrokeWriter(container, options = {}) {
    */
   function buildStage(trace) {
     container.innerHTML = "";
-    const { unitsPerEm, ascent, descent, totalAdvance, segGroups } = trace;
+    const { unitsPerEm, ascent, descent, totalAdvance, segGroups, glyphData: traceGlyphData } =
+      trace;
     const pad = unitsPerEm * 0.1;
     const vb = `${-pad} ${-ascent - pad} ${totalAdvance + pad * 2} ${ascent - descent + pad * 2}`;
     const svg = svgEl("svg", { viewBox: vb });
@@ -765,11 +909,29 @@ export function createStrokeWriter(container, options = {}) {
 
     const fallbackClusters = [];
     const glyphUnits = segGroups.map((grp) => {
+      // Universal chars (space, punctuation - see UNIVERSAL_CHARS) are
+      // plain static text, not handwriting: no ghost, no ink animation, no
+      // "missing stroke data" flag - there was never meant to be a stroke
+      // for them in the first place.
+      if (grp.universal) {
+        if (grp.cluster !== " ") {
+          svg.appendChild(
+            svgEl("text", {
+              class: "ms-static",
+              x: grp.groupX,
+              y: 0,
+              "font-size": unitsPerEm * 0.65,
+            })
+          ).textContent = grp.cluster;
+        }
+        return { gEl: null, subUnits: [] };
+      }
+
       const authored = OUTLINE_ONLY
         ? null
         : (STROKE_LIBRARY[grp.cluster] ??
-           tryComposeStroke(grp.cluster, glyphData) ??
-           tryComposeFromCharacters(grp.cluster, glyphData));
+           tryComposeStroke(grp.cluster, traceGlyphData) ??
+           tryComposeFromCharacters(grp.cluster, traceGlyphData));
 
       // Only a genuine gap when outline-only wasn't explicitly requested -
       // OUTLINE_ONLY always skips STROKE_LIBRARY by design, so that's not
@@ -919,7 +1081,7 @@ export function createStrokeWriter(container, options = {}) {
     state.lastFallbackClusters = fallbackClusters;
     if (fallbackClusters.length) {
       console.warn(
-        `malayalam-stroker: no handwriting data for ${fallbackClusters.map((c) => JSON.stringify(c)).join(", ")} in ${JSON.stringify(text)} - showing an approximated outline trace instead`
+        `jayasree: no handwriting data for ${fallbackClusters.map((c) => JSON.stringify(c)).join(", ")} in ${JSON.stringify(text)} - showing an approximated outline trace instead`
       );
     }
 
@@ -1014,6 +1176,7 @@ export function createStrokeWriter(container, options = {}) {
  */
 export const _internal = {
   composeMark,
+  tightenMarks,
   resolveGhostEntry,
   offsetSvgPath,
   SPLIT_VOWEL_PARTS,
@@ -1025,6 +1188,7 @@ export const _internal = {
   charDx,
   tryComposeFromCharacters,
   resolveSegments,
+  normalizeChillus,
 };
 
 

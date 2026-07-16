@@ -175,7 +175,7 @@
         <img src="demo/jayasree.svg" alt="ജയശ്രീ - animated stroke trace of the word Jayasree" />
       </span>
       <h1>
-        jayasree &middot; malayalam stroker &middot;
+        jayasree &middot;
         <!-- cz-version --><span class="version">v0.2.0</span>
       </h1>
       <p class="tagline">
@@ -196,7 +196,9 @@
           records real stroke order for ~290 <em>atoms</em> in a browser
           recorder, each stroke is refined against the font (pictures below),
           and composition turns those atoms into ~2000 animatable clusters.
-          The <a href="https://github.com/sachn1/jayasree#how-it-works">README</a>
+          <a href="https://github.com/sachn1/jayasree/blob/HEAD/docs/ARCHITECTURE.md"
+            >ARCHITECTURE.md</a
+          >
           has the full pipeline walkthrough, file by file.
         </p>
       </section>
@@ -246,6 +248,17 @@ await writer.play("നന്ദി", { speed: 1, count: 1 });</code></pre>
           spacing, and repeat count are documented in the
           <a href="https://github.com/sachn1/jayasree#using-the-js-library">README</a>.
         </p>
+        <p>
+          Real-world Malayalam text often spells chillu letters (ൻ, ർ, ൽ, ൾ, ൺ, ൿ)
+          as a 3-codepoint legacy sequence rather than the single modern
+          codepoint - both look identical but need different handling under the
+          hood.
+          <code>play()</code> accepts either automatically; see
+          <a href="https://github.com/sachn1/jayasree/blob/HEAD/docs/ARCHITECTURE.md#chillu-letters-two-unicode-encodings-one-glyph"
+            >"Chillu letters: two Unicode encodings, one glyph"</a
+          >
+          in ARCHITECTURE.md.
+        </p>
       </section>
 
       <section id="contribute">
@@ -269,7 +282,7 @@ await writer.play("നന്ദി", { speed: 1, count: 1 });</code></pre>
         Code: <a href="https://github.com/sachn1/jayasree/blob/HEAD/js/LICENSE">MIT</a>
         &nbsp;·&nbsp; Hand-drawn stroke data &amp; generated artwork:
         <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a> - free to
-        use, <strong>please credit “Jayasree / malayalam-stroker”</strong> with a link
+        use, <strong>please credit “Jayasree”</strong> with a link
         back.
       </p>
       <p>

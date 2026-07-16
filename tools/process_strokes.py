@@ -14,16 +14,16 @@ flags is always possible without re-recording anything.
 
 Stages (each independently toggleable):
   --center      Gradient-ascent centering onto the glyph's ink ridge
-                (malayalam_stroker.centering)
+                (jayasree.centering)
   --smooth      Corner-aware piecewise spline fit - the baseline cleanup
-                (malayalam_stroker.geometry)
+                (jayasree.geometry)
   --straighten  Ghost-guided angle correction: straight runs are matched
                 against reference segments derived from the font outline
                 and rotated to the font's exact angle
-                (malayalam_stroker.ghost_reference)
+                (jayasree.ghost_reference)
   --expand      Per-glyph composition: a cluster where every individual
                 character already has its own authored stroke gets one
-                composed from them (malayalam_stroker.stroke_compose).
+                composed from them (jayasree.stroke_compose).
                 Mark composition (consonant+virama, conjunct+matra,
                 subjoined conjunct forms) is *not* done here - it happens
                 at runtime in js/src/index.js instead, so stroke-data.json
@@ -49,7 +49,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "python" / "src"))
 
-from malayalam_stroker import centering, geometry, ghost_reference, stroke_compose  # noqa: E402
+from jayasree import centering, geometry, ghost_reference, stroke_compose  # noqa: E402
 
 STROKE_DATA = ROOT / "js" / "src" / "stroke-data.raw.json"
 GLYPH_DATA = ROOT / "js" / "src" / "glyph-data.json"

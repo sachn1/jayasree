@@ -1,4 +1,4 @@
-"""Tests for malayalam_stroker.ghost_reference - ghost-outline-guided straightening.
+"""Tests for jayasree.ghost_reference - ghost-outline-guided straightening.
 
 Deliberately script-agnostic: the fixture "glyph" is a synthetic rectangle,
 not a real letterform - straightening works from any filled outline's own
@@ -13,8 +13,8 @@ from typing import ClassVar
 import numpy as np
 import pytest
 
-from malayalam_stroker.centering import make_dist_field
-from malayalam_stroker.ghost_reference import (
+from jayasree.centering import make_dist_field
+from jayasree.ghost_reference import (
     build_reference_segments,
     find_straight_segments,
     fit_line,

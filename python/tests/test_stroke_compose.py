@@ -1,4 +1,4 @@
-"""Tests for malayalam_stroker.stroke_compose - per-glyph stroke composition.
+"""Tests for jayasree.stroke_compose - per-glyph stroke composition.
 
 Deliberately script-agnostic: fixtures use synthetic single-letter "clusters"
 (A, B, M) shaped like glyph-data.json entries, never real Malayalam clusters.
@@ -9,7 +9,7 @@ pipeline should never need to touch this file or its tests.
 
 from __future__ import annotations
 
-from malayalam_stroker.stroke_compose import (
+from jayasree.stroke_compose import (
     _char_dx,
     compose_all,
     compose_per_glyph,

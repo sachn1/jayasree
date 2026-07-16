@@ -1,4 +1,4 @@
-"""Tests for malayalam_stroker.centering - gradient-ascent stroke centering.
+"""Tests for jayasree.centering - gradient-ascent stroke centering.
 
 Deliberately script-agnostic: the fixture "glyph" is a synthetic rectangular
 bar, not a real letterform. Centering is pure geometry over an arbitrary
@@ -11,7 +11,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from malayalam_stroker.centering import (
+from jayasree.centering import (
     DistField,
     center_points,
     fu_to_px,

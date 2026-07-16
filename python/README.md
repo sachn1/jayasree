@@ -1,4 +1,4 @@
-# malayalam-stroker (Python)
+# Jayasree (Python)
 
 Build-time tool: shapes Malayalam text against a font using HarfBuzz and
 outputs per-glyph SVG path data as JSON. Used to generate
@@ -31,7 +31,7 @@ Output: `js/src/glyph-data.json`. Commit this file.
 ## Usage
 
 ```python
-from malayalam_stroker import shape_word
+from jayasree import shape_word
 
 trace = shape_word("നന്ദി", "/path/to/Manjari-Regular.ttf")
 
@@ -66,11 +66,11 @@ correctly relative to the others.
 ```bash
 # Shape one or more words, print a JSON array (one StrokeTrace per word,
 # each with the input word attached as "word"), in input order:
-poetry run python -m malayalam_stroker Manjari-Regular.ttf "മലയാളം" "നന്ദി" > out.json
+poetry run python -m jayasree Manjari-Regular.ttf "മലയാളം" "നന്ദി" > out.json
 
 # Shape the full Malayalam base alphabet as one trace - quick input for
 # tools/stroke-recorder.html without running the full build pipeline:
-poetry run python -m malayalam_stroker alphabet tests/fixtures/Manjari-Regular.ttf > alphabet.json
+poetry run python -m jayasree alphabet tests/fixtures/Manjari-Regular.ttf > alphabet.json
 ```
 
 ## Why shaping matters

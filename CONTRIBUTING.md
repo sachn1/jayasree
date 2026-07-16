@@ -13,6 +13,15 @@ marked ○ (missing), export, and open a PR with the updated
 
 Rules that keep the data trustworthy:
 
+- **Whitespace and punctuation never get a recorded stroke.** Space, `.`,
+  `,`, `!`, `?`, `;`, `:`, and a few others (`UNIVERSAL_CHARS` in
+  `js/src/index.js`) are handled entirely outside this pipeline - they're
+  rendered as plain static text, not traced handwriting, since they aren't
+  part of any script's letterforms. The recorder itself refuses to add one
+  ("Add custom cluster" rejects them with an explanation), and
+  `tools/validate_data.py` fails CI if one ever ends up in any committed
+  data file, so this isn't something you need to remember - just know why
+  you won't find them in the recorder's list.
 - **Never hand-edit `stroke-data.raw.json`.** Only the recorder writes it.
   It is the project's source of truth; everything else is derived from it.
 - **Don't edit `stroke-data.json` or `glyph-data.json` at all** - they're
@@ -82,6 +91,18 @@ bump) picks the next version (`feat` -> minor, `fix` -> patch, a
 (Python package, JS package, the version badge on the website), updates
 CHANGELOG.md, and tags. Don't edit version numbers by hand anywhere.
 
+There are two release paths, depending on how a change lands on `master`:
+
+- **PR merge** (the normal path) - `.github/workflows/release-on-merge.yml`
+  runs the equivalent of `make bump` automatically once a PR is merged, if
+  the merged commits include anything release-worthy (`feat`/`fix`/a
+  breaking change). A PR of only `docs`/`chore`/`ci`/non-breaking `refactor`
+  commits merges normally with no release triggered. The bump commit + tag
+  it pushes cascades everything else: `pages.yml` redeploys, `publish.yml`
+  publishes to npm.
+- **Direct push to `master`** - unchanged: run `make bump` locally, then
+  `git push --follow-tags`.
+
 ## Adding a new language
 
 The core is deliberately script-agnostic - geometry, centering,
@@ -100,6 +121,9 @@ fixtures, while everything Malayalam-specific lives in
 - Recording needs a native speaker/writer of that script - strokes drawn by
   someone who doesn't write it daily are worse than no strokes (the outline
   fallback is always correct, just less handwriting-like).
+- Whitespace/punctuation handling (`UNIVERSAL_CHARS` in `js/src/index.js`)
+  is already script-agnostic - it's checked before any language-specific
+  lookup and never touches per-language data. Nothing to add per language.
 
 ## Data integrity & governance
 

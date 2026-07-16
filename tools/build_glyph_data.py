@@ -10,8 +10,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "python" / "src"))
 
-from malayalam_stroker import shape_word  # noqa: E402
-from malayalam_stroker._chars import (  # noqa: E402
+from jayasree import shape_word  # noqa: E402
+from jayasree._chars import (  # noqa: E402
     ANUSVARA,
     AU_LENGTH_MARK,
     CHILLU,
@@ -75,12 +75,6 @@ def _standalone_inputs() -> list[str]:
     # is scoped to ്ര alone, the one mark that doesn't have a stroke yet.
     inputs.append(VIRAMA + "ര")
 
-    # A plain space shapes to a real advance width with zero glyphs (an
-    # empty "d") - registering it as an ordinary cluster gives multi-word
-    # text a real gap between words for free, with no special-casing needed
-    # in resolveSegments/buildTrace: it just falls through the existing
-    # single-character direct-match path like any other 1-char cluster.
-    inputs.append(" ")
     return inputs
 
 
@@ -236,11 +230,17 @@ def _build_marks(font: str) -> dict:
     Verified empirically against real HarfBuzz output across every consonant
     (virama, subjoined ya/va/la) and ~700 conjunct+matra combinations: exact
     match for simple suffix marks (ാ/ി/ീ), virama, and subjoined ya/va on
-    any base, and for prefix/compound marks (െ/േ/ൈ/ൊ/ോ/ൌ) *when the base
-    is a single glyph* - composing those onto a multi-glyph (non-ligating)
-    conjunct base can reorder incorrectly, so callers must check ``prefix``
-    is non-empty against the base's glyph count. ു/ൂ/ൃ and subjoined la
-    fuse into a glyph unique to the specific preceding consonant in real
+    any base, and for prefix/compound marks (െ/േ/ൈ/ൊ/ോ/ൌ) on a single-glyph
+    base. Conjunct+prefix-vowel combinations (e.g. "ത്യ" + േ, a subjoined
+    2-glyph conjunct) aren't in that brute-forced set (see
+    ``_conjunct_inputs()``'s docstring on why conjunct+matra generally isn't),
+    so this composition was never checked against real HarfBuzz output for a
+    multi-glyph base. js/src/index.js's runtime composeMark() shifts the
+    entire base - however many glyphs - right as one block by `shift` and
+    prepends the mark's prefix glyphs at x=0, which requires no per-glyph
+    reordering; browser-verified across several real words ("പ്രത്യേക",
+    "ജ്യോതി", "ക്ഷേത്രം") with no visible misplacement. ു/ൂ/ൃ and subjoined
+    la fuse into a glyph unique to the specific preceding consonant in real
     shaping (~45% mismatch composing these generically in testing) -
     composed the same way as any other suffix mark, they render as the
     base's own glyph plus the mark's separate standalone shape: less
