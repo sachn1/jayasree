@@ -1,7 +1,7 @@
 
 # Jayasree ![ജയശ്രീ - animated stroke trace](demo/jayasree.svg)
 
-### malayalam stroker
+*Malayalam handwriting, animated stroke by stroke.*
 
 A JavaScript library for animating Malayalam script as handwriting - showing
 *how* to write a letter or word, not just what it looks like. Think
@@ -16,70 +16,20 @@ No server, no font file, no HarfBuzz at runtime.
 
 ## How it works
 
-```
-tools/build_glyph_data.py     ← run once (or when you change fonts)
-        │
-        ▼
-js/src/glyph-data.json        ← font outlines + advance widths + composable
-                                 mark recipes (commit this)
+Three committed JSON files power the widget: `glyph-data.json` (font
+outlines + composable mark recipes, from HarfBuzz), `stroke-data.raw.json`
+(hand-authored centerline strokes, the source of truth), and
+`stroke-data.json` (the processed, composed, ready-to-load result). A
+runtime composition system builds most of the ~2050 supported clusters from
+just ~290 hand-recorded atoms plus a per-mark recipe, rather than needing
+every combination shaped or drawn individually.
 
-tools/stroke-recorder.html    ← native speakers draw centerline strokes
-        │
-        ▼
-js/src/stroke-data.raw.json   ← hand-authored strokes, exactly as drawn
-                                 (commit this - never overwritten by anything)
-        │
-        ▼
-tools/process_strokes.py --preset=malayalam
-        │
-        ▼
-js/src/stroke-data.json       ← centered + smoothed + ghost-straightened +
-                                 composed (commit this - this is what loads)
-        │
-        ▼
-js/src/index.js               ← self-contained animator; no runtime dependencies
-```
-
-Three committed JSON files power the widget:
-
-- **`glyph-data.json`** - font-specific outlines used for the ghost letterform
-  and cluster segmentation, plus a `marks` table (see below). Re-generate if
-  you switch fonts.
-- **`stroke-data.raw.json`** - font-agnostic, hand-authored centerline
-  strokes, exactly as drawn. The source of truth; only `stroke-recorder.html`
-  writes to it.
-- **`stroke-data.json`** - the processed, composed, ready-to-load file.
-  Generated from `stroke-data.raw.json` by `process_strokes.py`; regenerating
-  it never touches the raw source, so re-processing with different settings
-  is always possible without re-recording anything. This is the file
-  `writer.loadStrokes()` fetches by default.
-
-### Composing combinations instead of pre-shaping every one
-
-Most Malayalam clusters - consonant+vowel-sign, consonant+virama,
-conjunct+vowel-sign, and the reduced ya/va/la forms used in many
-conjuncts - compose predictably from a small base + a reusable recipe,
-rather than needing every combination individually shaped or hand-drawn.
-`glyph-data.json`'s `marks` table captures this once per mark (derived from
-how HarfBuzz auto-inserts a placeholder glyph when a mark has no preceding
-base - see `tools/build_glyph_data.py`'s `_build_marks()` docstring for the
-full derivation and its accuracy limits). `index.js` composes glyph outlines
-from it at runtime; it composes hand-drawn *strokes* the same way
-(recursively, so a multi-link mark chain like ദ + ്യ + ു resolves down to
-its atoms instead of stopping at the first not-yet-cached link), using
-whichever parts are already recorded. Compound vowel signs (ൊ/ോ/ൌ)
-decompose into simpler marks first - matching Unicode's own canonical
-decomposition - rather than needing a stroke of their own. A handful of
-vowel signs (ു/ൂ/ൃ) and the reduced la-form fuse into a shape unique to the
-specific preceding consonant in real font shaping and can't be
-reconstructed generically - those compose as separate (correct, just less
-tightly kerned) parts rather than a true font ligature.
-
-See **`docs/CENTERING_EXPERIMENTS.md`** for the full depth on this - how
-centering/smoothing/straightening work, and two real composition bugs this
-project shipped and fixed (an anchor-correction regression, and a
-segmentation ordering bug), kept as worked examples for anyone extending
-this further.
+See **[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)** for the full pipeline
+walkthrough (all four stages, file by file) and how runtime composition,
+whitespace handling, and chillu-letter encoding work - including worked
+examples of real bugs this project shipped and fixed. See
+**[`docs/CENTERING_EXPERIMENTS.md`](docs/CENTERING_EXPERIMENTS.md)** for the
+centering/smoothing/straightening trial-and-error log behind that pipeline.
 
 ## Creating handwriting from scratch
 
@@ -95,7 +45,7 @@ make build-glyph-data FONT=/path/to/YourFont.ttf
 ```
 
 Shapes the full Malayalam character inventory
-(`python/src/malayalam_stroker/_chars.py`) through HarfBuzz and writes every
+(`python/src/jayasree/_chars.py`) through HarfBuzz and writes every
 cluster's outline, advance width, and mark-composition recipe to
 `js/src/glyph-data.json`. This is what supplies the ghost outline you trace
 over in step 2, and what `stroke-data.json` gets centered/straightened
@@ -109,7 +59,7 @@ against in step 3. Re-run it whenever you switch fonts - see
 characters, the vowel signs that fuse into consonant-specific shapes, and
 true ligature conjuncts) - not the full ~2050 clusters `glyph-data.json`
 covers, most of which compose automatically from those atoms (see
-"Composing combinations" above). Each entry is marked ✓ (recorded) or ○
+`docs/ARCHITECTURE.md`'s "Composition" section). Each entry is marked ✓ (recorded) or ○
 (missing); a "⇥ Next missing" button jumps to the next gap. Check "Show all
 clusters" to browse the full ~2050 (useful for spot-checking a composed
 result against its ghost).
@@ -158,8 +108,9 @@ is never touched, so re-processing with different settings is always
 possible without re-recording. Stages can be run individually if you want
 to compare them - `python tools/process_strokes.py --help` lists
 `--center`/`--smooth`/`--straighten`/`--expand`, each independently
-toggleable. See `docs/CENTERING_EXPERIMENTS.md` for a worked example of
-each stage's effect on a real stroke.
+toggleable. See `docs/ARCHITECTURE.md` for a worked example of each stage's
+effect on a real stroke, or `docs/CENTERING_EXPERIMENTS.md` for why each
+stage's algorithm works the way it does.
 
 ### 4. See it animate
 
@@ -312,7 +263,7 @@ jayasree/
 │   ├── src/stroke-data.raw.json   # hand-authored strokes, source of truth (commit)
 │   └── src/stroke-data.json       # processed, ready-to-load (commit - generated)
 ├── python/                        # build-time shaper + stroke-processing library (Poetry project)
-│   ├── src/malayalam_stroker/
+│   ├── src/jayasree/
 │   │   ├── cli.py                 # `shape`/`alphabet` CLI (see python/README.md)
 │   │   ├── strokes.py             # HarfBuzz shaping
 │   │   ├── geometry.py            # corner-aware smoothing
@@ -331,8 +282,9 @@ jayasree/
 │   ├── logo-preview.html          # standalone preview of the animated wordmark
 │   └── serve.py
 ├── docs/
-│   ├── CENTERING_EXPERIMENTS.md   # pipeline architecture + experiments log
-│   ├── centering-example/         # before/after SVGs referenced from that doc
+│   ├── ARCHITECTURE.md            # canonical pipeline + composition reference
+│   ├── CENTERING_EXPERIMENTS.md   # centering/smoothing/straightening experiments log
+│   ├── centering-example/         # before/after SVGs referenced from those docs
 │   └── ROADMAP.md                 # planned/not-yet-done work
 ├── tests/index.test.js             # vitest - index.js's composition/segmentation engine
 ├── index.html                      # landing page (GitHub Pages site root)
@@ -375,42 +327,23 @@ Playwright-driven check instead.
 ## Data integrity
 
 The hand-authored strokes in `stroke-data.raw.json` are the actual content
-of this project - everything else (composition, centering, smoothing,
-straightening) is derived from them. Two checks guard against that data
-being silently lost or corrupted, whether by an editing mistake, a bad
-merge, or (since the recorder is a plain client-side HTML page anyone can
-open against a checked-out repo) a malicious or buggy export:
-
-- **`tools/validate_data.py`** - structural validation of all three
-  committed JSON files: every stroke has a well-formed SVG `d` string, every
-  cluster has the keys it's supposed to, and every hand-authored cluster in
-  `stroke-data.raw.json` actually survived into `stroke-data.json`. Run via
-  `make validate-data`; wired into pre-commit and CI, so a commit
-  that corrupts the data structurally is rejected before it lands.
-- **`python/tests/test_data_snapshot.py`** - a content snapshot
-  (`python/tests/snapshots/stroke_data_raw_snapshot.json`, a hash per
-  cluster, built by hashing functions that live in `validate_data.py`
-  alongside the structural checks above) asserts no previously-recorded
-  cluster in
-  `stroke-data.raw.json` goes missing or silently changes shape. Adding a
-  new cluster doesn't fail the test - only losing or altering an existing
-  one does. If a change is intentional (a genuine re-recording), regenerate
-  the snapshot with `make update-snapshot` and commit the
-  result alongside the data change, so the diff is explicit and reviewable.
-
-Both run in CI (`.github/workflows/ci.yml`) on every push, alongside the
-regular Python/JS test suites.
+of this project - `tools/validate_data.py` (structural validation) and a
+content snapshot (`python/tests/test_data_snapshot.py`) guard against that
+data being silently lost or corrupted, both wired into pre-commit and CI.
+See **[`CONTRIBUTING.md`](CONTRIBUTING.md#data-integrity--governance)** for
+the full layered explanation - the same checks a contributor needs to know
+about when touching any `js/src/*.json`.
 
 ## Status
 
-Early / v0.1.0. ~290 atoms are hand-authored (see "Composing combinations"
-above); composition extends them to the ~2050 clusters `glyph-data.json`
-covers. `glyph-data.json` currently pre-shapes every consonant+vowel-sign
-and conjunct combination via HarfBuzz rather than pruning to only
-combinations that occur in real Malayalam - fine at this prototyping stage,
-but a planned cleanup once there's a real-word corpus to prune against.
-See **`docs/ROADMAP.md`** for this and other not-yet-done work (a github.io
-docs site, multi-language support, Git LFS, deployment, ...).
+Early. ~300 atoms are hand-authored; composition (see
+[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)) extends them to the ~2050
+clusters `glyph-data.json` covers. `glyph-data.json` currently pre-shapes
+every consonant+vowel-sign and conjunct combination via HarfBuzz rather
+than pruning to only combinations that occur in real Malayalam - fine at
+this prototyping stage, but a planned cleanup once there's a real-word
+corpus to prune against. See **`docs/ROADMAP.md`** for this and other
+not-yet-done work (multi-language support, Git LFS, deployment, ...).
 
 ## License & credit
 
@@ -418,7 +351,7 @@ docs site, multi-language support, Git LFS, deployment, ...).
 - **Hand-drawn stroke data & generated artwork** (`stroke-data*.json`, the
   animated wordmark, the pipeline illustrations) - [CC BY
   4.0](https://creativecommons.org/licenses/by/4.0/): free to use and build
-  on, **with credit**. Please attribute as *"Jayasree / malayalam-stroker" by
+  on, **with credit**. Please attribute as *"Jayasree" by
   Sachin Nandakumar*, with a link back to this repository. See
   [LICENSE-DATA](LICENSE-DATA) for exactly which files this covers.
 - **Letterforms** - `glyph-data.json` (and the outlines inside the generated
