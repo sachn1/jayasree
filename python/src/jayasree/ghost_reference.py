@@ -138,7 +138,7 @@ def build_reference_segments(glyph_glyphs: list[dict], field: DistField) -> list
     """Build straight reference segments in centerline space.
 
     Each outer straight outline edge is sampled and gradient-ascended into
-    the ink (:func:`~malayalam_stroker.centering.center_points`); a line fit
+    the ink (:func:`~jayasree.centering.center_points`); a line fit
     through the ascended points is kept only if it's clean (low residual) -
     this discards edges near corners/junctions where ascent can wander to
     the wrong local ridge.
@@ -197,7 +197,7 @@ def build_reference_segments(glyph_glyphs: list[dict], field: DistField) -> list
 def split_path_into_pieces(path: svgpathtools.Path) -> list[list]:
     """Group path segments into corner-free pieces via tangent-angle breaks.
 
-    Mirrors the corner detection in :mod:`malayalam_stroker.geometry`, but
+    Mirrors the corner detection in :mod:`jayasree.geometry`, but
     works directly off the parsed segments' tangents rather than resampled
     points - the corner is already a real geometric feature of the smoothed
     path (a tangent break between two pieces), not something that needs

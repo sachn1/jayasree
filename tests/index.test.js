@@ -20,6 +20,7 @@ import { STROKE_LIBRARY, _internal } from "../js/src/index.js";
 
 const {
   composeMark,
+  tightenMarks,
   offsetSvgPath,
   SPLIT_VOWEL_PARTS,
   markContentAnchorX,
@@ -29,6 +30,7 @@ const {
   charDx,
   tryComposeFromCharacters,
   resolveSegments,
+  normalizeChillus,
 } = _internal;
 
 beforeEach(() => {
@@ -71,6 +73,45 @@ describe("composeMark", () => {
       { d: "Mbase", x: 15, y: 0 },
     ]);
     expect(result.advance).toBe(115);
+  });
+});
+
+describe("tightenMarks", () => {
+  it("trims a prefix mark's shift by tightenUnits", () => {
+    const marks = {
+      pre: { shift: 615, prefix: [{ d: "p", x: 0, y: 0 }], suffix: [], trailingWidth: 0 },
+    };
+    const result = tightenMarks(marks, 123);
+    expect(result.pre.shift).toBe(492);
+  });
+
+  it("clamps a trimmed shift to 0, never negative", () => {
+    const marks = {
+      pre: { shift: 50, prefix: [{ d: "p", x: 0, y: 0 }], suffix: [], trailingWidth: 0 },
+    };
+    const result = tightenMarks(marks, 123);
+    expect(result.pre.shift).toBe(0);
+  });
+
+  it("leaves a suffix-only mark's shift untouched", () => {
+    // Suffix marks' shift is 0 already (nothing before the base) - inter-
+    // cluster tightening already covers their trailingWidth contribution
+    // via the outer buildTrace penX accumulation, so there's nothing here
+    // that needs a second trim.
+    const marks = {
+      suf: { shift: 0, prefix: [], suffix: [{ d: "s", x: 0, y: 0 }], trailingWidth: 20 },
+    };
+    const result = tightenMarks(marks, 123);
+    expect(result.suf.shift).toBe(0);
+    expect(result.suf).toBe(marks.suf); // untouched marks aren't even copied
+  });
+
+  it("doesn't mutate the input", () => {
+    const marks = {
+      pre: { shift: 615, prefix: [{ d: "p", x: 0, y: 0 }], suffix: [], trailingWidth: 0 },
+    };
+    tightenMarks(marks, 123);
+    expect(marks.pre.shift).toBe(615);
   });
 });
 
@@ -271,7 +312,46 @@ describe("tryComposeFromCharacters", () => {
   });
 });
 
+describe("normalizeChillus", () => {
+  it("rewrites legacy consonant+virama+ZWJ chillu sequences to the atomic codepoint", () => {
+    // Real-world/pasted Malayalam text (old fonts, older mobile keyboards)
+    // very commonly encodes chillus as base consonant + U+0D4D (virama) +
+    // U+200D (ZWJ) instead of the atomic Unicode 5.1+ chillu codepoint.
+    // glyph-data.json/stroke-data.json only key clusters by the atomic
+    // form, so this legacy sequence used to fall through to plain
+    // consonant+virama rendering instead of the authored chillu glyph.
+    expect(normalizeChillus("ന്‍")).toBe("ൻ");
+    expect(normalizeChillus("ര്‍")).toBe("ർ");
+    expect(normalizeChillus("ല്‍")).toBe("ൽ");
+    expect(normalizeChillus("ള്‍")).toBe("ൾ");
+    expect(normalizeChillus("ണ്‍")).toBe("ൺ");
+    expect(normalizeChillus("ക്‍")).toBe("ൿ");
+  });
+
+  it("normalizes every legacy chillu in a full word, leaving the rest untouched", () => {
+    expect(normalizeChillus("രുദ്രന്‍")).toBe("രുദ്രൻ");
+    expect(normalizeChillus("അയല്‍വാസികള്‍ക്ക്")).toBe("അയൽവാസികൾക്ക്");
+  });
+
+  it("leaves already-atomic chillus and plain consonant+virama untouched", () => {
+    expect(normalizeChillus("ൻ")).toBe("ൻ");
+    expect(normalizeChillus("ക്ക്")).toBe("ക്ക്");
+  });
+});
+
 describe("resolveSegments", () => {
+  it("resolves a legacy consonant+virama+ZWJ chillu sequence to the atomic chillu's cluster", () => {
+    // Regression for the bug where real-world text like "ന്‍" (legacy
+    // encoding) rendered as bare consonant+virama instead of the authored
+    // chillu glyph, even though the atomic chillu "ൻ" was fully authored.
+    const clusters = {
+      ൻ: { glyphs: [{ d: "chillu-n", x: 0, y: 0 }], advance: 100 },
+    };
+    const segs = resolveSegments("ന്‍", clusters, {});
+    expect(segs.map((s) => s.cluster)).toEqual(["ൻ"]);
+  });
+
+
   it("matches a direct multi-character cluster as one segment", () => {
     const clusters = { AB: { glyphs: [{ d: "g", x: 0, y: 0 }], advance: 100 } };
     const segs = resolveSegments("AB", clusters, {});
@@ -330,16 +410,52 @@ describe("resolveSegments", () => {
     expect(segs.map((s) => s.cluster)).toEqual(["ABmr"]);
   });
 
+  it("composes a prefix mark onto a multi-glyph base instead of rendering it standalone", () => {
+    // Regression: real text like "പ്രത്യേക" (േ prefixing "ത്യ", a 2-glyph
+    // subjoined conjunct) used to skip composition whenever the base had
+    // more than one glyph, falling back to the mark's own isolated
+    // dotted-circle-placeholder shape - rendered floating, disconnected
+    // from the base it prefixes, in the actual trace. composeMark shifts
+    // the whole base right as one block regardless of its glyph count, so
+    // there's no reason multi-glyph bases need different handling here.
+    const clusters = {
+      AB: { glyphs: [{ d: "gA", x: 0, y: 0 }, { d: "gB", x: 100, y: 0 }], advance: 180 },
+      m: { glyphs: [{ d: "circle", x: 0, y: 0 }, { d: "content", x: 30, y: 0 }], advance: 50 },
+    };
+    const marks = {
+      m: { shift: 40, prefix: [{ d: "Mpre", x: 0, y: 0 }], suffix: [], trailingWidth: 0 },
+    };
+    const segs = resolveSegments("ABm", clusters, marks);
+    expect(segs.map((s) => s.cluster)).toEqual(["ABm"]);
+    expect(segs[0].entry.glyphs).toEqual([
+      { d: "Mpre", x: 0, y: 0 },
+      { d: "gA", x: 40, y: 0 },
+      { d: "gB", x: 140, y: 0 },
+    ]);
+  });
+
   it("warns and skips a character with no cluster or mark match at all", () => {
+    // "?" is deliberately not used here - it's a UNIVERSAL_CHARS entry
+    // (rendered as static text, not skipped) - see the "renders universal
+    // chars" tests below. "@" matches neither a cluster/mark nor
+    // UNIVERSAL_CHARS, so it exercises the genuine skip-with-warning path.
     const consoleWarn = console.warn;
     const warnings = [];
     console.warn = (msg) => warnings.push(msg);
     try {
-      const segs = resolveSegments("?", {}, {});
+      const segs = resolveSegments("@", {}, {});
       expect(segs).toEqual([]);
       expect(warnings).toHaveLength(1);
     } finally {
       console.warn = consoleWarn;
     }
+  });
+
+  it("resolves universal whitespace/punctuation without touching clusters or marks", () => {
+    // No clusters/marks data at all - if this succeeds, UNIVERSAL_CHARS
+    // truly never touches glyph-data.json/stroke-data.json.
+    const segs = resolveSegments(" ,!", {}, {});
+    expect(segs.map((s) => s.cluster)).toEqual([" ", ",", "!"]);
+    expect(segs.every((s) => s.entry.universal)).toBe(true);
   });
 });

@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "malayalam-stroker"
+name = "jayasree"
 version = "0.2.0"
 description = "Shape Malayalam text and extract per-glyph SVG stroke paths for stroke-order / handwriting-trace widgets"
 readme = "README.md"
@@ -32,17 +32,17 @@ Homepage = "https://github.com/sachn1/jayasree"
 Repository = "https://github.com/sachn1/jayasree"
 
 [project.scripts]
-malayalam-stroker = "malayalam_stroker.cli:main"
+jayasree = "jayasree.cli:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/malayalam_stroker"]
+packages = ["src/jayasree"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "--cov=malayalam_stroker --cov-report=term-missing"
+addopts = "--cov=jayasree --cov-report=term-missing"
 
 [tool.coverage.run]
-source = ["src/malayalam_stroker"]
+source = ["src/jayasree"]
 
 
 # ruff config lives in the repo-root pyproject.toml (not this file) - see

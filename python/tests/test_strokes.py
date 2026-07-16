@@ -1,4 +1,4 @@
-"""Tests for malayalam_stroker.strokes, run offline against the bundled
+"""Tests for jayasree.strokes, run offline against the bundled
 test fixture font (tests/fixtures/Manjari-Regular.ttf, SIL OFL - see
 tests/fixtures/OFL.txt). This fixture exists purely for deterministic
 testing; the package itself does not bundle or require this specific
@@ -10,8 +10,8 @@ from pathlib import Path
 
 import pytest
 
-from malayalam_stroker import shape_word
-from malayalam_stroker.strokes import MAX_WORD_LENGTH
+from jayasree import shape_word
+from jayasree.strokes import MAX_WORD_LENGTH
 
 FONT = str(Path(__file__).parent / "fixtures" / "Manjari-Regular.ttf")
 

@@ -119,7 +119,7 @@ def main(argv: list[str] | None = None) -> int:
         Exit code (0 = success, 1 = error).
     """
     parser = argparse.ArgumentParser(
-        prog="malayalam_stroker",
+        prog="jayasree",
         description="Shape Malayalam text and print stroke-trace JSON.",
     )
     sub = parser.add_subparsers(dest="cmd")

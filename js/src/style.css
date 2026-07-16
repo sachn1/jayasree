@@ -1,5 +1,5 @@
 /**
- * malayalam-stroker default styles.
+ * jayasree default styles.
  *
  * Import this file or define your own rules against the same class names.
  * Customise via CSS custom properties on any ancestor element:
@@ -29,4 +29,12 @@
 .ms-stylus {
   fill: var(--ms-stylus-color, #e8b84b);
   filter: drop-shadow(0 0 4px rgba(232, 184, 75, 0.85));
+}
+
+/** Universal whitespace/punctuation (see UNIVERSAL_CHARS in index.js) -
+    plain static text, not handwriting, so it uses the ink color but never
+    animates. */
+.ms-static {
+  fill: var(--ms-ink-color, #1a1a2e);
+  font-family: inherit;
 }

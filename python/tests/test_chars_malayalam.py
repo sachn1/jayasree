@@ -1,4 +1,4 @@
-"""Tests for malayalam_stroker._chars - the Malayalam Unicode character inventory.
+"""Tests for jayasree._chars - the Malayalam Unicode character inventory.
 
 Explicitly Malayalam-specific (unlike test_geometry.py/test_centering.py/
 test_ghost_reference.py/test_stroke_compose.py, which test the
@@ -8,7 +8,7 @@ get its own `test_chars_<script>.py` file rather than touching this one.
 
 from __future__ import annotations
 
-from malayalam_stroker import _chars
+from jayasree import _chars
 
 # Malayalam Unicode block, per the Unicode Standard.
 MALAYALAM_BLOCK = range(0x0D00, 0x0D80)

@@ -1,5 +1,5 @@
 /**
- * demo.js - interactive demo for malayalam-stroker.
+ * demo.js - interactive demo for jayasree.
  *
  * Loads glyph-data.json + stroke-data.json at startup, then wires up the
  * trace form, suggestion chips, replay button, and the stroke-library
@@ -16,25 +16,17 @@ import { createStrokeWriter, STROKE_LIBRARY } from "../js/src/index.js";
 const glyphDataResp = await fetch("../js/src/glyph-data.json");
 const glyphData = await glyphDataResp.json();
 
-const stage = document.getElementById("stage");
-let writer = createStrokeWriter(stage, { glyphData });
-const form = document.getElementById("traceForm");
-const input = document.getElementById("wordInput");
-const status = document.getElementById("status");
-const btn = document.getElementById("traceBtn");
-
-// Load stroke-data.json (processed: centered + smoothed + ghost-straightened +
-// expanded - see tools/process_strokes.py) first, then stroke-data.raw.json -
-// loadStrokes() never overwrites a cluster already in STROKE_LIBRARY, so this
-// fills in any newly hand-drawn characters that haven't been through the
-// pipeline yet, without ever showing stale data for ones that have.
-await writer.loadStrokes(`../js/src/stroke-data.json?v=${Date.now()}`);
-await writer.loadStrokes(`../js/src/stroke-data.raw.json?v=${Date.now()}`);
-
 // ---------------------------------------------------------------------------
 // Logo - a static violet-filled, black-outlined ജയശ്രീ wordmark, not
 // animated: the homepage already has the animated version
 // (demo/jayasree.svg), so this page doesn't need to repeat it.
+//
+// Rendered here, immediately after glyph-data.json - not after the
+// stroke-data fetches below, which it doesn't use at all (`outlineOnly`
+// skips STROKE_LIBRARY entirely). glyph-data.json alone is ~5.5MB;
+// stroke-data.json + stroke-data.raw.json together add another ~13MB, so
+// waiting for those before showing a *static* wordmark was most of this
+// page's visible delay for no reason.
 //
 // Still built via createStrokeWriter/play() - buildStage() runs
 // synchronously before play()'s first `await`, so the ghost (violet fill)
@@ -61,6 +53,25 @@ if (logoStage) {
   }
 }
 
+const stage = document.getElementById("stage");
+let writer = createStrokeWriter(stage, { glyphData });
+const form = document.getElementById("traceForm");
+const input = document.getElementById("wordInput");
+const status = document.getElementById("status");
+const btn = document.getElementById("traceBtn");
+
+// Load stroke-data.json (processed: centered + smoothed + ghost-straightened +
+// expanded - see tools/process_strokes.py) and await it - it alone already
+// covers every word in the "Try:" chips and the default word below, so the
+// first trace can start as soon as it's ready. stroke-data.raw.json (hand-
+// recorded strokes not yet through the processing pipeline) is fetched but
+// deliberately NOT awaited: loadStrokes() never overwrites a cluster
+// already in STROKE_LIBRARY, so it only ever fills in coverage the
+// processed file doesn't have yet, and nothing shown on page load depends
+// on it - no reason to block the default trace on another ~6.8MB fetch.
+await writer.loadStrokes(`../js/src/stroke-data.json?v=${Date.now()}`);
+writer.loadStrokes(`../js/src/stroke-data.raw.json?v=${Date.now()}`);
+
 // ---------------------------------------------------------------------------
 // Controls - speed / thickness / repeat
 // ---------------------------------------------------------------------------
@@ -78,6 +89,11 @@ function playOptions() {
 
 speedCtl.addEventListener("input", () => {
   speedVal.textContent = `${Number(speedCtl.value)}×`;
+});
+// `change` (not `input`) so it fires once per adjustment, not per pixel of
+// slider drag - same reasoning as thicknessCtl's `change` listener below.
+speedCtl.addEventListener("change", () => {
+  traceWord(input.value);
 });
 
 /**

@@ -1,4 +1,4 @@
-"""Static file server and shaping API for the malayalam-stroker demo."""
+"""Static file server and shaping API for the jayasree demo."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from urllib.parse import unquote, urlparse
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_REPO_ROOT / "python" / "src"))
 
-from malayalam_stroker import shape_word  # noqa: E402
+from jayasree import shape_word  # noqa: E402
 
 FONT_PATH = _REPO_ROOT / "python" / "tests" / "fixtures" / "Manjari-Regular.ttf"
 
@@ -85,7 +85,7 @@ if __name__ == "__main__":
     import socket
 
     local_ip = socket.gethostbyname(socket.gethostname())
-    print(f"malayalam-stroker demo running at http://127.0.0.1:{port}/demo/")
+    print(f"jayasree demo running at http://127.0.0.1:{port}/demo/")
     print(f"On your tablet (same Wi-Fi): http://{local_ip}:{port}/tools/stroke-recorder.html")
     print("Ctrl+C to stop.")
     try:

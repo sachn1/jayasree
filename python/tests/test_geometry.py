@@ -1,4 +1,4 @@
-"""Tests for malayalam_stroker.geometry - pure path/point-array geometry.
+"""Tests for jayasree.geometry - pure path/point-array geometry.
 
 Deliberately script-agnostic: every fixture here is a synthetic shape (line,
 L-bend, zigzag), never a real letterform. This module has no Malayalam-specific
@@ -11,7 +11,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from malayalam_stroker.geometry import (
+from jayasree.geometry import (
     CORNER_ANGLE_DEG,
     fit_piece,
     rdp,

@@ -2,7 +2,7 @@
 
 Mark composition (consonant+virama, conjunct+matra, subjoined conjunct forms)
 is deliberately not done here - see js/src/index.js's tryComposeStroke() and
-docs/CENTERING_EXPERIMENTS.md's "Stroke composition" section for why.
+docs/ARCHITECTURE.md's "Composition" section for why.
 """
 
 from __future__ import annotations

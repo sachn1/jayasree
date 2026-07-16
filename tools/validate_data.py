@@ -32,6 +32,40 @@ SNAPSHOT = ROOT / "python" / "tests" / "snapshots" / "stroke_data_raw_snapshot.j
 
 _SVG_PATH_RE = re.compile(r"^M\s*-?[\d.]+\s+-?[\d.]+")
 
+# Language-agnostic whitespace/punctuation - kept in sync by hand with
+# UNIVERSAL_CHARS in js/src/index.js (the canonical definition) and its
+# duplicate in tools/stroke-recorder.js (duplicated there too, deliberately
+# - see that file's own comment on why a shared import isn't safe for the
+# file://-opened standalone recorder). These are rendered as plain static
+# text at runtime, never touch any of the three data files below, and never
+# need a recorded stroke - this check makes that a CI-enforced invariant,
+# not just something the recorder tool's UI happens to prevent.
+_UNIVERSAL_CHARS = frozenset(" .,!?;:-'\"()")
+
+
+def check_no_universal_chars(data: dict, filename: str) -> list[str]:
+    """Verify no cluster key in `data` is a universal whitespace/punctuation character.
+
+    Parameters
+    ----------
+    data : dict
+        Parsed JSON content (glyph-data.json's ``clusters``, or a
+        stroke-data(.raw).json file) to check cluster keys of.
+    filename : str
+        Name used in error messages (e.g. ``"stroke-data.raw.json"``).
+
+    Returns
+    -------
+    list[str]
+        One error message per offending cluster key found.
+    """
+    return [
+        f"{filename}: {cluster!r} is universal whitespace/punctuation (see "
+        f"UNIVERSAL_CHARS in js/src/index.js) and must never be a recorded/shaped cluster"
+        for cluster in data
+        if cluster in _UNIVERSAL_CHARS
+    ]
+
 
 def validate_stroke_d(d: Any, where: str) -> list[str]:
     """Validate one stroke's `d` value, returning a list of error messages.
@@ -255,6 +289,8 @@ def main() -> int:
         return 1
     errors.extend(validate_glyph_data(glyph_data))
     errors.extend(validate_stroke_data(raw, "stroke-data.raw.json"))
+    errors.extend(check_no_universal_chars(glyph_data.get("clusters", {}), "glyph-data.json"))
+    errors.extend(check_no_universal_chars(raw, "stroke-data.raw.json"))
 
     try:
         processed = json.loads(STROKE_DATA.read_text(encoding="utf-8"))
@@ -263,6 +299,7 @@ def main() -> int:
         return 1
     errors.extend(validate_stroke_data(processed, "stroke-data.json"))
     errors.extend(cross_check_raw_in_processed(raw, processed))
+    errors.extend(check_no_universal_chars(processed, "stroke-data.json"))
 
     if errors:
         print(f"Found {len(errors)} data integrity error(s):", file=sys.stderr)
