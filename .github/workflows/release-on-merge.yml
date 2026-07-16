@@ -1,0 +1,79 @@
+name: Release on PR merge
+
+# Manual releases (direct push to master) stay manual: `make bump` +
+# `git push --follow-tags` locally, same as always - see docs/ROADMAP.md's
+# former "Automated releases on PR merge" entry for the reasoning this
+# implements. This workflow only covers the other path: a PR merged to
+# master is itself the "deliberate, reviewed" signal a plain push doesn't
+# have, so *that* event can safely auto-release.
+#
+# What this does, end to end: bump semver from the merged commits' history
+# (skipping cleanly if none of them are release-worthy - e.g. a docs-only
+# PR) → push the bump commit + tag to master. That single push is what
+# cascades everything else automatically, with no further steps needed
+# here: pages.yml already redeploys on any push to master, and publish.yml
+# already publishes to npm on any `v*` tag push.
+#
+# Requires a repo secret named RELEASE_PAT (a PAT belonging to an account
+# with branch-protection bypass on master) for two independent reasons:
+# (1) master is protected, and the default GITHUB_TOKEN acts as
+# github-actions[bot], not an admin, so it can't bypass; (2) pushes
+# authenticated with the default GITHUB_TOKEN don't trigger other
+# workflows (GitHub's own loop-prevention), so pages.yml/publish.yml would
+# silently never fire even if the push itself succeeded.
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [master]
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history - cz needs the whole commit log to compute the next version
+          token: ${{ secrets.RELEASE_PAT }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Poetry
+        run: pipx install poetry
+
+      - name: make install-py
+        run: make install-py
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Bump version
+        id: bump
+        run: |
+          set +e
+          make bump-ci
+          code=$?
+          set -e
+          if [ "$code" -eq 21 ] || [ "$code" -eq 3 ]; then
+            echo "Nothing release-worthy in this merge (exit $code) - skipping."
+            echo "bumped=false" >> "$GITHUB_OUTPUT"
+          elif [ "$code" -ne 0 ]; then
+            exit "$code"
+          else
+            echo "bumped=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Push version bump + tag
+        if: steps.bump.outputs.bumped == 'true'
+        run: git push --follow-tags origin HEAD:master
