@@ -1,3 +1,10 @@
+## v0.2.1 (2026-07-16)
+
+### Fix
+
+- **py**: pin Poetry venv to python/.venv via committed poetry.toml
+- **js**: normalize legacy chillu encoding and compose prefix marks onto multi-glyph bases
+
 ## v0.2.0 (2026-07-15)
 
 ### Feat
