@@ -8,12 +8,28 @@
     <link rel="stylesheet" href="demo.css" />
   </head>
   <body>
-    <div id="logo-stage"></div>
+    <img id="logo-stage" src="jayasree.svg" alt="ജയശ്രീ - animated stroke trace of the word Jayasree" />
     <p class="tagline">Malayalam handwriting, animated stroke by stroke</p>
     <p class="sub">Type any word and watch it be written.</p>
 
     <form id="traceForm">
       <input id="wordInput" type="text" value="നന്ദി" lang="ml" autocomplete="off" />
+      <!-- Hidden by default; demo.js only reveals this if the browser
+           actually supports SpeechRecognition - see its "Speech input"
+           section. -->
+      <button type="button" id="speakBtn" title="Speak a word" aria-label="Speak a word" hidden>
+        <svg class="mic-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+          <path
+            d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+      </button>
       <button type="submit" id="traceBtn">Trace</button>
     </form>
 

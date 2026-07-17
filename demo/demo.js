@@ -16,42 +16,12 @@ import { createStrokeWriter, STROKE_LIBRARY } from "../js/src/index.js";
 const glyphDataResp = await fetch("../js/src/glyph-data.json");
 const glyphData = await glyphDataResp.json();
 
-// ---------------------------------------------------------------------------
-// Logo - a static violet-filled, black-outlined ജയശ്രീ wordmark, not
-// animated: the homepage already has the animated version
-// (demo/jayasree.svg), so this page doesn't need to repeat it.
-//
-// Rendered here, immediately after glyph-data.json - not after the
-// stroke-data fetches below, which it doesn't use at all (`outlineOnly`
-// skips STROKE_LIBRARY entirely). glyph-data.json alone is ~5.5MB;
-// stroke-data.json + stroke-data.raw.json together add another ~13MB, so
-// waiting for those before showing a *static* wordmark was most of this
-// page's visible delay for no reason.
-//
-// Still built via createStrokeWriter/play() - buildStage() runs
-// synchronously before play()'s first `await`, so the ghost (violet fill)
-// and every `.ms-stroke` outline path already exist in the DOM as soon as
-// play() returns, just not drawn yet (each starts at full
-// stroke-dashoffset, i.e. invisible, ready for the timed reveal animation).
-// cancel() immediately after stops that timed animation from ever
-// advancing (every rAF-scheduled frame checks a token that just changed and
-// bails without drawing), then we skip straight to the finished state by
-// zeroing every stroke's dashoffset ourselves - no visible motion, just the
-// completed outline. `outlineOnly` keeps every glyph's outline style
-// uniform regardless of stroke-authoring coverage, same as the homepage.
-// ---------------------------------------------------------------------------
-
-const logoStage = document.getElementById("logo-stage");
-if (logoStage) {
-  const logoWriter = createStrokeWriter(logoStage, { glyphData, speed: 42000, outlineOnly: true });
-  // glyphData is already supplied above, so play() resolves it synchronously
-  // (no fetch of its own) - no separate load() step needed here.
-  logoWriter.play("ജയശ്രീ");
-  logoWriter.cancel();
-  for (const stroke of logoStage.querySelectorAll(".ms-stroke")) {
-    stroke.style.strokeDashoffset = "0";
-  }
-}
+// The ജയശ്രീ wordmark is a plain <img src="jayasree.svg"> in the HTML - the
+// same pre-exported, self-animating (SMIL, no JS) asset the homepage uses.
+// It used to be rebuilt here at runtime via createStrokeWriter, gated on
+// this page's own ~5.5MB glyph-data.json fetch below for no reason (it's a
+// fixed word, not user input) - now it just loads and animates on its own,
+// independent of anything below.
 
 const stage = document.getElementById("stage");
 let writer = createStrokeWriter(stage, { glyphData });
@@ -163,6 +133,73 @@ document.querySelectorAll(".chips button").forEach((b) =>
 );
 
 document.getElementById("replay").addEventListener("click", () => writer.replay(playOptions()));
+
+// ---------------------------------------------------------------------------
+// Speech input - say a word instead of typing it
+// ---------------------------------------------------------------------------
+
+// Chrome/Edge/Safari only expose this as the prefixed webkitSpeechRecognition;
+// Firefox doesn't implement it at all. The button stays `hidden` (see
+// index.html) on any browser where neither exists, rather than showing a
+// control that would just fail on click.
+const SpeechRecognitionAPI = window.SpeechRecognition ?? window.webkitSpeechRecognition;
+const speakBtn = document.getElementById("speakBtn");
+
+if (SpeechRecognitionAPI && speakBtn) {
+  speakBtn.hidden = false;
+
+  /** The in-progress recognition session, or null when idle. */
+  let recognition = null;
+
+  speakBtn.addEventListener("click", () => {
+    // Second click while listening cancels instead of starting a new
+    // session - onend below (fired by both a real result and abort())
+    // handles resetting the button either way.
+    if (recognition) {
+      recognition.abort();
+      return;
+    }
+
+    recognition = new SpeechRecognitionAPI();
+    recognition.lang = "ml-IN";
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    speakBtn.title = "Listening… click to stop";
+    speakBtn.setAttribute("aria-label", "Listening… click to stop");
+    speakBtn.classList.add("listening");
+    status.textContent = "";
+
+    recognition.addEventListener("result", (e) => {
+      const transcript = e.results[0][0].transcript.trim();
+      if (transcript) {
+        input.value = transcript;
+        traceWord(transcript);
+      }
+    });
+
+    recognition.addEventListener("error", (e) => {
+      // "aborted" is our own abort() call above, not a real failure - no
+      // message needed for that one.
+      if (e.error === "aborted") return;
+      status.textContent =
+        e.error === "not-allowed" || e.error === "service-not-allowed"
+          ? "Microphone access denied - allow it in the browser to use speech input."
+          : e.error === "no-speech"
+            ? "Didn't catch that - try again."
+            : "Speech recognition failed - try again.";
+    });
+
+    recognition.addEventListener("end", () => {
+      recognition = null;
+      speakBtn.title = "Speak a word";
+      speakBtn.setAttribute("aria-label", "Speak a word");
+      speakBtn.classList.remove("listening");
+    });
+
+    recognition.start();
+  });
+}
 
 // ---------------------------------------------------------------------------
 // Stroke library drag-and-drop

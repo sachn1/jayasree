@@ -11,35 +11,14 @@ body {
   color: #1a1a2e;
 }
 
-/* ── Logo (static violet ജയശ്രീ wordmark - see demo.js for why it's
-   built via createStrokeWriter but not animated) ── */
+/* ── Logo (self-animating jayasree.svg, same asset the homepage uses -
+   see demo.js for why it's a plain <img> and not JS-rendered) ── */
 
 #logo-stage {
-  min-height: 90px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-#logo-stage svg {
-  width: auto;
+  display: block;
   height: 90px;
-  overflow: visible;
-}
-
-/* Solid colored letterform instead of the default thin ghost wireframe -
-   a wordmark should stand out, not read as a faint tracing guide. */
-#logo-stage .ms-ghost path {
-  fill: #a78bfa;
-  fill-opacity: 0.9;
-  stroke: none;
-}
-
-/* Static wordmark: the black outline (.ms-stroke) stays, forced fully drawn
-   by demo.js instead of animated - only the pen-tip stylus dot is hidden,
-   since a fixed dot makes no sense once nothing is animating. */
-#logo-stage .ms-stylus {
-  display: none;
+  width: auto;
+  margin: 0 auto;
 }
 
 p.tagline {
@@ -89,6 +68,36 @@ button:hover {
 button:disabled {
   background: #ccc;
   cursor: not-allowed;
+}
+
+/* ── Speech input (see demo.js's "Speech input" section) ── */
+
+#speakBtn {
+  padding: 0.5rem;
+  width: 2.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mic-icon {
+  width: 1.3rem;
+  height: 1.3rem;
+}
+
+#speakBtn.listening {
+  background: #e8b84b;
+  animation: listening-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes listening-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
 }
 
 /* ── Suggestion chips ── */
