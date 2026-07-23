@@ -75,6 +75,21 @@ def _standalone_inputs() -> list[str]:
     # is scoped to ്ര alone, the one mark that doesn't have a stroke yet.
     inputs.append(VIRAMA + "ര")
 
+    # ൻറ (chillu-n + റ) - the one real exception to "chillu is always
+    # word-final": the traditional spelling of the -nte/-nre possessive
+    # suffix (നിൻറെ "yours", എൻറെ "mine", അവൻറെ "his", ... - the reformed
+    # spelling writes the same sound as ന്റ instead). Verified against real
+    # HarfBuzz output: റ takes a distinct contextual glyph here (an "rh"
+    # form, not the ordinary standalone റ glyph used everywhere else), and
+    # a following prefix vowel sign (e.g. െ in നിൻറെ) attaches to *that*
+    # glyph, not to the chillu - neither of which the runtime's generic
+    # chillu/mark handling knows about without a real shaped ghost to
+    # anchor on. Same "give the recorder a real ghost" reasoning as ്ര
+    # above, not brute-forced with every matra for the same reason
+    # conjunct+matra generally isn't (see _conjunct_inputs()) - matras
+    # compose onto it generically at runtime once it exists as a base atom.
+    inputs.append(CHILLU[0] + "റ")
+
     return inputs
 
 
