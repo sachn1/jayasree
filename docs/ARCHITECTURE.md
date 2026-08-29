@@ -134,6 +134,66 @@ gracefully absent otherwise). For each word:
 See "Composition" below for how composition actually works, including the
 bugs this project hit and fixed while building it out.
 
+## Animation: how the pen actually moves
+
+Once `buildStage` has resolved a stroke (authored or fallback) into an SVG
+`<path>`, playback (`traceSub` in `index.js`) uses the standard
+dash-offset reveal technique, not manual point-stepping:
+
+1. Measure the path's real length with `getTotalLength()`.
+2. Set `stroke-dasharray = "<len> <len>"` and `stroke-dashoffset = <len>` -
+   this makes the entire stroke one long dash followed by an equally long
+   gap, so nothing is visible yet.
+3. On each `requestAnimationFrame`, shrink `stroke-dashoffset` toward `0` in
+   proportion to elapsed time. The browser's own SVG renderer continuously
+   reveals the path along its *actual* curve geometry as the offset
+   shrinks - there's no manual sampling of "the next point" to draw a line
+   segment to, and no fixed frame-rate-dependent step size. The stroke's
+   underlying shape (a handful of Bezier curve commands, not a point list -
+   see below) is what gets revealed; the animation loop never touches it.
+4. `getPointAtLength(t * len)` is *also* called once per frame, but purely
+   to reposition the little pen-tip dot (`.ms-stylus`) on top of the
+   reveal - a cosmetic detail. Deleting the stylus entirely wouldn't change
+   how the ink itself animates.
+5. Duration is speed-based, not frame-based: `totalLen / (SPEED * speedMul)`
+   seconds (`playOnce`), floored at 200ms so a very short stroke doesn't
+   flash instantly. `SPEED` defaults to 6000 font-units/second
+   (`options.speed`); `speedMul` is `play()`'s own per-call multiplier.
+
+### Point density in a recorded stroke
+
+There's no single "distance between points" - it's adaptive at every
+stage, and none of them are time/frame-rate based:
+
+- **While a contributor draws** (`stroke-recorder.js`): raw `pointermove`
+  events are downsampled by *distance*, not time - a point is only kept
+  once the pen has moved at least `MIN_DIST_RECORD = 6` font-units from the
+  last kept point (at 2048 units/em, ~0.3% of the em). Those surviving
+  points are immediately fit into a Catmull-Rom spline (`smoothPath`), so
+  what actually gets exported to `stroke-data.raw.json` is already a smooth
+  curve, not a dense point cloud of every mouse-move event.
+- **Offline processing** (`process_strokes.py`, run once, not at runtime):
+  re-samples that curve into exactly `N_SAMPLES = 120` points evenly spaced
+  by arc length, regardless of how many points the recorder kept. Those 120
+  get centered onto the real font-ink centerline (Stage 3's centering),
+  then RDP-simplified (epsilon = 20 units) and split at genuine corners
+  (`geometry.py`) before each corner-free piece is fit to its own smooth
+  curve. *This* is what actually determines the final control-point
+  density: long straight or gently-curving runs collapse to very few
+  control points, sharp direction changes keep more - it adapts to the
+  stroke's own shape rather than following a fixed spacing.
+- **At playback**: irrelevant, per the dash-offset technique above - the
+  browser reveals the final curve continuously; there's no point-stepping
+  at all.
+
+One asterisk: a cluster with **no recorded stroke** falls back to tracing
+the printed glyph's own outer contour instead, and *that* path genuinely
+is resampled into a fixed `OUTLINE_SAMPLES = 200` points evenly spaced by
+arc length, then reconstructed as a straight-line polyline (`buildTracePath`
+in `index.js`) rather than a curve. Fallback traces can therefore look
+slightly more faceted up close than authored ones - one more reason
+`getFallbackClusters()` exists to let a caller flag when a word fell back.
+
 ## Worked example: one stroke through the pipeline
 
 The stages described above are easiest to understand side by side against

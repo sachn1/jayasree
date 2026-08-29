@@ -738,17 +738,24 @@ function tryComposeFromCharacters(cluster, glyphData) {
  * for the full derivation).
  *
  * A prefix mark (െ/േ/ൈ) composes onto a multi-glyph base the same way as
- * any other base: {@link composeMark} shifts the *entire* base - however
- * many glyphs it has - right as one block by the mark's `shift`, then
- * prepends the mark's own prefix glyphs at x=0. An earlier version of this
- * function skipped composition here (base.glyphs.length > 1) on the theory
- * that this reordering wasn't safe for a non-ligating multi-glyph conjunct
- * (see _build_marks()'s docstring) - but that guard's fallback (rendering
- * the mark as its own isolated dotted-circle-placeholder shape, floating
- * disconnected from the base it belongs to) was strictly worse than the
- * shift it was trying to avoid: real words like "പ്രത്യേക" (േ prefixing
- * "ത്യ", a 2-glyph subjoined conjunct) and "ജ്യോതി" render correctly
- * composed, with no observed reordering, so the guard was removed.
+ * any other base *for a true fused conjunct* (a subjoined form like ത്യ):
+ * {@link composeMark} shifts the entire base right as one block by the
+ * mark's `shift`, then prepends the mark's own prefix glyphs at x=0. An
+ * earlier version of this function skipped composition here
+ * (base.glyphs.length > 1) on the theory that this reordering wasn't safe
+ * for a non-ligating multi-glyph conjunct (see _build_marks()'s docstring)
+ * - but that guard's fallback (rendering the mark as its own isolated
+ * dotted-circle-placeholder shape, floating disconnected from the base it
+ * belongs to) was strictly worse than the shift it was trying to avoid:
+ * real words like "പ്രത്യേക" (േ prefixing "ത്യ", a 2-glyph subjoined
+ * conjunct) and "ജ്യോതി" render correctly composed, with no observed
+ * reordering, so the guard was removed.
+ *
+ * One real exception to "shift the whole base": a chillu-led base (ൻറ -
+ * chillu + a trailing, unrelated റ, not a fused ligature) needs the mark
+ * inserted *between* the chillu and the tail instead - see composeMark's
+ * own docstring for the concretely-verified real-shaping evidence and the
+ * bug this caused (നിൻറെ) before the split was added.
  *
  * Only once mark composition doesn't apply (no previous segment - start of
  * text) does a length-1 direct match get tried, rendering the character's

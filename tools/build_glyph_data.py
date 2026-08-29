@@ -107,7 +107,7 @@ def _conjunct_inputs() -> list[str]:
     brute-forced here (that was 36 + 36*36*12 extra shape_word calls,
     ballooning glyph-data.json from ~5.4MB to 63MB). Both compose cleanly at
     runtime from a base cluster + a mark's prefix/suffix recipe - see
-    _build_marks() below and js/src/index.js's composeCluster().
+    _build_marks() and js/src/index.js's composeCluster().
     """
     return [c1 + VIRAMA + c2 for c1 in CONSONANTS for c2 in CONSONANTS]
 

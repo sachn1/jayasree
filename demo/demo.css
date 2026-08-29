@@ -146,6 +146,13 @@ button:disabled {
   margin-bottom: 0.5rem;
 }
 
+/* Approximated-strokes note (not an error - some clusters fell back to the
+   outline-trace instead of real handwriting) gets a calmer, non-alarming
+   tone than a thrown error. */
+#status.status-note {
+  color: #6d28d9;
+}
+
 #replay {
   margin-top: 1rem;
   background: none;

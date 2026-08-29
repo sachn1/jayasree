@@ -23,7 +23,10 @@
     "handwriting",
     "svg",
     "indic",
-    "harfbuzz"
+    "harfbuzz",
+    "indic-scripts",
+    "handwriting-animation",
+    "svg-animation"
   ],
   "license": "MIT",
   "repository": {

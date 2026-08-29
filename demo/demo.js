@@ -110,9 +110,20 @@ async function traceWord(word) {
   word = word.trim();
   if (!word) return;
   status.textContent = "";
+  status.classList.remove("status-note");
   btn.disabled = true;
   try {
     await writer.play(word, playOptions());
+    // Not an error - the word still traced - but some cluster(s) had no
+    // recorded (or composable) handwriting, so the pen fell back to
+    // outlining the printed glyph's own contour instead. Surfacing this
+    // is the whole point of getFallbackClusters() existing (see its
+    // docstring in index.js); the demo just didn't call it until now.
+    const fallback = writer.getFallbackClusters();
+    if (fallback.length) {
+      status.textContent = `Approximated (no recorded handwriting yet) for: ${fallback.join(", ")}`;
+      status.classList.add("status-note");
+    }
   } catch (err) {
     status.textContent = err.message;
   } finally {
