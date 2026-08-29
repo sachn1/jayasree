@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Contributing stroke data (no code needed)
+    url: https://github.com/sachn1/jayasree/blob/master/CONTRIBUTING.md#contributing-stroke-data-no-code-needed
+    about: Trace missing characters in the stroke recorder - the most valuable way to help, no coding required.

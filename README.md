@@ -1,6 +1,12 @@
 
 # Jayasree ![ജയശ്രീ - animated stroke trace](demo/jayasree.svg)
 
+[![npm version](https://img.shields.io/npm/v/jayasree.svg)](https://www.npmjs.com/package/jayasree)
+[![npm downloads](https://img.shields.io/npm/dm/jayasree.svg)](https://www.npmjs.com/package/jayasree)
+[![CI](https://github.com/sachn1/jayasree/actions/workflows/ci.yml/badge.svg)](https://github.com/sachn1/jayasree/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/code-MIT-blue.svg)](LICENSE)
+[![Data license: CC BY 4.0](https://img.shields.io/badge/data-CC%20BY%204.0-lightgrey.svg)](LICENSE-DATA)
+
 *Malayalam handwriting, animated stroke by stroke.*
 
 A JavaScript library for animating Malayalam script as handwriting - showing
@@ -14,6 +20,11 @@ repo Settings → Pages → Source: *GitHub Actions*).
 The JS package is self-contained: glyph shapes are pre-computed and bundled.
 No server, no font file, no HarfBuzz at runtime.
 
+**Found a bug, or want to add another script?** See
+[Reporting a bug](CONTRIBUTING.md#reporting-a-bug-a-letter-or-word-renders-wrong)
+or [Adding a new language](CONTRIBUTING.md#adding-a-new-language) in
+`CONTRIBUTING.md` - both have a step-by-step walkthrough.
+
 ## How it works
 
 Three committed JSON files power the widget: `glyph-data.json` (font
@@ -25,9 +36,11 @@ just ~290 hand-recorded atoms plus a per-mark recipe, rather than needing
 every combination shaped or drawn individually.
 
 See **[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)** for the full pipeline
-walkthrough (all four stages, file by file) and how runtime composition,
-whitespace handling, and chillu-letter encoding work - including worked
-examples of real bugs this project shipped and fixed. See
+walkthrough (all four stages, file by file), how the pen animation itself
+works (the dash-offset reveal technique, and how point density in a stroke
+is actually determined), and how runtime composition, whitespace handling,
+and chillu-letter encoding work - including worked examples of real bugs
+this project shipped and fixed. See
 **[`docs/CENTERING_EXPERIMENTS.md`](docs/CENTERING_EXPERIMENTS.md)** for the
 centering/smoothing/straightening trial-and-error log behind that pipeline.
 

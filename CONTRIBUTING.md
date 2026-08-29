@@ -3,10 +3,35 @@
 Thanks for wanting to help! There are two very different ways to contribute
 here, and the most valuable one needs no coding at all.
 
+## Reporting a bug (a letter or word renders wrong)
+
+You don't need to know why it's wrong to report it - just:
+
+1. Reproduce it at the [live demo](https://sachn1.github.io/jayasree/demo/) and
+   note the exact word/character typed and what's wrong (a screenshot or
+   recording is the most useful thing you can attach).
+2. Check whether the faint background letterform (the "ghost") is already
+   the wrong shape, or whether the ghost looks right but the animated pen
+   stroke is wrong/missing/misplaced - that tells us whether the bug is
+   likely in the glyph data or the stroke/composition logic.
+3. Open your browser's console before/while typing the word - a line like
+   `jayasree: no glyph data for "..." in "..." - skipping` names the exact
+   missing piece if there is one.
+4. [Open a bug report](../../issues/new?template=bug_report.md) with the
+   above. That's it - a maintainer will take it from there.
+
+Want to dig in yourself instead of just reporting? It's usually one of two
+shapes of fix: a missing/wrong entry in `glyph-data.json` (add the cluster
+to `build_glyph_data.py`'s input list and re-run `make build-glyph-data`),
+or a composition bug in `js/src/index.js` (needs a code fix plus a vitest
+regression test - see "Contributing code" below). `docs/ARCHITECTURE.md`
+walks through worked examples of real bugs this project has shipped and
+fixed, which is the best orientation before your first one.
+
 ## Contributing stroke data (no code needed)
 
-The heart of this project is hand-drawn stroke data from people who actually
-write the script. Open the [stroke recorder](tools/stroke-recorder.html) (or
+The heart of this project is hand-drawn stroke data **from people who actually
+write the script**. Open the [stroke recorder](tools/stroke-recorder.html) (or
 the offline `tools/stroke-recorder-standalone.html`), trace the characters
 marked ○ (missing), export, and open a PR with the updated
 `js/src/stroke-data.raw.json`.
@@ -111,6 +136,10 @@ happens, only the redundant npm publish is skipped. A manual
 
 ## Adding a new language
 
+Thinking about proposing one, or don't have a font/native speaker lined up
+yet? [Open a new-language issue](../../issues/new?template=new_language.md)
+first to coordinate - it's fine to file that before writing any code.
+
 The core is deliberately script-agnostic - geometry, centering,
 straightening, and composition know nothing about Malayalam. The tests
 mirror that split: `test_geometry.py`/`test_stroke_compose.py` use synthetic
@@ -130,6 +159,27 @@ fixtures, while everything Malayalam-specific lives in
 - Whitespace/punctuation handling (`UNIVERSAL_CHARS` in `js/src/index.js`)
   is already script-agnostic - it's checked before any language-specific
   lookup and never touches per-language data. Nothing to add per language.
+
+Step by step, once you have a native speaker/writer and a font lined up:
+
+1. Add `python/src/jayasree/_chars_<lang>.py`, mirroring `_chars.py`'s
+   structure, and its own test module mirroring `test_chars_malayalam.py`.
+   Don't edit `_chars.py` or any Malayalam file.
+2. Pick an open-licensed font for the script (ideally one already used by
+   that script's own computing community, the way Manjari is used here for
+   Malayalam - crediting it in the README the same way this project credits
+   Manjari), then generate that script's own glyph data:
+   `make build-glyph-data FONT=/path/to/Font.ttf` (see the README's "Data
+   size & deployment" for naming the output per-script, e.g.
+   `glyph-data.<lang>.json`, rather than overwriting Malayalam's).
+3. Open `tools/stroke-recorder.html`, load that glyph data, and hand-trace
+   the atoms - same recorder, same workflow as Malayalam's stroke data.
+4. Run `make process-strokes` to generate the composed, ready-to-load
+   stroke data for the new script.
+5. `make validate-data && make test` - the existing Malayalam tests must
+   pass completely unmodified; if they don't, something leaked outside the
+   new script's own files and needs rework before this is mergeable.
+6. Open the PR - `CODEOWNERS` routes review automatically.
 
 ## Data integrity & governance
 
