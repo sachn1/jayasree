@@ -46,33 +46,51 @@ def _standalone_inputs(lang: LanguageSpec, chars: object) -> list[str]:
         + "".join(char_tuple(chars, "RARE_CONSONANTS"))
         + "".join(char_tuple(chars, "CHILLU"))
         + "".join(char_tuple(chars, "NUMERALS"))
+        # Script-owned punctuation (e.g. Devanagari's danda/double-danda) -
+        # unlike UNIVERSAL_CHARS (Latin, shared across every script), this
+        # is part of the script's own letterforms and gets a real ghost +
+        # eventual recorded stroke, found via Hindi's onboarding profile
+        # (docs/languages/hi/profile.md's "Native punctuation" section).
+        + "".join(char_tuple(chars, "NATIVE_PUNCTUATION"))
     )
     inputs = list(letters)
 
     anusvara = char_tuple(chars, "ANUSVARA")
     visarga = char_tuple(chars, "VISARGA")
     au_length_mark = getattr(chars, "AU_LENGTH_MARK", None)
+    # Candrabindu (Devanagari's alternate nasalization mark, phonemically
+    # distinct from anusvara - see docs/languages/hi/profile.md) is the
+    # same kind of always-follows-a-vowel mark as anusvara/visarga.
+    candrabindu = char_tuple(chars, "CANDRABINDU")
 
-    # Anusvara/visarga/au-length-mark appear after any cluster (including
-    # conjuncts), so they need their own glyph-data entries.
+    # These all appear after any cluster (including conjuncts), so they
+    # need their own glyph-data entries.
     if isinstance(anusvara, str):
         inputs.append(anusvara)
     if isinstance(visarga, str):
         inputs.append(visarga)
+    if isinstance(candrabindu, str):
+        inputs.append(candrabindu)
     if au_length_mark:
         inputs.append(au_length_mark)
 
     virama = getattr(chars, "VIRAMA", None)
     matras = char_tuple(chars, "MATRAS")
     rare_matras = char_tuple(chars, "RARE_MATRAS")
+    # Nukta (Devanagari's loanword-sound diacritic, e.g. क + ़ = क़) is a
+    # combining mark attached directly to a consonant, the same shape of
+    # problem virama is - found via Hindi's onboarding profile.
+    nukta = getattr(chars, "NUKTA", None)
 
-    # Virama and matras - give the recorder a real dotted-circle ghost to
-    # trace over rather than recording these blind via the recorder's
-    # custom-cluster field. Malayalam's split vowels are excluded: they
-    # compose from simpler marks already covered here instead of needing
-    # their own recorded stroke.
+    # Virama/nukta and matras - give the recorder a real dotted-circle
+    # ghost to trace over rather than recording these blind via the
+    # recorder's custom-cluster field. Malayalam's split vowels are
+    # excluded: they compose from simpler marks already covered here
+    # instead of needing their own recorded stroke.
     if virama:
         inputs.append(virama)
+    if nukta:
+        inputs.append(nukta)
     split_vowels = _ML_SPLIT_VOWELS if lang.code == "ml" else ()
     inputs += [m for m in matras + rare_matras if m not in split_vowels]
 
@@ -93,12 +111,24 @@ def _standalone_inputs(lang: LanguageSpec, chars: object) -> list[str]:
 
 
 def _consonant_matra_inputs(chars: object) -> list[str]:
-    """Consonant + dependent vowel (every syllable), including rare matras."""
+    """Consonant + dependent vowel (every syllable), including rare matras.
+
+    Also brute-forces consonant+nukta (e.g. क + ़ = क़), if the language has
+    one - real per-consonant shaping, not just the generic mark recipe, is
+    what actually lets Agent 2 verify whether nukta fuses into a
+    consonant-specific shape (the way some Malayalam matras do) or stays a
+    plain separate mark. Restricted to the main `consonants` set, not
+    `rare_consonants` - nukta exists specifically for sounds Sanskrit
+    doesn't have, so pairing it with Sanskrit-loanword-tier consonants has
+    no real-world basis.
+    """
     consonants = char_tuple(chars, "CONSONANTS")
     rare_consonants = char_tuple(chars, "RARE_CONSONANTS")
     matras = char_tuple(chars, "MATRAS")
     rare_matras = char_tuple(chars, "RARE_MATRAS")
-    inputs = [c + m for c in consonants for m in matras + rare_matras]
+    nukta = getattr(chars, "NUKTA", None)
+    single_marks = matras + rare_matras + ((nukta,) if nukta else ())
+    inputs = [c + m for c in consonants for m in single_marks]
     inputs += [c + m for c in rare_consonants for m in matras]
     return inputs
 
@@ -189,8 +219,9 @@ def _shape_all(inputs: list[str], font: str) -> dict:
 def _composable_marks(lang: LanguageSpec, chars: object) -> list[str]:
     """Return the marks composable onto an arbitrary base cluster at runtime.
 
-    The generic part (virama, every matra, anusvara/visarga) applies to any
-    script that has those categories at all. The subjoined-conjunct-tail
+    The generic part (virama, nukta, every matra, anusvara/visarga/
+    candrabindu) applies to any script that has those categories at all.
+    The subjoined-conjunct-tail
     marks (്യ/്വ/്ല/്ര) are a Malayalam-specific finding - which consonants,
     if any, form this kind of reduced tail form in a new script is exactly
     the sort of thing docs/LANGUAGE_ONBOARDING_AGENTS.md's Agent 1/2 exist
@@ -200,6 +231,9 @@ def _composable_marks(lang: LanguageSpec, chars: object) -> list[str]:
     marks: list[str] = []
     if virama:
         marks.append(virama)
+    nukta = getattr(chars, "NUKTA", None)
+    if nukta:
+        marks.append(nukta)
     marks += list(char_tuple(chars, "MATRAS"))
     marks += list(char_tuple(chars, "RARE_MATRAS"))
     au_length_mark = getattr(chars, "AU_LENGTH_MARK", None)
@@ -211,10 +245,13 @@ def _composable_marks(lang: LanguageSpec, chars: object) -> list[str]:
 
     anusvara = getattr(chars, "ANUSVARA", None)
     visarga = getattr(chars, "VISARGA", None)
+    candrabindu = getattr(chars, "CANDRABINDU", None)
     if anusvara:
         marks.append(anusvara)
     if visarga:
         marks.append(visarga)
+    if candrabindu:
+        marks.append(candrabindu)
     return marks
 
 

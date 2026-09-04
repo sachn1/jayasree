@@ -21,6 +21,18 @@ every category `_chars.py` (Malayalam's) happens to have:
     INDEPENDENT_VOWELS, RARE_VOWELS, CONSONANTS, RARE_CONSONANTS, CHILLU,
     NUMERALS, MATRAS, RARE_MATRAS, VIRAMA, ANUSVARA, VISARGA
 
+This list isn't closed - it's exactly Malayalam's own categories, not a
+fixed schema. Hindi's onboarding (`docs/languages/hi/`) already needed
+three more that `tools/build_glyph_data.py` also recognizes if present:
+`CANDRABINDU` (a second nasalization mark, phonemically distinct from
+anusvara), `NUKTA` (a combining loanword-sound diacritic attached to
+consonants, e.g. क + ़ = क़), and `NATIVE_PUNCTUATION` (script-owned
+punctuation like Devanagari's danda - distinct from the shared-Latin
+`UNIVERSAL_CHARS` in `index.js`, and gets a real recorded stroke). Expect
+a future script to introduce further new category names the same way;
+add support for a new one in `build_glyph_data.py` when a real profile
+needs it, not speculatively ahead of one.
+
 Only `INDEPENDENT_VOWELS`, `CONSONANTS`, `MATRAS`, and `VIRAMA` are
 load-bearing for a script to be shapeable at all; see `char_tuple()` below
 for how an absent category degrades to "no such characters" rather than an
