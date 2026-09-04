@@ -230,6 +230,17 @@ chosen font (Agent 2/3's job) - no further plumbing changes anticipated,
 though Agent 1/2 may still surface a script-specific quirk that needs its
 own small, gated extension the way Malayalam's do.
 
+**Already borne out**: Hindi's Agent 1 pass (`docs/languages/hi/`) needed
+three category names Malayalam never had - `CANDRABINDU`, `NUKTA`,
+`NATIVE_PUNCTUATION` - and `languages.py`/`build_glyph_data.py` were
+extended to recognize them (still fully optional, still zero effect on
+Malayalam's output - verified byte-identical after the change). This is
+the pattern going forward: a language's profile can reveal a genuinely new
+*infrastructure* category, not just new character data, and that gets
+folded into the shared tooling before that language's own onboarding
+continues - not deferred, and not generalized preemptively for languages
+not yet being worked on.
+
 ## The three agents
 
 ### Agent 1 - Linguistic Research & Script Profiling
