@@ -143,6 +143,18 @@ would produce.)
    starts, so lessons from one (a quirk Agent 1 missed, a font that turned
    out to have gaps) can inform the next rather than several languages
    independently repeating the same mistake.
+6. **Coverage is bounded by the font, not by linguistic minimalism.**
+   (Project owner, resolving Hindi's open questions - `docs/languages/hi/
+   profile.md`.) The objective is to animate whatever the user actually
+   types, so scope questions default to inclusion within "does the chosen
+   font support this," not "is this common/standard enough to bother
+   with." This governs judgment calls like which nukta letters or which
+   loan vowels are in scope - it does *not* extend to pulling in a
+   different *language's* characters just because they share a Unicode
+   block or a font's coverage (Sanskrit's Vedic accents are still excluded
+   from Hindi's own profile, per "one language at a time" above and "Don't
+   generalize from Malayalam") - the font bounds *how much of this
+   language* to include, not *which language*.
 
 ## Phase 0 - prerequisite code changes (done)
 
@@ -364,6 +376,23 @@ Concretely, the reduced set is:
 
 Everything else is left to compose automatically at runtime/build time, the
 same as Malayalam's ~1760 non-atom clusters do today.
+
+**Two more ways to shrink the labeling set, found during Hindi's profiling
+(`docs/languages/hi/profile.md`), beyond the three bullets above:**
+
+- **Synthetic strokes.** A mark simple enough to generate procedurally
+  (Hindi's nukta - just a small dot) needs no human-traced recording at
+  all, only a real font glyph outline (for the ghost/composition
+  geometry). Not every atom in the reduced set needs *tracing* - some just
+  need *synthesizing*.
+- **Self-composition.** A character that's structurally "the same mark,
+  twice, offset" (Hindi's double danda from single danda) composes from
+  its *own* recorded stroke via the existing glyph-offset machinery
+  (`stroke_compose.py`/`tryComposeFromCharacters`), rather than needing a
+  separate recording.
+
+Both reduce the *labeling-worklist* further than atom-set reduction alone
+- worth checking for on every future language, not just Hindi.
 
 **Output artifacts:**
 
