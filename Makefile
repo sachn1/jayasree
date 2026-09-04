@@ -23,10 +23,14 @@ help:
 	@echo "  make ci             everything CI runs, for both languages, in one shot"
 	@echo "  make demo           serve the demo AND the stroke recorder (same server, see"
 	@echo "                      its printed URLs) at :8000 - alias: make record"
-	@echo "  make build-glyph-data [FONT=/path/to/Font.ttf]   regenerate glyph-data.json"
-	@echo "  make process-strokes                              regenerate stroke-data.json"
+	@echo "  make build-glyph-data [FONT=/path/to/Font.ttf] [LANG=malayalam]   regenerate glyph-data.json"
+	@echo "  make process-strokes [LANG=malayalam]              regenerate stroke-data.json"
 	@echo "  make build-recorder                                bundle the standalone recorder"
-	@echo "  make update-snapshot                               re-approve the data snapshot"
+	@echo "  make update-snapshot [LANG=malayalam]              re-approve the data snapshot"
+	@echo "  make validate-data [LANG=malayalam]                (LANG only affects --update-snapshot)"
+	@echo ""
+	@echo "  LANG picks a registry key from python/src/jayasree/languages.py -"
+	@echo "  see docs/LANGUAGE_ONBOARDING_AGENTS.md. Defaults to malayalam everywhere."
 	@echo "  make bump           cut a release: bump semver from commit history, tag, changelog"
 	@echo "  make clean          remove venvs/node_modules/coverage artifacts"
 
@@ -72,7 +76,7 @@ validate-data:
 	python3 tools/validate_data.py
 
 update-snapshot:
-	python3 tools/validate_data.py --update-snapshot
+	python3 tools/validate_data.py --update-snapshot $(if $(LANG),--lang $(LANG),)
 
 # ── Release ──────────────────────────────────────────────────────────────
 
@@ -128,10 +132,10 @@ demo record:
 	cd python && poetry run python ../demo/serve.py
 
 build-glyph-data:
-	cd python && poetry run python ../tools/build_glyph_data.py $(FONT)
+	cd python && poetry run python ../tools/build_glyph_data.py $(FONT) $(if $(LANG),--lang $(LANG),)
 
 process-strokes:
-	python3 tools/process_strokes.py --preset=malayalam
+	python3 tools/process_strokes.py --preset=full $(if $(LANG),--lang $(LANG),)
 
 build-recorder:
 	python3 tools/build_standalone_recorder.py
