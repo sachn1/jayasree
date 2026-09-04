@@ -23,10 +23,10 @@
     },
     "loan_vowels": {
       "characters": [
-        "ॅ",
-        "ॉ"
+        "ऍ",
+        "ऑ"
       ],
-      "note": "RESOLVED (profile.md): in scope. Modern, for English/other loanword sounds (ऍ candra e, ऑ candra o)."
+      "note": "RESOLVED (profile.md): in scope. Modern, for English/other loanword sounds (ऍ candra e U+090D, ऑ candra o U+0911). Corrected by Agent 3 (build_glyph_data.py --lang hindi run): this category previously duplicated loan_matras's codepoints (U+0945/U+0949) instead of these independent-vowel letters - profile.md's own prose and this file's own excluded_out_of_scope note (U+090D/0911) already had it right; only this category's characters[] array was wrong."
     },
     "rare_vowels": {
       "characters": [
