@@ -6,63 +6,167 @@
   "status": "agent-reviewed, not human-verified - see profile.md",
   "categories": {
     "independent_vowels": {
-      "characters": ["अ", "आ", "इ", "ई", "उ", "ऊ", "ऋ", "ए", "ऐ", "ओ", "औ"],
+      "characters": [
+        "अ",
+        "आ",
+        "इ",
+        "ई",
+        "उ",
+        "ऊ",
+        "ऋ",
+        "ए",
+        "ऐ",
+        "ओ",
+        "औ"
+      ],
       "note": "11 standard letters (school varnamala)"
     },
     "loan_vowels": {
-      "characters": ["ॅ", "ॉ"],
-      "note": "modern, for English/other loanword sounds (ऍ candra e, ऑ candra o) - open question #5"
+      "characters": [
+        "ॅ",
+        "ॉ"
+      ],
+      "note": "RESOLVED (profile.md): in scope. Modern, for English/other loanword sounds (ऍ candra e, ऑ candra o)."
     },
     "rare_vowels": {
-      "characters": ["ऌ", "ॠ", "ॡ"],
+      "characters": [
+        "ऌ",
+        "ॠ",
+        "ॡ"
+      ],
       "note": "vocalic L/RR/LL - Sanskrit-loanword tier, near-absent from native Hindi vocabulary"
     },
     "consonants": {
-      "characters": ["क", "ख", "ग", "घ", "ङ", "च", "छ", "ज", "झ", "ञ", "ट", "ठ", "ड", "ढ", "ण", "त", "थ", "द", "ध", "न", "प", "फ", "ब", "भ", "म", "य", "र", "ल", "व", "श", "ष", "स", "ह"],
+      "characters": [
+        "क",
+        "ख",
+        "ग",
+        "घ",
+        "ङ",
+        "च",
+        "छ",
+        "ज",
+        "झ",
+        "ञ",
+        "ट",
+        "ठ",
+        "ड",
+        "ढ",
+        "ण",
+        "त",
+        "थ",
+        "द",
+        "ध",
+        "न",
+        "प",
+        "फ",
+        "ब",
+        "भ",
+        "म",
+        "य",
+        "र",
+        "ल",
+        "व",
+        "श",
+        "ष",
+        "स",
+        "ह"
+      ],
       "note": "33 basic consonants, contiguous U+0915-U+0939"
     },
     "nukta_consonants": {
-      "characters": ["क़", "ख़", "ग़", "ज़", "ड़", "ढ़", "फ़"],
-      "note": "डेड़/ढ़ widely treated as standard Hindi; क़/ख़/ग़/ज़/फ़ used for Perso-Arabic/English loans, not universally taught as alphabet letters - open question #1. ALSO exists as decomposed consonant+U+093C sequences in real text - see profile.md's encoding-duality note; do not assume these precomposed codepoints are the only spelling."
+      "characters": [
+        "क़",
+        "ख़",
+        "ग़",
+        "ज़",
+        "ड़",
+        "ढ़",
+        "फ़"
+      ],
+      "note": "RESOLVED (profile.md): scope is font-gated (whichever of these the chosen font actually renders - Agent 2 confirms), not restricted by 'how standard/common' the letter is. Also: nukta needs NO recorded stroke at all - synthesize it programmatically as a dot (see profile.md's 'New composition primitives'), only its font glyph outline matters here. ALSO exists as decomposed consonant+U+093C sequences in real text - see profile.md's encoding-duality note; do not assume these precomposed codepoints are the only spelling."
     },
     "matras": {
-      "characters": ["ा", "ि", "ी", "ु", "ू", "े", "ै", "ो", "ौ"],
-      "note": "9 core dependent vowel signs, U+093E-0942 and U+0947-094C. None have a canonical split/compound decomposition (unlike Malayalam's ൊ/ോ/ൌ) - unverified against real font shaping"
+      "characters": [
+        "ा",
+        "ि",
+        "ी",
+        "ु",
+        "ू",
+        "े",
+        "ै",
+        "ो",
+        "ौ",
+        "ृ"
+      ],
+      "note": "10 core dependent vowel signs. ृ (vocalic R, U+0943) promoted here from rare_matras (RESOLVED, profile.md) given its real everyday frequency (कृष्ण, कृपा, कृत्रिम) - needs a recorded stroke, per-consonant-fusion vs. generic composition unverified against real font shaping (Agent 2's job). None of these have a canonical split/compound decomposition (unlike Malayalam's ൊ/ോ/ൌ) - also unverified."
     },
     "loan_matras": {
-      "characters": ["ॅ", "ॉ"],
+      "characters": [
+        "ॅ",
+        "ॉ"
+      ],
       "note": "pair with loan_vowels ऍ/ऑ above"
     },
     "rare_matras": {
-      "characters": ["ृ", "ॄ", "ॢ", "ॣ"],
-      "note": "vocalic R/RR/L/LL matra signs. ृ (vocalic R) may not belong here - real-word frequency (कृष्ण, कृपा) is arguably too high for 'rare' - open question #3"
+      "characters": [
+        "ॄ",
+        "ॢ",
+        "ॣ"
+      ],
+      "note": "vocalic RR/L/LL matra signs. ृ (vocalic R) moved to the core matras category (RESOLVED, profile.md) - see that category's note."
     },
     "virama": {
-      "characters": ["्"],
+      "characters": [
+        "्"
+      ],
       "note": "halant - suppresses inherent vowel, also the conjunct-formation trigger"
     },
     "anusvara": {
-      "characters": ["ं"],
+      "characters": [
+        "ं"
+      ],
       "note": "nasalization before a following consonant"
     },
     "candrabindu": {
-      "characters": ["ँ"],
-      "note": "nasalization of a vowel with no following consonant. Phonemically distinct from anusvara, not an alternate spelling of it - open question #4"
+      "characters": [
+        "ँ"
+      ],
+      "note": "RESOLVED (profile.md): recorded in full, no normalization to/from anusvara - phonemically distinct, not an alternate spelling of it."
     },
     "visarga": {
-      "characters": ["ः"],
+      "characters": [
+        "ः"
+      ],
       "note": "voiceless aspiration, rare outside direct Sanskrit borrowings"
     },
     "numerals": {
-      "characters": ["०", "१", "२", "३", "४", "५", "६", "७", "८", "९"],
+      "characters": [
+        "०",
+        "१",
+        "२",
+        "३",
+        "४",
+        "५",
+        "६",
+        "७",
+        "८",
+        "९"
+      ],
       "note": "Devanagari digits 0-9. Latin digits are also common in modern Hindi text but are UNIVERSAL_CHARS-shaped (script-independent), not part of this category"
     },
     "native_punctuation": {
-      "characters": ["।", "॥"],
-      "note": "danda / double danda - Devanagari's own sentence/verse-end marks, NOT part of the Latin-borrowed UNIVERSAL_CHARS set. Open question #2: own recorded atom vs. static-text treatment"
+      "characters": [
+        "।",
+        "॥"
+      ],
+      "note": "RESOLVED (profile.md): danda gets one real recorded stroke; double danda is auto-composed from danda's own stroke (offset by its real advance width), not a separate labeling-set entry - see profile.md's 'New composition primitives'."
     },
     "rare_marks": {
-      "characters": ["ऽ", "ॐ"],
+      "characters": [
+        "ऽ",
+        "ॐ"
+      ],
       "note": "avagraha (vowel elision, dictionary/poetic use), Om (appears in ordinary religious/cultural Hindi text, not just liturgy)"
     },
     "chillu_equivalent": {
@@ -73,16 +177,56 @@
       "characters": [],
       "note": "Deliberately empty of raw glyphs - see codepoints[] below instead. Rationale (per profile.md): these are either Sanskrit/Vedic-only or specific to other Devanagari-using languages (Marwari, Kashmiri, Konkani, Sindhi, Dogri), not Hindi.",
       "codepoints": [
-        { "range": "U+0904", "name": "Devanagari Letter Short A", "reason": "not used in Hindi (other-language vowel length distinction)" },
-        { "range": "U+090E, U+0912", "name": "Devanagari Letter Short E / Short O", "reason": "other-language letters, not Hindi's loan vowels (those are U+090D/0911 - see loan_vowels)" },
-        { "range": "U+0946, U+094A", "name": "Devanagari Vowel Sign Short E / Short O", "reason": "matra forms of the above, same exclusion" },
-        { "range": "U+093A, U+093B", "name": "Devanagari Vowel Sign Oe / Ooe", "reason": "Kashmiri/Konkani-specific vowel signs" },
-        { "range": "U+094E, U+094F", "name": "Devanagari Vowel Sign Prishthamatra E / Aw", "reason": "Marwari/Kashmiri spelling conventions" },
-        { "range": "U+0951-U+0954", "name": "Devanagari Stress Sign Udatta/Anudatta, Grave/Acute Accent", "reason": "Vedic accent marks - Sanskrit/Vedic-only, reserved for a future Sanskrit profile per profile.md" },
-        { "range": "U+0955-U+0957", "name": "Devanagari Vowel Sign Candra Long E / Ue / Uue", "reason": "other-language vowel signs, added Unicode 5.2-6.0" },
-        { "range": "U+0972-U+097F", "name": "Devanagari Letter Candra A, Oe, Ooe, Aw, Ue, Uue, Marwari Dda, Zha, Heavy Ya, Gga, Jja, Glottal Stop, Ddda, Bba", "reason": "added in Unicode 7.0 (2014) specifically for Marwari/Kashmiri/Konkani/Sindhi/Dogri, not Hindi" },
-        { "range": "Devanagari Extended-A block, U+A8E0-U+A8FF", "name": "(not individually enumerated in this research pass)", "reason": "Vedic accent combining marks for Rigveda-style texts - confirmed to exist and be Sanskrit/Vedic-only, but this pass didn't fetch its per-codepoint chart; do that before treating this exclusion as fully verified" },
-        { "range": "U+0929, U+0931, U+0933, U+0934", "name": "Devanagari Letter Nnna / Rra / Lla / Llla", "reason": "sit inside the same contiguous U+0915-U+0939 consonant range as Hindi's 33 standard consonants but are Marathi/Dravidian-transliteration letters (ळ Lla is the one most likely to actually surface in a Hindi text, in Marathi-origin loanwords) - not part of the consonants category above" }
+        {
+          "range": "U+0904",
+          "name": "Devanagari Letter Short A",
+          "reason": "not used in Hindi (other-language vowel length distinction)"
+        },
+        {
+          "range": "U+090E, U+0912",
+          "name": "Devanagari Letter Short E / Short O",
+          "reason": "other-language letters, not Hindi's loan vowels (those are U+090D/0911 - see loan_vowels)"
+        },
+        {
+          "range": "U+0946, U+094A",
+          "name": "Devanagari Vowel Sign Short E / Short O",
+          "reason": "matra forms of the above, same exclusion"
+        },
+        {
+          "range": "U+093A, U+093B",
+          "name": "Devanagari Vowel Sign Oe / Ooe",
+          "reason": "Kashmiri/Konkani-specific vowel signs"
+        },
+        {
+          "range": "U+094E, U+094F",
+          "name": "Devanagari Vowel Sign Prishthamatra E / Aw",
+          "reason": "Marwari/Kashmiri spelling conventions"
+        },
+        {
+          "range": "U+0951-U+0954",
+          "name": "Devanagari Stress Sign Udatta/Anudatta, Grave/Acute Accent",
+          "reason": "Vedic accent marks - Sanskrit/Vedic-only, reserved for a future Sanskrit profile per profile.md"
+        },
+        {
+          "range": "U+0955-U+0957",
+          "name": "Devanagari Vowel Sign Candra Long E / Ue / Uue",
+          "reason": "other-language vowel signs, added Unicode 5.2-6.0"
+        },
+        {
+          "range": "U+0972-U+097F",
+          "name": "Devanagari Letter Candra A, Oe, Ooe, Aw, Ue, Uue, Marwari Dda, Zha, Heavy Ya, Gga, Jja, Glottal Stop, Ddda, Bba",
+          "reason": "added in Unicode 7.0 (2014) specifically for Marwari/Kashmiri/Konkani/Sindhi/Dogri, not Hindi"
+        },
+        {
+          "range": "Devanagari Extended-A block, U+A8E0-U+A8FF",
+          "name": "(not individually enumerated in this research pass)",
+          "reason": "Vedic accent combining marks for Rigveda-style texts - confirmed to exist and be Sanskrit/Vedic-only, but this pass didn't fetch its per-codepoint chart; do that before treating this exclusion as fully verified"
+        },
+        {
+          "range": "U+0929, U+0931, U+0933, U+0934",
+          "name": "Devanagari Letter Nnna / Rra / Lla / Llla",
+          "reason": "sit inside the same contiguous U+0915-U+0939 consonant range as Hindi's 33 standard consonants but are Marathi/Dravidian-transliteration letters (ळ Lla is the one most likely to actually surface in a Hindi text, in Marathi-origin loanwords) - not part of the consonants category above"
+        }
       ]
     }
   },
@@ -104,8 +248,14 @@
       "note": "closest Devanagari analogue to Malayalam's subjoined-conjunct marks, but applies to most of the alphabet rather than a handful of marks - which consonants actually have a distinct half-form glyph in the chosen font is Agent 2's job to enumerate"
     },
     "akhand_ligatures": {
-      "characters_high_confidence": ["क्ष", "ज्ञ"],
-      "characters_uncertain": ["त्त", "श्र"],
+      "characters_high_confidence": [
+        "क्ष",
+        "ज्ञ"
+      ],
+      "characters_uncertain": [
+        "त्त",
+        "श्र"
+      ],
       "note": "क्ष (kṣa) and ज्ञ (jña) are agreed on almost universally; others vary by source/font. Likely a much shorter list than Malayalam's ~108, but unverified"
     }
   },

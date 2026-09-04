@@ -205,33 +205,68 @@ into a font-specific ligature unrelated to the base's own shape) is
 exactly the kind of thing that can only be settled by shaping real
 clusters through a real font — not guessed here.
 
-## Open questions (for the human reviewer)
+## Resolved (project owner, 2026-09-04)
 
-1. **Nukta-letter scope.** Include all 7 nukta consonants (क़ ख़ ग़ ज़ फ़ ड़
-   ढ़) as full atoms, restrict to the 2 most authorities agree are
-   "standard" (ड़ ढ़), or model nukta as a *composable mark* (a consonant +
-   a combining-dot recipe, reusing the `marks`-table pattern rather than
-   hardcoding 7 atoms)? The last option is structurally elegant and worth
-   serious consideration — flagged, not decided here.
-2. **Danda/double-danda**: own recorded atom (my lean, argued above under
-   "Native punctuation"), or fold into `UNIVERSAL_CHARS`-style static
-   text? This is a call this project's owner made explicitly for Malayalam
-   (all punctuation is Latin/shared) that Devanagari's own native
-   punctuation doesn't cleanly fit either option.
-3. **ृ (vocalic R matra)**: rare-tier alongside ॄ/ॢ/ॣ, or promoted to the
-   core matra set given real everyday frequency (कृष्ण, कृपा, कृत्रिम)?
-4. **Candrabindu vs. anusvara**: model both fully (matching the
-   modern-style distinction), or treat candrabindu as the "old/formal"
-   variant the way Malayalam kept both chillu encodings supported but
-   normalizes one to the other? These aren't encoding-equivalent the way
-   Malayalam's chillu spellings are — candrabindu and anusvara are
-   phonemically distinct, not two spellings of the same sound - so
-   normalizing one to the other would be a real content decision, not just
-   a lookup fix.
-5. **Loan vowels/matras (ऍ ऑ / ॅ ॉ)**: in scope (my lean — real, taught,
-   modern) or excluded as non-native? Argued in scope above but worth
-   explicit confirmation given they're the newest addition to the
-   inventory here.
+All five open questions from the first draft are now decided. The
+governing principle, stated explicitly: **coverage is bounded by the font,
+not by linguistic minimalism** - the objective is to animate whatever the
+user actually types, so scope should lean maximal within "does the chosen
+font support this" rather than "is this common/standard enough to bother
+with." This changes the *reasoning* behind a couple of these from the
+first draft, not just the answers - noted per item.
+
+1. **Nukta-letter scope: font-gated, and no human tracing needed at all.**
+   Whichever nukta letters the chosen font actually renders (Agent 2's
+   job to confirm) are in scope - not restricted to the 2 or 5 "most
+   authorities agree on" from the first draft's framing. But nukta itself
+   needs **no recorded stroke**: it's a small dot, not a shape requiring a
+   native speaker's hand - synthesize it programmatically (a filled
+   circle/dot primitive) rather than asking a human to trace it. This is a
+   new composition primitive beyond what Malayalam's pipeline needed - see
+   "New composition primitives for Agent 3" below and the corresponding
+   note added to `docs/LANGUAGE_ONBOARDING_AGENTS.md`. The font is still
+   needed for nukta's real glyph outline (the ghost/ligature-detection
+   side of things), just not for a hand-traced ink stroke.
+2. **Danda: recorded; double-danda: auto-composed, not separately traced.**
+   Danda (।) gets one real human-traced stroke, like any other atom.
+   Double danda (॥) is **not** its own labeling-set entry - it's generated
+   as danda's own stroke placed twice, offset by danda's real advance
+   width (the same glyph-offset composition machinery `stroke_compose.py`/
+   `index.js` already use for other multi-glyph clusters). One recording
+   covers both.
+3. **ृ (vocalic R matra): promoted to the core matra set**, no longer
+   filed under `rare_matras` - `chars.json` updated accordingly. Whether
+   it needs its own dedicated recording or fuses into consonant-specific
+   shapes (Malayalam's ു/ൂ/ৃ-style precedent) is exactly what Agent 2's
+   HarfBuzz verification against the chosen font settles - the
+   infrastructure already brute-forces every consonant+ृ combination for
+   this reason (`build_glyph_data.py`'s `_consonant_matra_inputs`).
+4. **Candrabindu vs. anusvara: both recorded, no normalization.** Confirms
+   the first draft's lean - they're phonemically distinct, not two
+   spellings of one sound, so unlike chillu's dual encoding this is never
+   a lookup-table fix.
+5. **Loan vowels/matras (ऍ ऑ / ॅ ॉ): in scope.** Confirms the first
+   draft's lean.
+
+## New composition primitives for Agent 3 (found here, generalizable)
+
+Two ideas from resolving #1 and #2 above extend
+`docs/LANGUAGE_ONBOARDING_AGENTS.md`'s Agent 3 design beyond what
+Malayalam's onboarding needed, and apply to any future language, not just
+Hindi:
+
+- **Synthetic strokes** - a mark simple enough to generate procedurally
+  (nukta's dot is the concrete case) doesn't need a human-traced recording
+  at all, only a real font glyph outline (for the ghost/composition
+  geometry). This reduces the labeling set further than "reduce to atoms"
+  alone does - some atoms don't need tracing, just synthesis.
+- **Self-composition** - a character that's structurally "the same mark,
+  twice, offset" (double danda from single danda is the concrete case)
+  composes from *its own* recorded stroke rather than needing a separate
+  recording or a different mark's recipe. This is the same
+  glyph-offset-composition mechanism the pipeline already has
+  (`stroke_compose.py`/`tryComposeFromCharacters`), just applied to a
+  single repeated atom instead of several different ones.
 
 ## Sources
 
