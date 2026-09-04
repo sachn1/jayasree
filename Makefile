@@ -4,6 +4,7 @@
 	validate-data precommit \
 	ci ci-py ci-js \
 	demo record build-glyph-data process-strokes build-recorder update-snapshot \
+	coverage-report \
 	bump bump-ci clean
 
 # Single source of truth for the commands used both by contributors locally
@@ -28,6 +29,7 @@ help:
 	@echo "  make build-recorder                                bundle the standalone recorder"
 	@echo "  make update-snapshot [LANG=malayalam]              re-approve the data snapshot"
 	@echo "  make validate-data [LANG=malayalam]                (LANG only affects --update-snapshot)"
+	@echo "  make coverage-report                               per-cluster direct/composed/fallback report"
 	@echo ""
 	@echo "  LANG picks a registry key from python/src/jayasree/languages.py -"
 	@echo "  see docs/LANGUAGE_ONBOARDING_AGENTS.md. Defaults to malayalam everywhere."
@@ -139,6 +141,13 @@ process-strokes:
 
 build-recorder:
 	python3 tools/build_standalone_recorder.py
+
+coverage-report:
+	node tools/coverage_report.js
+	@echo ""
+	@echo "For another language or a pre-recording (simulated) check, run directly:"
+	@echo "  node tools/coverage_report.js --glyph-data js/src/glyph-data.<code>.json --stroke-data js/src/stroke-data.<code>.json"
+	@echo "  node tools/coverage_report.js --simulate-atoms <file-of-planned-atoms> --glyph-data <path> [--verbose] [--min-coverage N]"
 
 # ── Housekeeping ─────────────────────────────────────────────────────────
 
