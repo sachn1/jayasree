@@ -268,6 +268,59 @@ Hindi:
   (`stroke_compose.py`/`tryComposeFromCharacters`), just applied to a
   single repeated atom instead of several different ones.
 
+## Shirorekha (headline) — flagged for Agent 3, not yet verified
+
+**New concern, raised by the project owner during Agent 2's font-report
+review, not found by Agent 1's research pass.** Devanagari's shirorekha
+(शिरोरेखा) — the horizontal bar running along the top of each letter,
+continuing across a whole written word — has no Malayalam equivalent and
+none of this profile's sections above account for it.
+
+**The problem it raises for this pipeline specifically**: strokes are
+recorded per-character (`tools/stroke-recorder.html` traces one atom's
+ghost at a time), then composed left-to-right by advance width
+(`resolveSegments`/`tryComposeStroke` in `js/src/index.js`). If each
+recorded character's traced strokes include its own headline segment, a
+composed word stitches N independently hand-traced segments together —
+different tracing sessions, unlikely to agree on exact height/thickness/
+slant — producing a visibly broken/uneven line where real Devanagari
+handwriting has one continuous stroke.
+
+**Agreed approach (project owner, 2026-09-04): treat the headline as a
+synthetic, word-level stroke, not a traced, per-character one** — the same
+"synthetic strokes" primitive `profile.md` already identified for nukta
+(see "New composition primitives for Agent 3" above), but scoped to the
+composed *word*, not a single atom. Concretely: tracers skip the top line
+entirely when recording each character's ghost; at render/compose time, one
+straight horizontal segment is drawn programmatically spanning the actual
+rendered width of the composed word (reusing the same advance-width data
+`resolveSegments` already computes for layout), at a height/thickness read
+from the font.
+
+**What Agent 3 needs to check before this is safe to build, not just
+assumed**: whether Annapurna SIL's (or whichever font is approved) headline
+sits at a *consistent* height/thickness across every character in the
+reduced atom set — this is exactly the kind of thing `build_glyph_data.py`
+already extracts real glyph outlines to check. A single project-wide
+constant height only works if the font's own design keeps the bar level
+across glyphs (expected — this is normally guaranteed by a well-built
+Devanagari font's script design, "I would expect them to work together
+cleanly" per the project owner — but unverified here, and exactly the kind
+of claim this pipeline's design principle 3, "verification is structural,
+not self-reported," exists to catch rather than assume). If heights vary
+per-glyph, the synthetic line needs per-glyph height data instead of one
+constant, which changes the composition recipe.
+
+**Generalizes beyond Hindi**: this isn't Hindi-specific — it's a
+Devanagari-script structural fact (so it also applies when Sanskrit is
+onboarded), and Bengali has a related but less consistently unbroken
+headline convention, worth checking when Bengali's turn comes. Once Agent 3
+actually verifies this against a real font, the finding should be folded
+into `docs/LANGUAGE_ONBOARDING_AGENTS.md`'s Agent 3 section as a fourth
+named composition primitive (alongside synthetic strokes and
+self-composition) — not generalized preemptively here, per this doc's own
+"don't generalize before it's actually found" pattern.
+
 ## Sources
 
 - [Unicode Devanagari block, compart.com](https://www.compart.com/en/unicode/block/U+0900) — full code point/name table
