@@ -23,15 +23,17 @@ every category `_chars.py` (Malayalam's) happens to have:
 
 This list isn't closed - it's exactly Malayalam's own categories, not a
 fixed schema. Hindi's onboarding (`docs/languages/hi/`) already needed
-three more that `tools/build_glyph_data.py` also recognizes if present:
+four more that `tools/build_glyph_data.py` also recognizes if present:
 `CANDRABINDU` (a second nasalization mark, phonemically distinct from
 anusvara), `NUKTA` (a combining loanword-sound diacritic attached to
-consonants, e.g. क + ़ = क़), and `NATIVE_PUNCTUATION` (script-owned
+consonants, e.g. क + ़ = क़), `NATIVE_PUNCTUATION` (script-owned
 punctuation like Devanagari's danda - distinct from the shared-Latin
-`UNIVERSAL_CHARS` in `index.js`, and gets a real recorded stroke). Expect
-a future script to introduce further new category names the same way;
-add support for a new one in `build_glyph_data.py` when a real profile
-needs it, not speculatively ahead of one.
+`UNIVERSAL_CHARS` in `index.js`, and gets a real recorded stroke), and
+`RARE_MARKS` (standalone marks that don't fit any other category, e.g.
+Devanagari's avagraha/Om). Expect a future script to introduce further new
+category names the same way; add support for a new one in
+`build_glyph_data.py` when a real profile needs it, not speculatively
+ahead of one.
 
 Only `INDEPENDENT_VOWELS`, `CONSONANTS`, `MATRAS`, and `VIRAMA` are
 load-bearing for a script to be shapeable at all; see `char_tuple()` below
@@ -97,9 +99,18 @@ LANGUAGES: dict[str, LanguageSpec] = {
         carrier_consonant="ക",
         default_font="python/tests/fixtures/Manjari-Regular.ttf",
     ),
+    "hindi": LanguageSpec(
+        code="hi",
+        name="Hindi",
+        chars_module="jayasree._chars_hi",
+        # Renders as a single glyph standalone, same role Malayalam's ക
+        # plays - used to shape marks/matras in isolation.
+        carrier_consonant="क",
+        default_font="python/tests/fixtures/AnnapurnaSIL-Regular.ttf",
+    ),
     # Planned, not yet onboarded - see docs/LANGUAGE_ONBOARDING_AGENTS.md's
-    # target roster (Hindi, Tamil, Telugu, Kannada, Bengali, Sanskrit, one
-    # at a time - and more beyond that). Add a real entry (plus its own
+    # target roster (Tamil, Telugu, Kannada, Bengali, Sanskrit, one at a
+    # time - and more beyond that). Add a real entry (plus its own
     # `_chars_<code>.py`) only once that pipeline's Agent 1/2/3 stages have
     # actually run for one of these; a bare registry entry with no
     # character-inventory module would just fail loudly on first use, so
