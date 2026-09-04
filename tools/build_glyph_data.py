@@ -36,6 +36,36 @@ from jayasree.languages import (  # noqa: E402
 #: that script's own onboarding, not something to assume here.
 _ML_SPLIT_VOWELS = ("ൊ", "ോ", "ൌ")  # ൊ ോ ൌ
 
+#: Same data as _ML_SPLIT_VOWELS above, but as the actual decomposition
+#: recipe (which simpler marks each one is built from, in application
+#: order) rather than just the set of which marks need one. Written into
+#: glyph-data.json as `splitVowelParts` so js/src/index.js's runtime
+#: composer doesn't need this hardcoded - a language with no split marks at
+#: all (most of them) simply gets an absent/empty key, and none of this
+#: data is ever loaded into memory for that language's session. See
+#: js/src/index.js's `_internal.applySequentialMarkStrokes`.
+_ML_SPLIT_VOWEL_PARTS: dict[str, list[str]] = {
+    "ൊ": ["െ", "ാ"],
+    "ോ": ["േ", "ാ"],
+    "ൌ": ["െ", "ൗ"],
+}
+
+#: Legacy 3-codepoint chillu spelling (consonant + virama + ZWJ) -> its
+#: atomic Unicode 5.1+ codepoint, ordered to match CHILLU's own tuple order
+#: (ൻർൽൾൺൿ <-> base consonants നരലളണക). Written into glyph-data.json as
+#: `legacyEncodings` for the same reason as _ML_SPLIT_VOWEL_PARTS above -
+#: see js/src/index.js's `_internal.normalizeChillus` and
+#: docs/ARCHITECTURE.md's "Chillu letters".
+_ML_VIRAMA_ZWJ = "്‍"  # virama + zero-width joiner - see the docstring above
+_ML_LEGACY_CHILLU: dict[str, str] = {
+    "ന" + _ML_VIRAMA_ZWJ: "ൻ",
+    "ര" + _ML_VIRAMA_ZWJ: "ർ",
+    "ല" + _ML_VIRAMA_ZWJ: "ൽ",
+    "ള" + _ML_VIRAMA_ZWJ: "ൾ",
+    "ണ" + _ML_VIRAMA_ZWJ: "ൺ",
+    "ക" + _ML_VIRAMA_ZWJ: "ൿ",
+}
+
 
 def _standalone_inputs(lang: LanguageSpec, chars: object) -> list[str]:
     """Single-codepoint clusters: letters, digits, and standalone diacritics."""
@@ -290,6 +320,30 @@ def _build_marks(composable_marks: list[str], font: str) -> dict:
     return marks
 
 
+def _runtime_quirks(lang: LanguageSpec) -> dict:
+    """Return the language-specific lookup tables js/src/index.js needs at runtime.
+
+    Written into glyph-data.json as top-level ``legacyEncodings``/
+    ``splitVowelParts`` keys, present only for a language that actually has
+    them - a language with neither (everything but Malayalam, today) gets
+    no extra keys at all, so index.js never has anything Malayalam-specific
+    to load, hold in memory, or iterate for that language's session. See
+    `docs/LANGUAGE_ONBOARDING_AGENTS.md`'s "Don't generalize from Malayalam"
+    - a future language's own runtime quirks, if it has any, are a finding
+    from *its* onboarding, added here the same gated way, not inherited.
+
+    Returns
+    -------
+    dict
+        Zero, one, or both of ``{"legacyEncodings": {...}, "splitVowelParts": {...}}``.
+    """
+    quirks: dict = {}
+    if lang.code == "ml":
+        quirks["legacyEncodings"] = _ML_LEGACY_CHILLU
+        quirks["splitVowelParts"] = _ML_SPLIT_VOWEL_PARTS
+    return quirks
+
+
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -323,6 +377,7 @@ def main() -> None:
     inputs = _build_input_list(lang, chars)
     result = _shape_all(inputs, str(font_path))
     result["marks"] = _build_marks(_composable_marks(lang, chars), str(font_path))
+    result.update(_runtime_quirks(lang))
 
     out_path = data_paths(lang).glyph_data
     out_path.write_text(json.dumps(result, ensure_ascii=False, separators=(",", ":")))
