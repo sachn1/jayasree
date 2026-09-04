@@ -474,6 +474,29 @@ review + history, read-only runtime) applied one stage earlier, to the
 research and font-selection stages that layer doesn't currently cover at
 all because only one language has ever gone through it.
 
+### Making this actually invokable
+
+This document is the portable specification of each role - deliberately
+tool-agnostic prose, usable by a human or any AI tool regardless of which
+one this project happens to use. `.claude/agents/language-researcher.md`,
+`language-reviewer.md`, `font-selector.md`, and `atom-reducer.md` are
+**thin adapters**, not a second copy of this spec: each one is a short
+pointer telling Claude Code "read this document's Agent N section and
+follow it," plus the mechanical bits only Claude Code needs (tool grants,
+model choice). If this project ever uses a different AI tool alongside or
+instead of Claude Code, that tool gets its own thin adapter pointing at
+the same sections here - the actual process knowledge never needs
+rewriting, and the two copies can't drift out of sync because there's only
+ever one real copy. If you edit what a role does, edit it here first; the
+adapter files should almost never need a matching edit unless the tool
+grants themselves change.
+
+Invoke them explicitly (e.g. `Agent(language-researcher, "Tamil")`) -
+they're deliberately scoped to *not* auto-trigger on unrelated prompts
+(each `description` says "use only when explicitly asked"), matching this
+pipeline's own insistence on deliberate, human-gated steps rather than
+silent automation.
+
 ## Where artifacts live
 
 ```

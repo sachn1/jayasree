@@ -26,6 +26,7 @@ animate).
 | What's planned but not done | `docs/ROADMAP.md` |
 | Rules for contributing code or stroke data, commit conventions | `CONTRIBUTING.md` |
 | Plan for onboarding a new Indic language via agents | `docs/LANGUAGE_ONBOARDING_AGENTS.md` |
+| Invokable subagents for that pipeline (`Agent(language-researcher, ...)` etc.) | `.claude/agents/` |
 
 `docs/ARCHITECTURE.md` in particular documents four real, shipped-and-fixed
 composition bugs (anchor correction, segmentation priority, tighten-trim on
