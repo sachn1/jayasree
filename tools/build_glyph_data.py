@@ -7,7 +7,15 @@ Malayalam-specific quirks (subjoined-conjunct marks, the split compound
 vowels, the two hand-curated extra ghosts) are gated behind `lang.code ==
 "ml"` rather than assumed for every script - a new language's equivalent
 quirks get discovered by that pipeline's Agent 1/2 and added as their own
-gated block, not inherited from Malayalam's.
+gated block, not inherited from Malayalam's. Hindi's own two quirks,
+gated behind `lang.code == "hi"`: `्र` (rakaar/vattu) is recorded and
+composed generically exactly like Malayalam's ്ര (see docs/languages/hi/
+font-report.md); nukta's encoding duality (precomposed U+0958-095E vs.
+decomposed base+U+093C) is normalized via `legacyEncodings`, the same
+mechanism as Malayalam's chillu spelling. Both are direct structural
+parallels to existing Malayalam quirks, not new mechanisms - see
+docs/languages/hi/labeling-worklist.md for what Devanagari conjunct
+composition *couldn't* be resolved this way (half-forms, reph) and why.
 """
 
 from __future__ import annotations
@@ -66,6 +74,32 @@ _ML_LEGACY_CHILLU: dict[str, str] = {
     "ക" + _ML_VIRAMA_ZWJ: "ൿ",
 }
 
+#: Hindi's own encoding-duality case (docs/languages/hi/profile.md's
+#: "Encoding duality" section, direct parallel to _ML_LEGACY_CHILLU above):
+#: every one of these 7 nukta consonants has a real Unicode *canonical*
+#: NFD decomposition into base-consonant + U+093C (verified directly via
+#: `unicodedata.decomposition()` while building this table - this
+#: corrects profile.md's own hedge that "some... are not canonical-
+#: equivalent to their decomposed sequence"; all 7 actually are). Real text
+#: mixes both spellings unpredictably, and this font shapes both to the
+#: exact same single fused glyph (verified via HarfBuzz), so - same as
+#: chillu - one recorded atom (the precomposed codepoint, kept in the
+#: standard CONSONANTS set) covers both spellings once the decomposed one
+#: normalizes to it here.
+# Precomposed codepoints written as chr(0x...) rather than literal
+# characters - a literal precomposed nukta letter in source text is
+# visually indistinguishable from (and too easy for an editor/tool to
+# silently NFC/NFD-normalize into) its own decomposed form, which would
+# make the *values* below equal to the *keys*, silently turning this table
+# into a no-op. chr() sidesteps that entirely.
+_HI_NUKTA_BASE = "\u0915\u0916\u0917\u091c\u0921\u0922\u092b"  # क ख ग ज ड ढ फ
+_HI_NUKTA_PRECOMPOSED = "\u0958\u0959\u095a\u095b\u095c\u095d\u095e"  # क़ ख़ ग़ ज़ ड़ ढ़ फ़
+_HI_NUKTA_MARK = "\u093c"  # ़
+_HI_NUKTA_CONSONANTS: dict[str, str] = {
+    base + _HI_NUKTA_MARK: precomposed
+    for base, precomposed in zip(_HI_NUKTA_BASE, _HI_NUKTA_PRECOMPOSED, strict=True)
+}
+
 
 def _standalone_inputs(lang: LanguageSpec, chars: object) -> list[str]:
     """Single-codepoint clusters: letters, digits, and standalone diacritics."""
@@ -82,6 +116,10 @@ def _standalone_inputs(lang: LanguageSpec, chars: object) -> list[str]:
         # eventual recorded stroke, found via Hindi's onboarding profile
         # (docs/languages/hi/profile.md's "Native punctuation" section).
         + "".join(char_tuple(chars, "NATIVE_PUNCTUATION"))
+        # Standalone marks with no closer-fitting category (e.g.
+        # Devanagari's avagraha/Om) - found the same way NATIVE_PUNCTUATION
+        # was, via Hindi's onboarding profile.
+        + "".join(char_tuple(chars, "RARE_MARKS"))
     )
     inputs = list(letters)
 
@@ -136,6 +174,21 @@ def _standalone_inputs(lang: LanguageSpec, chars: object) -> list[str]:
             # the full derivation (verified against real HarfBuzz output:
             # റ takes a distinct contextual glyph here).
             inputs.append(chillu[0] + "റ")
+
+    if lang.code == "hi" and virama:
+        # ्र (rakaar/vattu - र as a non-first conjunct member) - direct
+        # Devanagari analogue of Malayalam's ്ര above: an exhaustive
+        # 33x33 sweep (docs/languages/hi/font-report.md, reconfirmed
+        # directly against this font by this build) shows every
+        # <consonant>+्+र pair fuses into its own dedicated glyph, but the
+        # *visual content* is consistently "the base consonant, plus this
+        # one reusable diagonal tail" - so, exactly like ്ര, it's recorded
+        # once and composed generically (see _composable_marks below) at
+        # the accepted cost of not reproducing the font's exact per-pair
+        # kerning (docs/ARCHITECTURE.md's "Compound vowel signs" section
+        # documents this same trade-off for Malayalam). Give the recorder
+        # a real reference ghost the same way.
+        inputs.append(virama + "र")
 
     return inputs
 
@@ -273,6 +326,13 @@ def _composable_marks(lang: LanguageSpec, chars: object) -> list[str]:
     if lang.code == "ml" and virama:
         marks += [virama + "യ", virama + "വ", virama + "ല", virama + "ര"]
 
+    if lang.code == "hi" and virama:
+        # ्र (rakaar/vattu) - see _standalone_inputs's matching block above
+        # for the full derivation. Shaping "्र" alone confirms it's a real,
+        # dedicated, generic tail glyph (not र's own full form reused) -
+        # exactly the same shape of finding as Malayalam's ്ര.
+        marks.append(virama + "र")
+
     anusvara = getattr(chars, "ANUSVARA", None)
     visarga = getattr(chars, "VISARGA", None)
     candrabindu = getattr(chars, "CANDRABINDU", None)
@@ -341,6 +401,8 @@ def _runtime_quirks(lang: LanguageSpec) -> dict:
     if lang.code == "ml":
         quirks["legacyEncodings"] = _ML_LEGACY_CHILLU
         quirks["splitVowelParts"] = _ML_SPLIT_VOWEL_PARTS
+    if lang.code == "hi":
+        quirks["legacyEncodings"] = _HI_NUKTA_CONSONANTS
     return quirks
 
 
