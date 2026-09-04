@@ -117,27 +117,33 @@ tuning pass on already-shipped, already-working smoothing, not a bug fix.
 
 ## Multi-language support
 
-Everything Malayalam-specific currently lives in one place per layer:
-`python/src/jayasree/_chars.py` (character inventory) and the two
-committed JSON files (`js/src/glyph-data.json`, `stroke-data(.raw).json`).
-Adding a second script (Tamil is the obvious next candidate, per early
-conversations about this project) means:
+See **`docs/LANGUAGE_ONBOARDING_AGENTS.md`** for the multi-agent pipeline
+plan covering the research/font-selection/labeling-set-reduction stages of
+adding a language, its target roster (Hindi, Tamil, Telugu, Kannada,
+Bengali, Sanskrit, one at a time, more beyond that), and an explicit
+caution against generalizing from Malayalam's Dravidian-specific quirks.
 
-- A `_chars_ta.py`-equivalent character inventory module, and a decision on
-  whether `cli.py`/`build_glyph_data.py` become script-parametrized or get
-  a sibling per script.
-- Splitting the committed JSON data per script (`glyph-data.ml.json`,
-  `glyph-data.ta.json`, ...) so a page using one language doesn't fetch
-  another's data - see "Data size & deployment" in the README. The format
-  is already per-cluster keyed, so this is a file-naming/build-tooling
-  change, not a data-model rewrite.
-- Re-auditing every place that currently assumes "the only script" - the
-  segmentation regex bounds in `index.js`, the CLI's standalone-alphabet
-  list, `validate_data.py`'s hardcoded filenames - for hidden Malayalam-only
-  assumptions.
+**Phase 0 (the code-parametrization prerequisite) is done**: `_chars.py`,
+`build_glyph_data.py`, `cli.py`, `process_strokes.py`, and `validate_data.py`
+are all language-parametrized now (`jayasree.languages`'s registry +
+`--lang`/`LANG=`), with Malayalam's own committed filenames kept unsuffixed
+for backward compatibility. `index.js` was audited and needed no changes -
+its segmentation was already fully data-driven, not the hardcoded
+Malayalam-only regex this section used to warn about. See that doc's
+"Phase 0" section for the full list of what changed.
+
+What's left for a real second language (Tamil is the obvious next
+candidate, per early conversations about this project) is now just the
+per-language *content*, not further plumbing:
+
+- Agent 1/2/3's work: a sourced character-inventory module
+  (`_chars_ta.py`-equivalent), a verified ghost font, and a reduced
+  labeling set - see `docs/LANGUAGE_ONBOARDING_AGENTS.md`.
+- One `LanguageSpec` entry registered in
+  `python/src/jayasree/languages.py`.
 - A second recorder pass with native speakers of the new language, plus
-  re-running the centering/straightening pipeline against a font that
-  supports it.
+  running the centering/straightening pipeline (`process_strokes.py
+  --lang <name>`) against the chosen font.
 
 ## Data & scale
 
