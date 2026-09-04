@@ -140,7 +140,7 @@ process-strokes:
 	python3 tools/process_strokes.py --preset=full $(if $(LANG),--lang $(LANG),)
 
 build-recorder:
-	python3 tools/build_standalone_recorder.py
+	python3 tools/build_standalone_recorder.py $(if $(LANG),--lang $(LANG),)
 
 coverage-report:
 	node tools/coverage_report.js
