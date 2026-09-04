@@ -394,6 +394,36 @@ same as Malayalam's ~1760 non-atom clusters do today.
 Both reduce the *labeling-worklist* further than atom-set reduction alone
 - worth checking for on every future language, not just Hindi.
 
+**Coverage audit - before AND after recording, same tool
+(`tools/coverage_report.js`):** don't just *assert* the reduced atom set
+is sufficient - verify it, mechanically, using the exact composition code
+`js/src/index.js`'s runtime uses (not a reimplementation):
+
+- **Pre-recording (simulated).** Once `glyph-data.<lang-code>.json` exists
+  (it needs the real `marks` table to know what's composable at all - this
+  audit is not a substitute for generating it, it runs right after), feed
+  `coverage_report.js --simulate-atoms <planned-atom-list>` the reduced
+  set Agent 3 just derived. It stubs a trivial stroke for every listed
+  atom and reports, for *every* cluster the font defines, whether it would
+  resolve to a direct or composed stroke. 100% here means the atom-set
+  *logic* is structurally sound - worth confirming before a human spends
+  real time tracing hundreds of strokes on the strength of it. Anything
+  short of 100% is a bug in the reduction logic (a category Agent 3 missed
+  entirely), not something for a human to work around.
+- **Post-recording (real).** Once real strokes exist -
+  `coverage_report.js --stroke-data <real stroke-data(.raw).json>` - run
+  the identical check against real data. This is the standing coverage
+  gate `docs/ROADMAP.md`'s "Bug-report → data pipeline" section flagged as
+  missing; `--min-coverage N` makes it usable as a CI gate once a
+  language's recording work has stabilized enough that regressions, not
+  in-progress gaps, are the thing worth failing a build over.
+- `--verbose` lists every fallback cluster with a specific reason (missing
+  base stroke, a mark recipe that exists but didn't apply, a
+  character-count/glyph-count mismatch, ...) - the actual diagnostic depth
+  `docs/ROADMAP.md`'s `tools/diagnose.py` idea wanted, generalized from
+  "one reported word" to the whole cluster set and to any language, not
+  written twice.
+
 **Output artifacts:**
 
 - `glyph-data.<lang-code>.json` (generated, committed - same convention as
@@ -405,12 +435,19 @@ Both reduce the *labeling-worklist* further than atom-set reduction alone
   else depends on them existing before composition can be spot-checked)
   and a pointer to load `stroke-recorder.html` against the new
   `glyph-data.<lang-code>.json` to start tracing.
+- The pre-recording coverage report (saved alongside the worklist) -
+  evidence the reduced set was verified sufficient, not just asserted to
+  be.
 
 **Review gate:** a human (a native writer of the script, per
 `CONTRIBUTING.md`'s existing bar) spot-checks a sample of the reduced set's
 ghost outlines before recording starts - catching a bad font choice or a
 missed character category here is far cheaper than after hundreds of
-strokes are recorded against it.
+strokes are recorded against it. The pre-recording coverage report is what
+makes this spot-check trustworthy: a human is verifying *quality*
+(does this ghost look right), the tool already verified *completeness*
+(does the atom set cover everything) - the two are complementary, neither
+substitutes for the other.
 
 ## Orchestration
 
