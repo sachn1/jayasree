@@ -94,12 +94,20 @@ agent doesn't have to re-derive it each time.
 - **Branches**: `feature/<short-description>` for anything non-trivial
   (`feature/language-onboarding-phase0` is the precedent). Don't work
   directly on `master`.
-- **Commits are one-line conventional commits**, enforced by a commitizen
+- **Commits are conventional commits**, enforced by a commitizen
   `commit-msg` hook - anything else is rejected:
 
   ```
   <type>(<scope>): <one-line description>
   ```
+
+  **Single line only, unless it's a breaking change** - a `BREAKING CHANGE:`
+  footer is what's allowed to add a body. And a breaking change is never a
+  unilateral call: **discuss it with the user before committing** - it
+  forces a major version bump (`make bump`'s semver logic) and everyone
+  downstream of the npm package feels it, so confirm it's actually intended
+  and get the footer's wording right together, rather than committing first
+  and explaining after.
 
   Types: `feat`, `fix`, `docs`, `refactor`, `test`, `build`, `ci`, `chore`,
   `perf`. Scope is the directory the change lives in:
