@@ -705,6 +705,76 @@ function tryComposeFromCharacters(cluster, glyphData) {
 }
 
 /**
+ * Compose a stroke for a "contextual form" cluster - a 3-character,
+ * 2-glyph cluster where one character (a virama) contributes no glyph of
+ * its own and the *other* two characters' real, already-shaped glyph
+ * positions (`glyphData.clusters[cluster].glyphs`) each resolve to a
+ * `STROKE_LIBRARY` key that isn't the literal character at that position.
+ * Devanagari half-forms and reph are the two known cases (see
+ * `docs/languages/hi/labeling-worklist.md`'s "headline finding" and
+ * `docs/languages/hi/composition-primitives-report.md`) - neither fits
+ * {@link tryComposeStroke}'s mark-recipe model (the base itself changes
+ * shape, or the mark detaches from its own position) nor
+ * {@link tryComposeFromCharacters}'s `chars.length === glyphs.length` gate.
+ *
+ * Driven entirely by `glyphData.contextualForms` (absent/empty for any
+ * language without this quirk, Malayalam included - a guaranteed no-op via
+ * the first check below): each entry's key is a 2-character "trigger"
+ * (e.g. "क्", "र्") and its `role` says which glyph slot the trigger's own
+ * recorded atom (looked up in `STROKE_LIBRARY` under the literal trigger
+ * string - never a `clusters`/`marks` key, so this can never be picked up
+ * by {@link resolveSegments}'s segmentation, only by this function once
+ * segmentation already resolved the full 3-character cluster via its own,
+ * separately-existing `clusters` entry) fills:
+ *
+ * - `"halfForm"`: trigger's atom is glyph 0 (the substituted base shape),
+ *   the third character's own ordinary stroke is glyph 1.
+ * - `"reph"`: the third character's own ordinary stroke is glyph 0, the
+ *   trigger's atom (the reph hook) is glyph 1 - reph types first but
+ *   renders last, so the glyph order is swapped relative to half-forms.
+ *
+ * @param {string} cluster
+ * @param {{ clusters: Record<string, object>, contextualForms?: Record<string, object> }} glyphData
+ * @returns {{ strokes: {d: string}[] } | null}
+ */
+function tryComposeContextualForm(cluster, glyphData) {
+  const { clusters, contextualForms } = glyphData;
+  if (!contextualForms) return null;
+  const chars = [...cluster];
+  if (chars.length !== 3) return null;
+  const clusterEntry = clusters[cluster];
+  if (!clusterEntry || clusterEntry.glyphs.length !== 2) return null;
+
+  const trigger = chars[0] + chars[1];
+  const form = contextualForms[trigger];
+  if (!form) return null;
+
+  const atomStroke = STROKE_LIBRARY[trigger];
+  const otherChar = chars[2];
+  const otherStroke = STROKE_LIBRARY[otherChar] ?? tryComposeStroke(otherChar, glyphData);
+  if (!atomStroke?.strokes?.length || !otherStroke?.strokes?.length) return null;
+
+  const [g0, g1] = clusterEntry.glyphs;
+  const atomGlyph = form.role === "reph" ? g1 : g0;
+  const otherGlyph = form.role === "reph" ? g0 : g1;
+  // The atom's own recorded stroke is already anchored at x=0 by
+  // construction (tools/build_glyph_data.py's `_extract_ghost`) - no
+  // charDx correction needed, unlike otherChar's arbitrary standalone atom.
+  const atomStrokes = atomStroke.strokes.map((s) => ({
+    d: offsetSvgPath(s.d, atomGlyph.x, atomGlyph.y),
+  }));
+  const otherDx = charDx(otherChar, otherGlyph.x, clusters);
+  const otherStrokes = otherStroke.strokes.map((s) => ({
+    d: offsetSvgPath(s.d, otherDx, otherGlyph.y),
+  }));
+
+  const strokes = form.role === "reph" ? [...otherStrokes, ...atomStrokes] : [...atomStrokes, ...otherStrokes];
+  const entry = { strokes };
+  STROKE_LIBRARY[cluster] = entry;
+  return entry;
+}
+
+/**
  * Resolve `text` into an ordered list of `{ cluster, entry }` pairs.
  *
  * Tries a direct longest-match lookup first, but only at 4/3/2 chars
@@ -1006,6 +1076,7 @@ export function createStrokeWriter(container, options = {}) {
         ? null
         : (STROKE_LIBRARY[grp.cluster] ??
            tryComposeStroke(grp.cluster, traceGlyphData) ??
+           tryComposeContextualForm(grp.cluster, traceGlyphData) ??
            tryComposeFromCharacters(grp.cluster, traceGlyphData));
 
       // Only a genuine gap when outline-only wasn't explicitly requested -
@@ -1260,6 +1331,7 @@ export const _internal = {
   tryDirectMarkStroke,
   tryComposeStroke,
   charDx,
+  tryComposeContextualForm,
   tryComposeFromCharacters,
   resolveSegments,
   normalizeChillus,
