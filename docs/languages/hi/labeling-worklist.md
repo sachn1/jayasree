@@ -125,15 +125,20 @@ runtime extension.
   mapping each of the 7 decomposed `base+़` sequences to its precomposed
   atomic codepoint, exactly mirroring Malayalam's own chillu-spelling
   normalization.
-- **Half-forms and reph — flagged, not fixed.** These need a genuinely new
-  runtime composition primitive (not a data-table extension) — this pass
-  did *not* implement one in `js/src/index.js`, on purpose: that's core
-  runtime logic with real correctness/testing stakes, the same category of
-  decision this pipeline's shirorekha investigation (see
-  `shirorekha-report.md`) was explicitly told to *propose, not implement*.
-  A concrete, generalized primitive proposal is below.
+- **Half-forms and reph — flagged, not fixed at the time of this pass.**
+  These needed a genuinely new runtime composition primitive (not a
+  data-table extension) — this pass did *not* implement one in
+  `js/src/index.js`, on purpose: that's core runtime logic with real
+  correctness/testing stakes, the same category of decision this
+  pipeline's shirorekha investigation (see `shirorekha-report.md`) was
+  explicitly told to *propose, not implement*. A concrete, generalized
+  primitive proposal followed below.
+  **Update: since built** — see "Group D/E" further down, and
+  `docs/languages/hi/composition-primitives-report.md` for the
+  feasibility verification that preceded the implementation. Kept as
+  originally written below for the historical record of the finding.
 
-### Proposed fifth/sixth composition primitives (recommendation only — not applied to `docs/LANGUAGE_ONBOARDING_AGENTS.md`)
+### Proposed fifth/sixth composition primitives (recommendation at the time — since built, see "Group D/E" below)
 
 `docs/LANGUAGE_ONBOARDING_AGENTS.md`'s Agent 3 section names two
 primitives found during Hindi's profiling ("Synthetic strokes",
@@ -253,36 +258,56 @@ actual, distinct letterforms.
   a single character. Correction routed back to `profile.md` for the
   record, not applied there by this pass.
 
-### Group D — conjunct pairs, recorded directly for now (1561 total)
+### Group D — true ligatures and half-form exceptions, direct recording (43 total)
 
-The consequence of "The headline finding" above. Every pair here composes
-automatically once a contextual-base-form/reordering primitive exists
-(see that section) — until then, each needs its own direct recording, the
-same way Malayalam's ~108 true ligatures do, even though most of these
-aren't "true ligatures" in the linguistic sense.
+**Update, post-primitive-build**: the contextual-base-form/reordering
+primitives proposed below as a recommendation *have since been built* —
+see `docs/languages/hi/composition-primitives-report.md` (feasibility
+verification) and `js/src/index.js`'s `tryComposeContextualForm` /
+`python/src/jayasree/stroke_compose.py`'s `compose_contextual_form` (the
+implementation, mirrored in both engines, gated entirely by
+`glyphData.contextualForms` so Malayalam is unaffected). What's left in
+Group D is only what *can't* compose even with those primitives:
 
 | Subgroup | Count | Why it's here |
 |---|---|---|
 | True akhand ligatures | 41 | Genuinely unique fused glyphs — always need direct recording, primitive or not (same as Malayalam's true ligatures). क्क क्त क्ष ङ्क ङ्ख ङ्ग ङ्घ ङ्ङ ङ्य ङ्ह च्च छ्य ज्ञ ट्ट ट्ठ ट्य ठ्ठ ठ्य ड्ड ड्य ढ्य त्त द्द द्ध द्म द्य द्व न्न प्त म्ल ल्ल श्च श्व ष्ट ष्ठ स्न ह्न ह्म ह्य ह्ल ह्व |
-| Reph pairs | 40 | Blocked on the "reordering marks" primitive above |
-| Generic half-form pairs | 1480 | Blocked on the "contextual base-form atoms" primitive above — the overwhelming majority of this whole worklist |
+| Half-form exceptions | 2 | ड़्य, ढ़्य — verified (`composition-primitives-report.md` §1) to fuse into a genuine ya-phala-style shape distinct from ड़/ढ़'s own ordinary half-form, so they're excluded from the generic half-form atom's derivation and recorded directly instead, same as any true ligature |
 
-**Recommendation, not a directive**: recording ~1480 nearly-mechanical
-half-form pairs is a poor use of a native speaker's time when the
-*visual* information needed is really just ~32–39 half-form shapes (one
-per consonant) plus one reph hook — see "The headline finding" above.
-Whether to (a) build the contextual-base-form/reordering primitives first
-and shrink Group D to ~74 atoms (41 true ligatures + ~32 half-forms + 1
-reph hook, roughly Malayalam's own scale) before recording starts, or (b)
-start recording Groups A–C now while that primitive work happens in
-parallel, is a real project-owner decision this pass surfaces but
-doesn't make.
+The former "Reph pairs" (40) and "Generic half-form pairs" (1480)
+subgroups are **gone from Group D entirely** — they now compose
+generically at runtime from the two new Group E atoms below, the same way
+Malayalam's own subjoined-conjunct marks compose every ്യ/്വ/്ല/്ര pair
+without each needing its own recording.
+
+### Group E — contextual-form atoms (40 total, new)
+
+The 32–39 half-form shapes and 1 reph hook Group D used to gate on
+building a primitive for — now real, recordable atoms in their own right,
+each covering many Group D pairs generically:
+
+| Subgroup | Count | Contents |
+|---|---|---|
+| Half-form atoms | 39 | One per consonant (except र) — the truncated shape that consonant takes when immediately followed by `्<consonant>`. Ghost sourced from an existing conjunct cluster's own glyph (see `composition-primitives-report.md` §3 for why *not* standalone shaping), keyed by the 2-character trigger (e.g. "क्") |
+| Reph hook atom | 1 | The small hook र्+consonant renders as, detached from its own typed position — keyed "र्" |
+
+**Every one of these 40 needs a real human-traced stroke** — they're
+genuinely distinct letterforms this font actually renders, verified
+identical across every partner consonant (`composition-primitives-report.md`
+§1–2), just never individually recorded before. Give the recorder a real
+reference ghost the same way rakaar's does — sourced from
+`glyphData.contextualForms[trigger].ghost`, not `clusters` (see that
+table's own docstring in `tools/build_glyph_data.py` for why: a real
+`clusters` entry for e.g. "क्" would make real word-final text ending in
+"क्" incorrectly render as the mid-conjunct half-form instead of the
+linguistically correct explicit-halant form it already gets today via
+virama's own pre-existing mark).
 
 ## Coverage audit (pre-recording, simulated)
 
 Per the plan's coverage-audit gate — run against the *exact* runtime
-composition code (`tryComposeStroke`/`tryComposeFromCharacters`), not a
-reimplementation:
+composition code (`tryComposeStroke`/`tryComposeContextualForm`/
+`tryComposeFromCharacters`), not a reimplementation:
 
 ```
 node tools/coverage_report.js --simulate-atoms docs/languages/hi/reduced-atom-list.flat.txt --glyph-data js/src/glyph-data.hi.json
@@ -290,24 +315,26 @@ node tools/coverage_report.js --simulate-atoms docs/languages/hi/reduced-atom-li
 
 ```
 Coverage report (simulated) - js/src/glyph-data.hi.json
-  seeded 1652 simulated atoms
+  seeded 174 simulated atoms
   2443 total clusters
-  1652 direct, 791 composed, 0 fallback
+  132 direct, 2311 composed, 0 fallback
   coverage: 2443/2443 (100.0%)
 ```
 
 (Saved verbatim at `docs/languages/hi/coverage-report-pre-recording.txt`.)
 
 **100% — every one of the 2443 clusters `glyph-data.hi.json` defines
-resolves to a direct or composed stroke** given this atom set. This
-confirms the atom set's *logic* is structurally sound (not that its
-*size* is minimal — see "The headline finding" above for why 1652, not
-~170, is what 100% actually requires today).
+resolves to a direct or composed stroke**, now from a **174-atom set**
+(down from the original 1652) — the contextual-form primitives closed
+exactly the gap "The headline finding" identified, without any
+`resolveSegments`/glyph-level change at all (`_conjunct_inputs()`'s
+existing brute-forced `clusters` entries already had the real positioning
+data every contextual-form composition needed).
 
-1652 = 89 (Group A) + 1 (Group B, nukta — included in the atom file
-purely so the coverage tool's stub-stroke mechanism can exercise its
-composition path; the *real* deliverable is a synthesized stroke, not a
-traced one) + 1 (Group C) + 1561 (Group D).
+174 = 89 (Group A) + 1 (Group B, nukta — included in the atom file purely
+so the coverage tool's stub-stroke mechanism can exercise its composition
+path; the *real* deliverable is a synthesized stroke, not a traced one) +
+1 (Group C) + 43 (Group D) + 40 (Group E).
 
 Post-recording, once real strokes exist, run the identical check against
 `js/src/stroke-data.hi.raw.json` (`--stroke-data` instead of
