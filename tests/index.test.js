@@ -2,12 +2,15 @@
  * Tests for js/src/index.js's segmentation/composition engine, via the
  * `_internal` test-only export bundle (see index.js's bottom).
  *
- * Deliberately script-agnostic: fixtures use synthetic single-letter
- * "clusters" (A, B, s) shaped like glyph-data.json entries, never real
- * Malayalam clusters. The engine only cares about character/glyph counts
- * and x/y offsets - a new script's stroke pipeline should never need to
- * touch this file. The one exception is the SPLIT_VOWEL_PARTS test, which
- * is explicitly checking Malayalam-specific decomposition data.
+ * Fully script-agnostic: fixtures use synthetic single-letter "clusters"
+ * (A, B, s) shaped like glyph-data.json entries, never real Malayalam
+ * clusters - including for legacy-encoding normalization and split-vowel
+ * composition, both of which now read from a `legacyEncodings`/
+ * `splitVowelParts` argument/glyphData key rather than a hardcoded
+ * Malayalam-specific module constant. Regression coverage against
+ * Malayalam's *real* legacyEncodings/splitVowelParts data lives in
+ * composition-coverage.test.js instead, alongside its other real-data
+ * checks - see that file's docstring for why.
  *
  * DOM-dependent parts of index.js (buildStage, animation timing) aren't
  * covered here - they need real SVG geometry APIs (getTotalLength etc.)
@@ -22,7 +25,6 @@ const {
   composeMark,
   tightenMarks,
   offsetSvgPath,
-  SPLIT_VOWEL_PARTS,
   markContentAnchorX,
   applyMarkStroke,
   applySequentialMarkStrokes,
@@ -31,6 +33,7 @@ const {
   tryComposeFromCharacters,
   resolveSegments,
   normalizeChillus,
+  legacyAtoms,
 } = _internal;
 
 beforeEach(() => {
@@ -239,13 +242,38 @@ describe("applySequentialMarkStrokes (compound vowel decomposition)", () => {
   });
 });
 
-describe("SPLIT_VOWEL_PARTS", () => {
-  it("matches the documented Unicode canonical decomposition for ൊ/ോ/ൌ", () => {
-    expect(SPLIT_VOWEL_PARTS).toEqual({
-      "ൊ": ["െ", "ാ"],
-      "ോ": ["േ", "ാ"],
-      "ൌ": ["െ", "ൗ"],
-    });
+describe("tryComposeStroke reading glyphData.splitVowelParts", () => {
+  it("composes a compound mark via its split-parts recipe instead of its own stroke", () => {
+    // Synthetic stand-in for e.g. Malayalam's ൊ -> [െ, ാ]: "o" is a compound
+    // 1-char mark with no stroke of its own, decomposed into "e" (prefix)
+    // and "a" (suffix), each individually recorded.
+    const clusters = {
+      base: { glyphs: [{ d: "Mbase", x: 0, y: 0 }], advance: 100 },
+    };
+    const marks = {
+      e: { shift: 50, prefix: [{ d: "e-glyph", x: 0, y: 0 }], suffix: [], trailingWidth: 0 },
+      a: { shift: 0, prefix: [], suffix: [{ d: "a-glyph", x: 0, y: 0 }], trailingWidth: 10 },
+    };
+    STROKE_LIBRARY.base = { strokes: [{ d: "M0 0" }] };
+    STROKE_LIBRARY.e = { strokes: [{ d: "M0 0" }] };
+    STROKE_LIBRARY.a = { strokes: [{ d: "M0 0" }] };
+
+    const glyphData = { clusters, marks, splitVowelParts: { o: ["e", "a"] } };
+    const result = tryComposeStroke("baseo", glyphData);
+    expect(result).not.toBeNull();
+  });
+
+  it("falls back to direct mark composition when splitVowelParts is absent", () => {
+    // A language with no compound marks at all (most of them) has no
+    // splitVowelParts key - tryComposeStroke must not crash or misbehave,
+    // just skip straight to tryDirectMarkStroke.
+    const clusters = { base: { glyphs: [{ d: "Mbase", x: 0, y: 0 }], advance: 100 } };
+    const marks = { s: { shift: 0, prefix: [], suffix: [{ d: "s", x: 0, y: 0 }], trailingWidth: 5 } };
+    STROKE_LIBRARY.base = { strokes: [{ d: "M0 0" }] };
+    STROKE_LIBRARY.s = { strokes: [{ d: "M0 0" }] };
+
+    const result = tryComposeStroke("bases", { clusters, marks });
+    expect(result).not.toBeNull();
   });
 });
 
@@ -313,42 +341,57 @@ describe("tryComposeFromCharacters", () => {
 });
 
 describe("normalizeChillus", () => {
-  it("rewrites legacy consonant+virama+ZWJ chillu sequences to the atomic codepoint", () => {
-    // Real-world/pasted Malayalam text (old fonts, older mobile keyboards)
-    // very commonly encodes chillus as base consonant + U+0D4D (virama) +
-    // U+200D (ZWJ) instead of the atomic Unicode 5.1+ chillu codepoint.
-    // glyph-data.json/stroke-data.json only key clusters by the atomic
-    // form, so this legacy sequence used to fall through to plain
-    // consonant+virama rendering instead of the authored chillu glyph.
-    expect(normalizeChillus("ന്‍")).toBe("ൻ");
-    expect(normalizeChillus("ര്‍")).toBe("ർ");
-    expect(normalizeChillus("ല്‍")).toBe("ൽ");
-    expect(normalizeChillus("ള്‍")).toBe("ൾ");
-    expect(normalizeChillus("ണ്‍")).toBe("ൺ");
-    expect(normalizeChillus("ക്‍")).toBe("ൿ");
+  // Synthetic legacyEncodings map - real Malayalam chillu regression
+  // coverage against build_glyph_data.py's actual _ML_LEGACY_CHILLU/the
+  // real glyph-data.json lives in composition-coverage.test.js instead
+  // (see this file's docstring).
+  const legacyEncodings = { xy: "Z", pq: "W" };
+
+  it("rewrites every legacy sequence to its atomic codepoint", () => {
+    expect(normalizeChillus("xy", legacyEncodings)).toBe("Z");
+    expect(normalizeChillus("pq", legacyEncodings)).toBe("W");
   });
 
-  it("normalizes every legacy chillu in a full word, leaving the rest untouched", () => {
-    expect(normalizeChillus("രുദ്രന്‍")).toBe("രുദ്രൻ");
-    expect(normalizeChillus("അയല്‍വാസികള്‍ക്ക്")).toBe("അയൽവാസികൾക്ക്");
+  it("normalizes every legacy sequence in a full word, leaving the rest untouched", () => {
+    expect(normalizeChillus("axyb", legacyEncodings)).toBe("aZb");
+    expect(normalizeChillus("xypq", legacyEncodings)).toBe("ZW");
   });
 
-  it("leaves already-atomic chillus and plain consonant+virama untouched", () => {
-    expect(normalizeChillus("ൻ")).toBe("ൻ");
-    expect(normalizeChillus("ക്ക്")).toBe("ക്ക്");
+  it("leaves already-atomic and unrelated text untouched", () => {
+    expect(normalizeChillus("Z", legacyEncodings)).toBe("Z");
+    expect(normalizeChillus("abc", legacyEncodings)).toBe("abc");
+  });
+
+  it("is a no-op when no legacyEncodings are given (a language with no such quirk)", () => {
+    expect(normalizeChillus("xy")).toBe("xy");
+  });
+});
+
+describe("legacyAtoms", () => {
+  it("returns the set of atomic codepoints legacyEncodings maps to", () => {
+    const atoms = legacyAtoms({ xy: "Z", pq: "W" });
+    expect(atoms.has("Z")).toBe(true);
+    expect(atoms.has("W")).toBe(true);
+    expect(atoms.has("xy")).toBe(false);
+  });
+
+  it("is empty when no legacyEncodings are given", () => {
+    expect(legacyAtoms().size).toBe(0);
   });
 });
 
 describe("resolveSegments", () => {
-  it("resolves a legacy consonant+virama+ZWJ chillu sequence to the atomic chillu's cluster", () => {
-    // Regression for the bug where real-world text like "ന്‍" (legacy
-    // encoding) rendered as bare consonant+virama instead of the authored
-    // chillu glyph, even though the atomic chillu "ൻ" was fully authored.
+  it("resolves a legacy-encoded sequence to its atomic cluster via legacyEncodings", () => {
+    // Regression for the bug class where real-world text using a legacy
+    // dual encoding (Malayalam's consonant+virama+ZWJ chillu spelling is
+    // the real-world example) rendered as the wrong, unauthored fallback
+    // instead of the authored glyph its atomic codepoint has - see
+    // composition-coverage.test.js for the real Malayalam version.
     const clusters = {
-      ൻ: { glyphs: [{ d: "chillu-n", x: 0, y: 0 }], advance: 100 },
+      Z: { glyphs: [{ d: "chillu-like", x: 0, y: 0 }], advance: 100 },
     };
-    const segs = resolveSegments("ന്‍", clusters, {});
-    expect(segs.map((s) => s.cluster)).toEqual(["ൻ"]);
+    const segs = resolveSegments("xy", clusters, {}, { xy: "Z" });
+    expect(segs.map((s) => s.cluster)).toEqual(["Z"]);
   });
 
 

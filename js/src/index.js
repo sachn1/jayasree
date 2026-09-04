@@ -130,51 +130,46 @@ export const STROKE_LIBRARY = {};
 // ---------------------------------------------------------------------------
 
 /**
- * Legacy chillu encoding (base consonant + virama U+0D4D + ZWJ U+200D) mapped
- * to its atomic Unicode 5.1+ chillu codepoint. glyph-data.json/stroke-data.json
- * only key clusters by the atomic form, so text using the legacy 3-codepoint
- * sequence - very common in real-world/pasted Malayalam text, and what old
- * fonts/keyboards produce - would otherwise fall through to the plain
- * consonant+virama rendering instead of the authored chillu glyph.
+ * Rewrite whatever legacy dual-encoding sequences `legacyEncodings` maps
+ * (glyph-data.json's `legacyEncodings` key - e.g. Malayalam's legacy
+ * 3-codepoint chillu spelling, base consonant + virama U+0D4D + ZWJ
+ * U+200D, mapped to its atomic Unicode 5.1+ chillu codepoint) to their
+ * atomic equivalent. `clusters`/`stroke-data.json` only ever key by the
+ * atomic form, so text using a legacy sequence - very common in
+ * real-world/pasted text, and what old fonts/keyboards produce - would
+ * otherwise fall through to a less-correct rendering instead of the
+ * authored glyph.
  *
- * @type {Record<string, string>}
- */
-const LEGACY_CHILLU = {
-  // Each key is 3 codepoints (consonant + U+0D4D + U+200D); each value is 1
-  // (the atomic chillu). They render identically - only the string length
-  // (and which lookup key matches glyph-data.json) differs.
-  "ണ്‍": "ൺ", // ണ (U+0D23) + ് (U+0D4D) + ZWJ (U+200D)  ->  ൺ (U+0D7A)
-  "ന്‍": "ൻ", // ന (U+0D28) + ് (U+0D4D) + ZWJ (U+200D)  ->  ൻ (U+0D7B)
-  "ര്‍": "ർ", // ര (U+0D30) + ് (U+0D4D) + ZWJ (U+200D)  ->  ർ (U+0D7C)
-  "ല്‍": "ൽ", // ല (U+0D32) + ് (U+0D4D) + ZWJ (U+200D)  ->  ൽ (U+0D7D)
-  "ള്‍": "ൾ", // ള (U+0D33) + ് (U+0D4D) + ZWJ (U+200D)  ->  ൾ (U+0D7E)
-  "ക്‍": "ൿ", // ക (U+0D15) + ് (U+0D4D) + ZWJ (U+200D)  ->  ൿ (U+0D7F)
-};
-
-/**
- * The 6 atomic chillu codepoints (values of {@link LEGACY_CHILLU}) - used to
- * detect the "chillu + trailing consonant" base (currently only ൻറ; see
- * build_glyph_data.py's `_standalone_inputs`) where a following prefix mark
- * (െ/േ/ൈ) must split the base instead of shifting it as one block. See
- * {@link composeMark}'s docstring for why.
- *
- * @type {Set<string>}
- */
-const CHILLU_ATOMS = new Set(Object.values(LEGACY_CHILLU));
-
-/**
- * Replace legacy consonant+virama+ZWJ chillu sequences with their atomic
- * codepoint equivalent. See {@link LEGACY_CHILLU}.
+ * A language with no such duality (most of them) simply has no
+ * `legacyEncodings` key at all - this function then does nothing, and
+ * nothing Malayalam-specific is ever loaded into memory for that
+ * language's session. See docs/ARCHITECTURE.md's "Chillu letters".
  *
  * @param {string} text
+ * @param {Record<string, string>} [legacyEncodings] - From glyphData.legacyEncodings.
  * @returns {string}
  */
-function normalizeChillus(text) {
+function normalizeChillus(text, legacyEncodings = {}) {
   let result = text;
-  for (const [legacy, atomic] of Object.entries(LEGACY_CHILLU)) {
+  for (const [legacy, atomic] of Object.entries(legacyEncodings)) {
     result = result.split(legacy).join(atomic);
   }
   return result;
+}
+
+/**
+ * Derive the set of atomic codepoints `legacyEncodings` normalizes *to* -
+ * used to detect the "chillu + trailing consonant" base (currently only
+ * ൻറ; see build_glyph_data.py's `_standalone_inputs`) where a following
+ * prefix mark (െ/േ/ൈ) must split the base instead of shifting it as one
+ * block. See {@link composeMark}'s docstring for why. Empty for any
+ * language with no `legacyEncodings` at all.
+ *
+ * @param {Record<string, string>} [legacyEncodings]
+ * @returns {Set<string>}
+ */
+function legacyAtoms(legacyEncodings = {}) {
+  return new Set(Object.values(legacyEncodings));
 }
 
 /**
@@ -313,15 +308,17 @@ function buildTracePath(pathEl, startOverride, direction) {
  * @param {{ glyphs: {d: string, x: number, y: number}[], advance: number }} base
  * @param {{ shift: number, prefix: object[], suffix: object[], trailingWidth: number }} mark
  * @param {string} [baseKey] - The base's character sequence, e.g. "ൻറ".
+ * @param {Set<string>} [legacyAtomsSet] - From {@link legacyAtoms}; empty for a
+ *   language with no legacy-encoded atoms (i.e. no chillu-style quirk) at all.
  * @returns {{ glyphs: {d: string, x: number, y: number}[], advance: number }}
  */
-function composeMark(base, mark, baseKey) {
+function composeMark(base, mark, baseKey, legacyAtomsSet = new Set()) {
   if (
     baseKey &&
     mark.prefix.length > 0 &&
     mark.suffix.length === 0 &&
     base.glyphs.length > 1 &&
-    CHILLU_ATOMS.has(baseKey[0])
+    legacyAtomsSet.has(baseKey[0])
   ) {
     const chilluAdvance = base.glyphs[1].x;
     const glyphs = [
@@ -390,9 +387,10 @@ function tightenMarks(marks, tightenUnits) {
  * @param {string} cluster
  * @param {Record<string, object>} clusters
  * @param {Record<string, object>} marks
+ * @param {Set<string>} [legacyAtomsSet] - See {@link composeMark}.
  * @returns {{ glyphs: object[], advance: number } | null}
  */
-function resolveGhostEntry(cluster, clusters, marks) {
+function resolveGhostEntry(cluster, clusters, marks, legacyAtomsSet = new Set()) {
   if (clusters[cluster]) return clusters[cluster];
   for (const markLen of [2, 1]) {
     if (cluster.length <= markLen) continue;
@@ -400,9 +398,9 @@ function resolveGhostEntry(cluster, clusters, marks) {
     const markKey = cluster.slice(-markLen);
     const mark = marks[markKey];
     if (!mark) continue;
-    const base = resolveGhostEntry(baseKey, clusters, marks);
+    const base = resolveGhostEntry(baseKey, clusters, marks, legacyAtomsSet);
     if (!base) continue;
-    return composeMark(base, mark, baseKey);
+    return composeMark(base, mark, baseKey, legacyAtomsSet);
   }
   return null;
 }
@@ -431,21 +429,17 @@ function offsetSvgPath(d, dx, dy) {
   });
 }
 
-/**
- * Compound vowel signs decomposed into the simpler marks they're built from,
- * in application order (each applied to the *result* of the previous one).
- * ൊ/ോ/ൌ match their official Unicode canonical decomposition (NFD: ൊ→െ+ാ,
- * ോ→േ+ാ, ൌ→െ+ൗ); ൈ has no such decomposition and, in this font, shapes as a
- * single prefix-only glyph rather than two, so it's deliberately left out -
- * it composes fine as its own atom already (see {@link tryComposeStroke}).
- *
- * @type {Record<string, string[]>}
- */
-const SPLIT_VOWEL_PARTS = {
-  "ൊ": ["െ", "ാ"],
-  "ോ": ["േ", "ാ"],
-  "ൌ": ["െ", "ൗ"],
-};
+// Compound vowel signs decomposed into the simpler marks they're built from
+// (e.g. Malayalam's ൊ→[െ,ാ]) live in glyphData.splitVowelParts, not a
+// hardcoded constant here - see build_glyph_data.py's `_runtime_quirks` and
+// {@link tryComposeStroke}, which reads `glyphData.splitVowelParts[markKey]`
+// directly. A language with no split marks (most of them) simply has no
+// such key, and this file holds none of that data for that language's
+// session. (For Malayalam specifically: ൊ/ോ/ൌ match their official Unicode
+// canonical decomposition, NFD ൊ→െ+ാ, ോ→േ+ാ, ൌ→െ+ൗ; ൈ has no such
+// decomposition and, in this font, shapes as a single prefix-only glyph
+// rather than two, so it's deliberately absent from that map - it composes
+// fine as its own atom already.)
 
 /**
  * The x-position where a mark's own *content* glyph (as opposed to the
@@ -489,7 +483,7 @@ function markContentAnchorX(markKey, clusters) {
  * one recorded stroke exists for those, and it can't be cleanly offset
  * without also warping the gap in the middle to match the base's width.
  * {@link tryComposeStroke} handles that case instead, by applying the
- * mark's {@link SPLIT_VOWEL_PARTS} one at a time through this function.
+ * mark's `glyphData.splitVowelParts` recipe one at a time through this function.
  *
  * @param {{d: string}[]} baseStrokes
  * @param {{ shift: number, prefix: object[], suffix: object[], trailingWidth: number }} mark
@@ -529,8 +523,8 @@ function applyMarkStroke(baseStrokes, mark, markStrokes, baseAdvance, markAnchor
 /**
  * Apply a sequence of single-sided marks (each looked up and offset via
  * {@link applyMarkStroke}) to a base, one after another - used to compose a
- * compound vowel sign from its {@link SPLIT_VOWEL_PARTS} instead of needing
- * its own recorded stroke. Requires every part to already have a recorded
+ * compound vowel sign from its `glyphData.splitVowelParts` recipe instead of
+ * needing its own recorded stroke. Requires every part to already have a recorded
  * stroke in {@link STROKE_LIBRARY} (e.g. "െ" and "ാ" for ൊ); returns `null`
  * if any part is missing or its recipe is itself unexpectedly compound.
  *
@@ -591,23 +585,24 @@ function tryDirectMarkStroke(baseStrokes, baseAdvance, markKey, marks, clusters,
  * out within `cluster.length` levels.
  *
  * A compound 1-char mark (both prefix and suffix, e.g. ൊ/ോ/ൌ) is composed
- * via its {@link SPLIT_VOWEL_PARTS} instead of its own stroke - see {@link
+ * via `glyphData.splitVowelParts` instead of its own stroke - see {@link
  * applySequentialMarkStrokes}. Composed results are cached into {@link
  * STROKE_LIBRARY} under `cluster` so repeated traces of the same word (or
  * repeated use of the same intermediate base) don't recompose it.
  *
  * @param {string} cluster
- * @param {{ clusters: Record<string, object>, marks: Record<string, object> }} glyphData
+ * @param {{ clusters: Record<string, object>, marks: Record<string, object>, legacyEncodings?: Record<string, string>, splitVowelParts?: Record<string, string[]> }} glyphData
  * @returns {{ strokes: {d: string}[] } | null}
  */
 function tryComposeStroke(cluster, glyphData) {
-  const { clusters, marks } = glyphData;
+  const { clusters, marks, legacyEncodings, splitVowelParts } = glyphData;
+  const legacyAtomsSet = legacyAtoms(legacyEncodings);
   for (const markLen of [2, 1]) {
     if (cluster.length <= markLen) continue;
     const baseKey = cluster.slice(0, -markLen);
     const markKey = cluster.slice(-markLen);
     const base = STROKE_LIBRARY[baseKey] ?? tryComposeStroke(baseKey, glyphData);
-    const baseGlyphEntry = resolveGhostEntry(baseKey, clusters, marks);
+    const baseGlyphEntry = resolveGhostEntry(baseKey, clusters, marks, legacyAtomsSet);
     if (!base?.strokes?.length || !baseGlyphEntry) continue;
 
     // See composeMark's chillu-base case: ൻറ (chillu + trailing റ) needs a
@@ -618,14 +613,14 @@ function tryComposeStroke(cluster, glyphData) {
     // `base.strokes` array (built by concatenating each character's own
     // strokes in order - see tryComposeFromCharacters/compose_per_glyph).
     let chilluSplit = null;
-    if (baseKey.length > 1 && CHILLU_ATOMS.has(baseKey[0]) && baseGlyphEntry.glyphs.length > 1) {
+    if (baseKey.length > 1 && legacyAtomsSet.has(baseKey[0]) && baseGlyphEntry.glyphs.length > 1) {
       const chilluEntry = STROKE_LIBRARY[baseKey[0]] ?? tryComposeStroke(baseKey[0], glyphData);
       if (chilluEntry?.strokes?.length) {
         chilluSplit = { strokeCount: chilluEntry.strokes.length, advance: baseGlyphEntry.glyphs[1].x };
       }
     }
 
-    const splitParts = markLen === 1 ? SPLIT_VOWEL_PARTS[markKey] : undefined;
+    const splitParts = markLen === 1 ? (splitVowelParts ?? {})[markKey] : undefined;
     const result = splitParts
       ? applySequentialMarkStrokes(base.strokes, baseGlyphEntry.advance, splitParts, marks, clusters)
       : tryDirectMarkStroke(base.strokes, baseGlyphEntry.advance, markKey, marks, clusters, chilluSplit);
@@ -758,10 +753,12 @@ function tryComposeFromCharacters(cluster, glyphData) {
  * @param {string} text
  * @param {Record<string, unknown>} clusters - The `clusters` map from glyph-data.json.
  * @param {Record<string, unknown>} marks - The `marks` map from glyph-data.json.
+ * @param {Record<string, string>} [legacyEncodings] - glyph-data.json's `legacyEncodings`, if any.
  * @returns {{ cluster: string, entry: { glyphs: object[], advance: number } }[]}
  */
-function resolveSegments(text, clusters, marks) {
-  const normalized = normalizeChillus(text);
+function resolveSegments(text, clusters, marks, legacyEncodings = {}) {
+  const normalized = normalizeChillus(text, legacyEncodings);
+  const legacyAtomsSet = legacyAtoms(legacyEncodings);
   const segs = [];
   let i = 0;
   while (i < normalized.length) {
@@ -803,7 +800,7 @@ function resolveSegments(text, clusters, marks) {
       if (!mark || !prev) continue;
       segs[segs.length - 1] = {
         cluster: prev.cluster + markCh,
-        entry: composeMark(prev.entry, mark, prev.cluster),
+        entry: composeMark(prev.entry, mark, prev.cluster, legacyAtomsSet),
       };
       i += markLen;
       composed = true;
@@ -918,7 +915,7 @@ export function createStrokeWriter(container, options = {}) {
     // need the *same* tightened shifts to keep the animated ink aligned
     // with this ghost - can reuse it via `trace.glyphData` below.
     const tightenedGlyphData = { ...glyphData, marks: tightenMarks(marks ?? {}, tightenUnits) };
-    const segs = resolveSegments(text, clusters, tightenedGlyphData.marks);
+    const segs = resolveSegments(text, clusters, tightenedGlyphData.marks, tightenedGlyphData.legacyEncodings);
     if (!segs.length) return null;
 
     let penX = 0;
@@ -1257,7 +1254,6 @@ export const _internal = {
   tightenMarks,
   resolveGhostEntry,
   offsetSvgPath,
-  SPLIT_VOWEL_PARTS,
   markContentAnchorX,
   applyMarkStroke,
   applySequentialMarkStrokes,
@@ -1267,6 +1263,7 @@ export const _internal = {
   tryComposeFromCharacters,
   resolveSegments,
   normalizeChillus,
+  legacyAtoms,
 };
 
 
