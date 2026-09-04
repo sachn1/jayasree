@@ -2,7 +2,11 @@
 
 Mark composition (consonant+virama, conjunct+matra, subjoined conjunct forms)
 is deliberately not done here - see js/src/index.js's tryComposeStroke() and
-docs/ARCHITECTURE.md's "Composition" section for why.
+docs/ARCHITECTURE.md's "Composition" section for why. Devanagari's
+half-form/reph "contextual form" composition (see `compose_contextual_form`)
+is its own distinct mechanism, mirroring js/src/index.js's
+`tryComposeContextualForm` - see that function's docstring and
+docs/languages/hi/composition-primitives-report.md.
 """
 
 from __future__ import annotations
@@ -175,6 +179,82 @@ def compose_per_glyph(
     return composed_strokes or None
 
 
+def compose_contextual_form(
+    cluster_key: str, cluster_entry: dict, stroke_data: dict, clusters: dict, contextual_forms: dict
+) -> list[dict] | None:
+    """Compose a "contextual form" cluster - mirrors js/src/index.js's
+    `tryComposeContextualForm` exactly; see its docstring for the full
+    derivation (docs/languages/hi/labeling-worklist.md's "headline
+    finding", docs/languages/hi/composition-primitives-report.md).
+
+    A 3-character, 2-glyph cluster where a virama contributes no glyph of
+    its own: one glyph slot is filled by a registered "contextual form"
+    atom (a half-form or reph hook, looked up in `stroke_data` by its own
+    2-character trigger key - e.g. "क्" - never in `clusters`/`marks`, so
+    it can never be picked up by real-text segmentation, only by this
+    function once the caller already resolved the full 3-character
+    cluster), the other by the third character's own ordinary stroke.
+    `contextual_forms[trigger]["role"]` says which slot is which:
+    ``"halfForm"`` puts the atom first, the third character second;
+    ``"reph"`` swaps that order (reph types first but renders last).
+
+    Parameters
+    ----------
+    cluster_key : str
+        The cluster's character sequence (e.g. ``"क्ल"``).
+    cluster_entry : dict
+        The cluster's entry from ``glyph-data.json``, with a ``glyphs`` list.
+    stroke_data : dict
+        Existing per-cluster/per-atom stroke data.
+    clusters : dict
+        The full ``glyph-data.json`` ``clusters`` mapping.
+    contextual_forms : dict
+        The full ``glyph-data.json`` ``contextualForms`` mapping.
+
+    Returns
+    -------
+    list[dict] | None
+        Composed strokes, or ``None`` if the cluster doesn't match this
+        shape or a needed stroke is missing.
+    """
+    chars = list(cluster_key)
+    if len(chars) != 3:
+        return None
+    glyphs = cluster_entry["glyphs"]
+    if len(glyphs) != 2:
+        return None
+
+    trigger = chars[0] + chars[1]
+    form = contextual_forms.get(trigger)
+    if not form:
+        return None
+
+    atom = stroke_data.get(trigger)
+    other_char = chars[2]
+    other = stroke_data.get(other_char)
+    if not atom or not atom.get("strokes") or not other or not other.get("strokes"):
+        return None
+
+    g0, g1 = glyphs
+    is_reph = form["role"] == "reph"
+    atom_glyph = g1 if is_reph else g0
+    other_glyph = g0 if is_reph else g1
+
+    # The atom's own recorded stroke is already anchored at x=0 by
+    # construction (tools/build_glyph_data.py's `_extract_ghost`) - no
+    # `_char_dx` correction needed, unlike other_char's arbitrary atom.
+    atom_strokes = [
+        {"d": offset_svg_path(s["d"], atom_glyph.get("x", 0), atom_glyph.get("y", 0))}
+        for s in atom["strokes"]
+    ]
+    other_dx = _char_dx(other_char, other_glyph.get("x", 0), clusters)
+    other_strokes = [
+        {"d": offset_svg_path(s["d"], other_dx, other_glyph.get("y", 0))} for s in other["strokes"]
+    ]
+
+    return (other_strokes + atom_strokes) if is_reph else (atom_strokes + other_strokes)
+
+
 def compose_all(glyph_data: dict, stroke_data: dict) -> tuple[dict, int, int]:
     """Compose strokes for every glyph-data cluster still missing one.
 
@@ -194,6 +274,7 @@ def compose_all(glyph_data: dict, stroke_data: dict) -> tuple[dict, int, int]:
     """
     clusters = glyph_data["clusters"]
     marks = glyph_data.get("marks", {})
+    contextual_forms = glyph_data.get("contextualForms", {})
     out = dict(stroke_data)
     generated = 0
     skipped = 0
@@ -202,6 +283,10 @@ def compose_all(glyph_data: dict, stroke_data: dict) -> tuple[dict, int, int]:
         if cluster_key in out and len(out[cluster_key].get("strokes", [])) > 0:
             continue
         composed = compose_per_glyph(cluster_key, clusters[cluster_key], out, clusters, marks)
+        if not composed and contextual_forms:
+            composed = compose_contextual_form(
+                cluster_key, clusters[cluster_key], out, clusters, contextual_forms
+            )
         if composed:
             out[cluster_key] = {"strokes": composed}
             generated += 1
