@@ -96,3 +96,18 @@ class TestAlphabetCommand:
         words = [r["word"] for r in results]
         assert "standalone" in words
         assert len(words) > 1  # standalone + at least some matra syllables
+
+    def test_explicit_default_lang_matches_the_implicit_default(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """Ensure that `--lang malayalam` produces the same result as omitting --lang."""
+        code = main(["alphabet", FONT, "--lang", "malayalam"])
+        assert code == 0
+        results = json.loads(capsys.readouterr().out)
+        assert next(r["word"] for r in results) == "standalone"
+
+    def test_unknown_lang_is_a_clean_error(self, capsys: pytest.CaptureFixture[str]) -> None:
+        """Ensure that an unregistered --lang prints a clean error, not a traceback."""
+        code = main(["alphabet", FONT, "--lang", "tamil"])
+        assert code == 1
+        assert "error" in capsys.readouterr().err.lower()

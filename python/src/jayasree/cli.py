@@ -6,41 +6,41 @@ import argparse
 import json
 import sys
 
-from ._chars import (
-    ANUSVARA,
-    CHILLU,
-    INDEPENDENT_VOWELS,
-    MATRAS,
-    NUMERALS,
-    RARE_CONSONANTS,
-    RARE_MATRAS,
-    RARE_VOWELS,
-    REGULAR_CONSONANTS,
-    SPECIAL_CONSONANTS,
-    VIRAMA,
-    VISARGA,
-)
+from .languages import char_tuple, get_language
 from .strokes import shape_word
 
-# All standalone characters as a single string (shaped as one run).
-_STANDALONE: str = "".join(
-    INDEPENDENT_VOWELS
-    + RARE_VOWELS
-    + REGULAR_CONSONANTS
-    + SPECIAL_CONSONANTS
-    + RARE_CONSONANTS
-    + CHILLU
-    + NUMERALS
-)
 
-# Each matra (dependent vowel) shaped with ക as a carrier so the shaper
-# emits the sign glyph. Includes anusvara, visarga and virama.
-# The recorder deduplicates by glyphName so ക appears only once.
-_MATRA_SYLLABLES: list[str] = ["ക" + m for m in MATRAS + RARE_MATRAS] + [
-    "ക" + ANUSVARA,  # anusvara  ം  # noqa: RUF003
-    "ക" + VISARGA,  # visarga   ഃ
-    "ക" + VIRAMA,  # virama    ്
-]
+def _standalone_run(lang_name: str) -> str:
+    """All of `lang_name`'s standalone characters, as a single string (one shaped run)."""
+    chars = get_language(lang_name).chars()
+    return "".join(
+        char_tuple(chars, "INDEPENDENT_VOWELS")
+        + char_tuple(chars, "RARE_VOWELS")
+        + char_tuple(chars, "CONSONANTS")
+        + char_tuple(chars, "RARE_CONSONANTS")
+        + char_tuple(chars, "CHILLU")
+        + char_tuple(chars, "NUMERALS")
+    )
+
+
+def _matra_syllables(lang_name: str) -> list[str]:
+    """Each of `lang_name`'s matras/marks shaped with a carrier consonant.
+
+    Shaping with a carrier (rather than alone) makes the shaper emit the
+    actual dependent-vowel-sign glyph instead of a HarfBuzz placeholder
+    circle. The recorder deduplicates by glyphName, so the carrier itself
+    appears only once regardless of how many syllables use it.
+    """
+    lang = get_language(lang_name)
+    chars = lang.chars()
+    carrier = lang.carrier_consonant
+    all_matras = char_tuple(chars, "MATRAS") + char_tuple(chars, "RARE_MATRAS")
+    syllables = [carrier + m for m in all_matras]
+    for mark_attr in ("ANUSVARA", "VISARGA", "VIRAMA"):
+        mark = getattr(chars, mark_attr, None)
+        if mark:
+            syllables.append(carrier + mark)
+    return syllables
 
 
 def _cmd_shape(args: argparse.Namespace) -> int:
@@ -70,30 +70,38 @@ def _cmd_shape(args: argparse.Namespace) -> int:
 
 
 def _cmd_alphabet(args: argparse.Namespace) -> int:
-    """Shape the full Malayalam character inventory and print a JSON array.
+    """Shape a language's full character inventory and print a JSON array.
 
     Parameters
     ----------
     args : argparse.Namespace
-        Parsed arguments with a ``font_path`` attribute.
+        Parsed arguments with ``font_path`` and ``lang`` attributes.
 
     Returns
     -------
     int
-        Exit code (0 = success, 1 = the standalone run failed to shape).
+        Exit code (0 = success, 1 = the standalone run failed to shape, or
+        `lang` isn't registered).
     """
+    try:
+        standalone = _standalone_run(args.lang)
+        matra_syllables = _matra_syllables(args.lang)
+    except ValueError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+
     results = []
 
     # All standalone characters shaped as one long string
     try:
-        trace = shape_word(_STANDALONE, args.font_path)
+        trace = shape_word(standalone, args.font_path)
         results.append({"word": "standalone", **trace})
     except (ValueError, OSError) as exc:
         print(f"error shaping standalone characters: {exc}", file=sys.stderr)
         return 1
 
     # Each matra syllable shaped individually so the vowel sign glyph is emitted
-    for syllable in _MATRA_SYLLABLES:
+    for syllable in matra_syllables:
         try:
             trace = shape_word(syllable, args.font_path)
             results.append({"word": syllable, **trace})
@@ -120,7 +128,7 @@ def main(argv: list[str] | None = None) -> int:
     """
     parser = argparse.ArgumentParser(
         prog="jayasree",
-        description="Shape Malayalam text and print stroke-trace JSON.",
+        description="Shape Indic-script text and print stroke-trace JSON.",
     )
     sub = parser.add_subparsers(dest="cmd")
 
@@ -132,9 +140,14 @@ def main(argv: list[str] | None = None) -> int:
     # ── alphabet ─────────────────────────────────────────────────────────
     p_alpha = sub.add_parser(
         "alphabet",
-        help="Shape the full Malayalam base alphabet - ideal input for the stroke recorder",
+        help="Shape a language's full base alphabet - ideal input for the stroke recorder",
     )
     p_alpha.add_argument("font_path", help="Path to a .ttf/.otf font file")
+    p_alpha.add_argument(
+        "--lang",
+        default="malayalam",
+        help="Registry key from jayasree.languages.LANGUAGES (default: malayalam)",
+    )
 
     # Backwards-compatible: no sub-command → treat all positional args as
     # font_path + words (old behaviour). Must happen *before* parse_args():
