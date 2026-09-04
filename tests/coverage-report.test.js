@@ -67,6 +67,50 @@ describe("classify", () => {
   });
 });
 
+describe("classify with contextualForms (Devanagari half-form/reph)", () => {
+  // "AB" is a 2-character trigger (e.g. consonant+virama), "C" the third
+  // character, "ABC" the full 3-character/2-glyph cluster - same synthetic
+  // shape as index.test.js's tryComposeContextualForm fixture, extended
+  // with standalone A/B/C entries so the leading "any glyph data at all"
+  // check in fallbackReason doesn't short-circuit before reaching the
+  // contextual-form-specific checks this exercises.
+  const glyphData = {
+    clusters: {
+      A: { glyphs: [{ d: "MA", x: 0, y: 0 }], advance: 100 },
+      B: { glyphs: [{ d: "MB", x: 0, y: 0 }], advance: 100 },
+      C: { glyphs: [{ d: "MC", x: 0, y: 0 }], advance: 100 },
+      ABC: { glyphs: [{ d: "MAB", x: 0, y: 0 }, { d: "MC", x: 100, y: 0 }], advance: 200 },
+    },
+    marks: {},
+    contextualForms: { AB: { role: "halfForm" } },
+  };
+
+  it("reports 'composed' when tryComposeContextualForm succeeds", () => {
+    STROKE_LIBRARY.AB = { strokes: [{ d: "M0 0" }] };
+    STROKE_LIBRARY.C = { strokes: [{ d: "M0 0" }] };
+    expect(classify("ABC", glyphData)).toEqual({ status: "composed" });
+  });
+
+  it("names the contextual-form trigger when its own atom has no stroke yet", () => {
+    STROKE_LIBRARY.C = { strokes: [{ d: "M0 0" }] };
+    const result = classify("ABC", glyphData);
+    expect(result.status).toBe("fallback");
+    expect(result.reason).toContain("AB");
+    expect(result.reason).toContain("halfForm");
+  });
+
+  it("flags a contextual-form recipe that exists but whose composition itself failed", () => {
+    STROKE_LIBRARY.AB = { strokes: [{ d: "M0 0" }] };
+    // C has a clusters entry (passes the "some glyph data exists" check
+    // above) but no recorded/composable stroke, so composition itself
+    // must fail even though the trigger atom is present.
+    const result = classify("ABC", glyphData);
+    expect(result.status).toBe("fallback");
+    expect(result.reason).toContain("AB");
+    expect(result.reason).toContain("investigate directly");
+  });
+});
+
 describe("computeCoverage", () => {
   const glyphData = {
     clusters: {
