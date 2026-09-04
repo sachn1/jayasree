@@ -269,6 +269,26 @@ def validate_glyph_data(data: Any) -> list[str]:
                     f"{where}.glyphs[{i}]: 'd' does not start with a valid moveto command"
                 )
 
+    contextual_forms = data.get("contextualForms")
+    if contextual_forms is not None:
+        if not isinstance(contextual_forms, dict):
+            errors.append("glyph-data.json.contextualForms: must be an object")
+        else:
+            for trigger, form in contextual_forms.items():
+                where = f"glyph-data.json.contextualForms:{trigger!r}"
+                if not isinstance(trigger, str) or len(trigger) != 2:
+                    errors.append(f"{where}: key must be a 2-character string")
+                if not isinstance(form, dict) or form.get("role") not in ("halfForm", "reph"):
+                    errors.append(f"{where}: 'role' must be 'halfForm' or 'reph'")
+                    continue
+                ghost = form.get("ghost")
+                if (
+                    not isinstance(ghost, dict)
+                    or not isinstance(ghost.get("glyphs"), list)
+                    or not ghost["glyphs"]
+                ):
+                    errors.append(f"{where}.ghost: missing non-empty 'glyphs' list")
+
     return errors
 
 
