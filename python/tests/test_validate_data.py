@@ -16,6 +16,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "tools"))
 
 from validate_data import (
     cross_check_raw_in_processed,
+    discover_languages,
+    paths_for,
     validate_glyph_data,
     validate_stroke_d,
     validate_stroke_data,
@@ -127,6 +129,50 @@ class TestCrossCheckRawInProcessed:
         errors = cross_check_raw_in_processed({"A": {}, "B": {}}, {"A": {}})
         assert len(errors) == 1
         assert "'B'" in errors[0]
+
+
+class TestPathsFor:
+    """paths_for: language-code -> committed data-file paths (Phase 0)."""
+
+    def test_primary_code_is_unsuffixed(self) -> None:
+        """Ensure that Malayalam's code ('ml') maps to the original, unsuffixed names."""
+        paths = paths_for("ml")
+        assert paths.glyph_data.name == "glyph-data.json"
+        assert paths.stroke_data_raw.name == "stroke-data.raw.json"
+        assert paths.snapshot.name == "stroke_data_raw_snapshot.json"
+
+    def test_empty_code_is_treated_as_primary(self) -> None:
+        """Ensure that an empty code is equivalent to the primary language's code."""
+        assert paths_for("") == paths_for("ml")
+
+    def test_other_code_is_suffixed(self) -> None:
+        """Ensure that a non-primary code inserts '.{code}' before the extension."""
+        paths = paths_for("ta")
+        assert paths.glyph_data.name == "glyph-data.ta.json"
+        assert paths.stroke_data_raw.name == "stroke-data.ta.raw.json"
+        assert paths.snapshot.name == "stroke_data_raw_snapshot.ta.json"
+
+
+class TestDiscoverLanguages:
+    """discover_languages: scans a directory for glyph-data*.json files."""
+
+    def test_finds_unsuffixed_and_suffixed_files(self, tmp_path: Path) -> None:
+        """Ensure that both Malayalam's and a second language's files are found."""
+        (tmp_path / "glyph-data.json").write_text("{}")
+        (tmp_path / "glyph-data.ta.json").write_text("{}")
+        found = {p.code for p in discover_languages(tmp_path)}
+        assert found == {"ml", "ta"}
+
+    def test_ignores_non_matching_files(self, tmp_path: Path) -> None:
+        """Ensure that a stray file like a .bak backup is not mistaken for a language."""
+        (tmp_path / "glyph-data.json").write_text("{}")
+        (tmp_path / "glyph-data.json.bak").write_text("{}")
+        found = {p.code for p in discover_languages(tmp_path)}
+        assert found == {"ml"}
+
+    def test_empty_directory_finds_nothing(self, tmp_path: Path) -> None:
+        """Ensure that a directory with no glyph-data files returns an empty list."""
+        assert discover_languages(tmp_path) == []
 
 
 @pytest.mark.parametrize(
