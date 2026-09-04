@@ -30,13 +30,18 @@ Stages (each independently toggleable):
                 doesn't pre-bake a candidate for every base times every
                 mark regardless of whether it's ever traced.
 
---preset=malayalam enables all four (sensible defaults for this project's
-current single-language scope); pass explicit --center/--no-center etc. to
-override any of them.
+--preset=full (or its historical alias --preset=malayalam) enables all four
+stages - script-agnostic, despite the alias's name; pass explicit
+--center/--no-center etc. to override any of them.
+
+--lang selects which language's default --input/--glyph-data/--output paths
+to use (jayasree.languages.LANGUAGES; default: malayalam) - pass explicit
+--input/--glyph-data/--output to override any of them individually.
 
 Usage (from repo root):
-    python tools/process_strokes.py --preset=malayalam
+    python tools/process_strokes.py --preset=full
     python tools/process_strokes.py --smooth --expand   # no centering/straightening
+    python tools/process_strokes.py --preset=full --lang tamil
 """
 
 from __future__ import annotations
@@ -50,26 +55,28 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "python" / "src"))
 
 from jayasree import centering, geometry, ghost_reference, stroke_compose  # noqa: E402
-
-STROKE_DATA = ROOT / "js" / "src" / "stroke-data.raw.json"
-GLYPH_DATA = ROOT / "js" / "src" / "glyph-data.json"
-DEFAULT_OUTPUT = ROOT / "js" / "src" / "stroke-data.json"
+from jayasree.languages import data_paths, get_language  # noqa: E402
 
 N_SAMPLES = 120  # arc-length-uniform points sampled per stroke before center/smooth
 
+_ALL_STAGES: dict[str, bool] = {"center": True, "smooth": True, "straighten": True, "expand": True}
 PRESETS: dict[str, dict[str, bool]] = {
-    "malayalam": {"center": True, "smooth": True, "straighten": True, "expand": True},
+    "malayalam": _ALL_STAGES,  # historical name from this project's first (and, so far,
+    # only) language - kept working for existing docs/scripts; prefer "full" below for
+    # anything new, since these four stages are entirely script-agnostic.
+    "full": _ALL_STAGES,
 }
 
 
 def parse_args() -> argparse.Namespace:
-    """Parse CLI args, resolving `--preset` defaults for any stage flag left unset.
+    """Parse CLI args, resolving `--preset`/`--lang` defaults for anything left unset.
 
     Returns
     -------
     argparse.Namespace
         Parsed arguments, with every stage flag (``center``, ``smooth``,
-        ``straighten``, ``expand``) resolved to an explicit bool.
+        ``straighten``, ``expand``) resolved to an explicit bool, and
+        ``input``/``glyph_data``/``output`` resolved to concrete paths.
     """
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
@@ -81,9 +88,34 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--smooth", action=argparse.BooleanOptionalAction, default=None)
     parser.add_argument("--straighten", action=argparse.BooleanOptionalAction, default=None)
     parser.add_argument("--expand", action=argparse.BooleanOptionalAction, default=None)
-    parser.add_argument("--input", type=Path, default=STROKE_DATA)
-    parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
+    parser.add_argument(
+        "--lang",
+        default="malayalam",
+        help="Registry key from jayasree.languages.LANGUAGES - selects default "
+        "--input/--glyph-data/--output paths (default: malayalam).",
+    )
+    parser.add_argument(
+        "--input", type=Path, default=None, help="Defaults to --lang's stroke-data.raw.json"
+    )
+    parser.add_argument(
+        "--glyph-data",
+        type=Path,
+        default=None,
+        dest="glyph_data",
+        help="Defaults to --lang's glyph-data.json",
+    )
+    parser.add_argument(
+        "--output", type=Path, default=None, help="Defaults to --lang's stroke-data.json"
+    )
     args = parser.parse_args()
+
+    try:
+        lang_paths = data_paths(get_language(args.lang))
+    except ValueError as exc:
+        parser.error(str(exc))
+    args.input = args.input or lang_paths.stroke_data_raw
+    args.glyph_data = args.glyph_data or lang_paths.glyph_data
+    args.output = args.output or lang_paths.stroke_data
 
     preset = PRESETS.get(args.preset, {})
     for stage in ("center", "smooth", "straighten", "expand"):
@@ -155,13 +187,13 @@ def main() -> None:
     args.output = args.output.resolve()
     if not (args.center or args.smooth or args.straighten or args.expand):
         print(
-            "Nothing to do - pass --preset=malayalam or at least one stage flag.",
+            "Nothing to do - pass --preset=full or at least one stage flag.",
             file=sys.stderr,
         )
         sys.exit(1)
 
     stroke_data: dict = json.loads(args.input.read_text(encoding="utf-8"))
-    glyph_data: dict = json.loads(GLYPH_DATA.read_text(encoding="utf-8"))
+    glyph_data: dict = json.loads(args.glyph_data.read_text(encoding="utf-8"))
     clusters = glyph_data["clusters"]
     marks = glyph_data.get("marks", {})
 
