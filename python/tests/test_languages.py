@@ -7,7 +7,7 @@ from __future__ import annotations
 import pytest
 
 from jayasree import languages
-from jayasree.languages import LANGUAGES, char_tuple, data_paths, get_language
+from jayasree.languages import LANGUAGES, char_tuple, data_paths, get_language, language_by_code
 
 
 class TestGetLanguage:
@@ -23,6 +23,19 @@ class TestGetLanguage:
         """Ensure that an unknown language raises, listing what is registered."""
         with pytest.raises(ValueError, match="malayalam"):
             get_language("tamil")
+
+
+class TestLanguageByCode:
+    """language_by_code: registry lookup by short code (demo/serve.py's use case)."""
+
+    def test_returns_the_registered_spec(self) -> None:
+        """Ensure that a known code returns the same LanguageSpec as get_language."""
+        assert language_by_code("hi") is get_language("hindi")
+
+    def test_unknown_code_raises_with_available_list(self) -> None:
+        """Ensure that an unknown code raises, listing what is registered."""
+        with pytest.raises(ValueError, match="hi"):
+            language_by_code("ta")
 
 
 class TestCharTuple:
