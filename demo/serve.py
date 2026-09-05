@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import errno
 import json
+import socket
 import sys
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -199,12 +200,30 @@ def _bind_first_free_port(preferred_port: int) -> tuple[ThreadingHTTPServer, int
     )
 
 
+def _detect_lan_ip() -> str:
+    """Return this machine's outbound-facing IP, not just its hostname's.
+
+    `socket.gethostbyname(socket.gethostname())` resolves via /etc/hosts
+    first - on Debian/Ubuntu (WSL included), that maps the hostname to
+    127.0.1.1, a loopback address useless to any other device on the
+    network. Opening a UDP "connection" (no packet actually sent - UDP has
+    no handshake) to a public address and reading back the local endpoint
+    the OS picked is the standard way to ask "which of my interfaces would
+    traffic actually leave from," without depending on hostname/hosts-file
+    configuration at all.
+    """
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as probe:
+        try:
+            probe.connect(("8.8.8.8", 80))
+            return probe.getsockname()[0]
+        except OSError:
+            return "127.0.0.1"
+
+
 if __name__ == "__main__":
     requested_port = int(sys.argv[1]) if len(sys.argv) > 1 else 8000
     server, port = _bind_first_free_port(requested_port)
-    import socket
-
-    local_ip = socket.gethostbyname(socket.gethostname())
+    local_ip = _detect_lan_ip()
     print(f"jayasree demo running at http://127.0.0.1:{port}/demo/")
     print("On your tablet (same Wi-Fi), one link per registered language")
     print(
