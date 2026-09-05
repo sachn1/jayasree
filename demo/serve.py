@@ -9,12 +9,18 @@ copying it back by hand.
 
 from __future__ import annotations
 
+import errno
 import json
 import sys
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import unquote, urlparse
+
+#: How many ports past the requested one to try before giving up - covers
+#: "left yesterday's `make demo` running" and "something else is on 8000"
+#: without searching forever if the whole range happens to be occupied.
+_MAX_PORT_ATTEMPTS = 20
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_REPO_ROOT / "python" / "src"))
@@ -160,9 +166,42 @@ class DemoHandler(BaseHTTPRequestHandler):
         """Suppress default access-log output."""
 
 
+def _bind_first_free_port(preferred_port: int) -> tuple[ThreadingHTTPServer, int]:
+    """Bind to `preferred_port`, or the next free one if it's already in use.
+
+    A previous `make demo` you forgot to Ctrl+C, or anything else already
+    listening on 8000, would otherwise just crash this with a raw
+    `OSError: [Errno 98] Address already in use` traceback - annoying when
+    all you actually want is *a* working server, not that exact port
+    (nothing else in this project hardcodes 8000; the URLs printed below
+    always reflect whatever port is actually bound).
+
+    Parameters
+    ----------
+    preferred_port : int
+        The port to try first (from argv, or the 8000 default).
+
+    Returns
+    -------
+    tuple[ThreadingHTTPServer, int]
+        The bound server and the port it actually landed on.
+    """
+    for port in range(preferred_port, preferred_port + _MAX_PORT_ATTEMPTS):
+        try:
+            return ThreadingHTTPServer(("0.0.0.0", port), DemoHandler), port
+        except OSError as exc:
+            if exc.errno != errno.EADDRINUSE:
+                raise
+            print(f"Port {port} is already in use, trying {port + 1}...", file=sys.stderr)
+    raise SystemExit(
+        f"Ports {preferred_port}-{preferred_port + _MAX_PORT_ATTEMPTS - 1} are all in use - "
+        f"pass a different starting port: python demo/serve.py <port>"
+    )
+
+
 if __name__ == "__main__":
-    port = int(sys.argv[1]) if len(sys.argv) > 1 else 8000
-    server = ThreadingHTTPServer(("0.0.0.0", port), DemoHandler)
+    requested_port = int(sys.argv[1]) if len(sys.argv) > 1 else 8000
+    server, port = _bind_first_free_port(requested_port)
     import socket
 
     local_ip = socket.gethostbyname(socket.gethostname())
