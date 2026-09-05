@@ -70,32 +70,6 @@ const strokeData = {};
 let existingStrokeData = null;
 
 /**
- * This language's short code (glyph-data.<lang>.meta.langCode), used to
- * address demo/serve.py's `/api/save-strokes/<code>` endpoint. Null for a
- * legacy StrokeTrace file or any glyph-data.json predating this field -
- * "Save to server" and autosave both stay off in that case.
- *
- * @type {string | null}
- */
-let langCode = null;
-
-/**
- * Repo-root-relative path to this language's stroke-data.raw.json
- * (glyph-data.<lang>.meta.strokeDataUrl) - fetched once at load time, when
- * served over http(s), to auto-populate existingStrokeData without the
- * tracer needing to remember "Load existing strokes" first. Skipping that
- * step isn't just convenience: autosave/"Save to server" always overwrite
- * the whole file, so saving before existing strokes are merged in would
- * silently discard every cluster recorded in an earlier session.
- *
- * @type {string | null}
- */
-let strokeDataUrl = null;
-
-/** @type {number | null} */
-let autosaveTimer = null;
-
-/**
  * Get `strokeData[clusterStr]`, seeding it from `existingStrokeData` the
  * first time a character with already-recorded strokes is touched (viewed,
  * drawn on, erased, or undone).
@@ -394,136 +368,11 @@ function parseGlyphData(text) {
     ? `Add custom cluster, e.g. ${parsed.meta.exampleCustomCluster}`
     : "Add custom cluster";
 
-  langCode = parsed.meta?.langCode ?? null;
-  strokeDataUrl = parsed.meta?.strokeDataUrl ?? null;
-
   document.getElementById("drop-zone").classList.add("hidden");
   document.getElementById("recorder").classList.add("active");
   populateSelect();
   renderGlyph();
-  initServerSync();
 }
-
-// ---------------------------------------------------------------------------
-// Server sync ("Save to server" + autosave) - see demo/serve.py's
-// /api/save-strokes/<code> endpoint. Only meaningful when this page is
-// itself served over http(s) (e.g. `make demo`, reachable from a tablet on
-// the same Wi-Fi) - opened as a local file:// (including the standalone
-// bundle, which is designed to work fully offline) there is no server to
-// talk to, so this whole section is a no-op there.
-// ---------------------------------------------------------------------------
-
-/**
- * Build the full merged stroke library, exactly as the Export button does -
- * existing (loaded/fetched) data overlaid with the current session's edits.
- *
- * @returns {Record<string, { strokes: { d: string }[] }>}
- */
-function buildStrokeLibrary() {
-  const lib = existingStrokeData ? { ...existingStrokeData } : {};
-  for (const [name, strokes] of Object.entries(strokeData)) {
-    if (strokes.length) lib[name] = { strokes };
-  }
-  return lib;
-}
-
-/**
- * Set up "Save to server" + autosave for the language just loaded.
- *
- * Fetches this language's committed stroke-data.raw.json from the same
- * origin first (when nothing's been loaded/merged yet) so a save can never
- * silently discard clusters recorded in an earlier session - see
- * `strokeDataUrl`'s docstring. Safe to call every time a new glyph-data
- * file is loaded; re-arms the button/timer for whichever language is
- * current.
- */
-function initServerSync() {
-  if (autosaveTimer) {
-    clearInterval(autosaveTimer);
-    autosaveTimer = null;
-  }
-  const btn = document.getElementById("save-server-btn");
-  const isServed = location.protocol === "http:" || location.protocol === "https:";
-  if (!isServed || !langCode) {
-    btn.disabled = true;
-    btn.title = !langCode
-      ? "This glyph-data file predates the save-to-server feature - regenerate it to enable this"
-      : "Only available when this page is served over http(s), e.g. `make demo`";
-    return;
-  }
-  btn.disabled = false;
-  btn.title = "";
-
-  const afterMerge = () => {
-    if (trace) {
-      populateSelect();
-      renderGlyph();
-    }
-    autosaveTimer = setInterval(() => saveToServer(true), 20000);
-  };
-
-  if (existingStrokeData === null && strokeDataUrl) {
-    fetch(`/${strokeDataUrl}`)
-      .then((res) => (res.ok ? res.json() : res.status === 404 ? {} : Promise.reject(res.statusText)))
-      .then((data) => {
-        existingStrokeData = data;
-        const count = Object.keys(existingStrokeData).length;
-        document.getElementById("merge-status").textContent =
-          `✓ ${count} existing cluster(s) auto-loaded from server - save will merge`;
-        afterMerge();
-      })
-      .catch((err) => {
-        // Couldn't confirm what the server already has - still start
-        // autosave (it merges whatever existingStrokeData ends up being,
-        // even if that stays null/{} for this session), but say so.
-        document.getElementById("server-save-status").textContent =
-          `⚠ couldn't fetch existing strokes from server (${err}) - saves this session may not include earlier work until you reload`;
-        afterMerge();
-      });
-  } else {
-    afterMerge();
-  }
-}
-
-/**
- * POST the full merged stroke library to demo/serve.py's save endpoint.
- *
- * @param {boolean} silent - Suppress the failure alert (used by autosave/
- *   pagehide; the explicit "Save to server" button click passes false).
- */
-async function saveToServer(silent) {
-  if (!langCode) return;
-  const statusEl = document.getElementById("server-save-status");
-  try {
-    const res = await fetch(`/api/save-strokes/${langCode}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(buildStrokeLibrary()),
-    });
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      throw new Error(body.error || res.statusText);
-    }
-    statusEl.textContent = `✓ saved to server at ${new Date().toLocaleTimeString()}`;
-    statusEl.classList.remove("status-missing");
-    statusEl.classList.add("status-recorded");
-  } catch (err) {
-    statusEl.textContent = `⚠ save to server failed: ${err.message}`;
-    statusEl.classList.remove("status-recorded");
-    statusEl.classList.add("status-missing");
-    if (!silent) alert(`Could not save to server: ${err.message}`);
-  }
-}
-
-// Best-effort save on tab close/backgrounding (mobile browsers fire
-// pagehide far more reliably than beforeunload) - sendBeacon queues the
-// request to survive the page actually unloading, which a normal fetch
-// isn't guaranteed to do.
-window.addEventListener("pagehide", () => {
-  if (!langCode || !(location.protocol === "http:" || location.protocol === "https:")) return;
-  const blob = new Blob([JSON.stringify(buildStrokeLibrary())], { type: "application/json" });
-  navigator.sendBeacon(`/api/save-strokes/${langCode}`, blob);
-});
 
 /**
  * Load a File object as text and hand it to parseGlyphData.
@@ -541,49 +390,6 @@ function loadFile(file) {
     }
   };
   reader.readAsText(file);
-}
-
-/**
- * Compute this repo's glyph-data path for a language code, mirroring
- * python/src/jayasree/languages.py's data_paths() (unsuffixed for the
- * primary language, `.<code>` suffixed for every other one). Duplicated
- * rather than imported, for the same reason tools/validate_data.py's own
- * `_PRIMARY_CODE` is duplicated there: this runs in a browser, with no way
- * to reach into the Python registry.
- *
- * @param {string} code - A `LanguageSpec.code`, e.g. "hi".
- * @returns {string} Repo-root-relative path, e.g. "js/src/glyph-data.hi.json".
- */
-function glyphDataPathForLangCode(code) {
-  const PRIMARY_CODE = "ml";
-  return code === PRIMARY_CODE ? "js/src/glyph-data.json" : `js/src/glyph-data.${code}.json`;
-}
-
-/**
- * If the page URL has `?lang=<code>`, fetch that language's glyph-data.json
- * from this same server and load it, skipping the drop-zone entirely.
- *
- * This matters specifically on a tablet: its file picker only ever sees
- * the tablet's own local storage, not this server's - so without this,
- * getting the recorder onto a tablet at all over Wi-Fi (see demo/serve.py's
- * printed `?lang=` links) would still require copying glyph-data.<lang>.json
- * onto the tablet by hand first, defeating the point.
- */
-function applyLangParam() {
-  const code = new URLSearchParams(location.search).get("lang");
-  if (!code) return;
-  if (!(location.protocol === "http:" || location.protocol === "https:")) {
-    alert(`?lang=${code} needs this page to be served over http(s), e.g. \`make demo\` - ignoring it.`);
-    return;
-  }
-  const path = glyphDataPathForLangCode(code);
-  fetch(`/${path}`)
-    .then((res) => {
-      if (!res.ok) throw new Error(`${path}: ${res.status} ${res.statusText}`);
-      return res.text();
-    })
-    .then((text) => parseGlyphData(text))
-    .catch((err) => alert(`Could not auto-load ?lang=${code}: ${err.message}`));
 }
 
 // ---------------------------------------------------------------------------
@@ -1068,14 +874,17 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   document.getElementById("export-btn").addEventListener("click", () => {
-    const out = JSON.stringify(buildStrokeLibrary(), null, 2);
+    // Start from existing file data (if loaded), then overlay current session.
+    const lib = existingStrokeData ? { ...existingStrokeData } : {};
+    for (const [name, strokes] of Object.entries(strokeData)) {
+      if (strokes.length) lib[name] = { strokes };
+    }
+    const out = JSON.stringify(lib, null, 2);
     document.getElementById("export-output").value = out;
     const area = document.getElementById("export-area");
     area.style.display = "block";
     area.scrollIntoView({ behavior: "smooth" });
   });
-
-  document.getElementById("save-server-btn").addEventListener("click", () => saveToServer(false));
 
   document.getElementById("download-btn").addEventListener("click", () => {
     const text = document.getElementById("export-output").value;
@@ -1173,6 +982,4 @@ document.addEventListener("DOMContentLoaded", () => {
     };
     reader.readAsText(file);
   });
-
-  applyLangParam();
 });

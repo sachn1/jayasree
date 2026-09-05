@@ -159,36 +159,6 @@ def get_language(name: str) -> LanguageSpec:
         raise ValueError(f"Unknown language {name!r}. Available: {available}.") from None
 
 
-def language_by_code(code: str) -> LanguageSpec:
-    """Look up a registered language by its short `code` (e.g. ``"hi"``).
-
-    Complements `get_language()`, which looks up by registry key (e.g.
-    ``"hindi"`) - used where only the short code is naturally available,
-    e.g. `demo/serve.py`'s save-strokes endpoint, which gets it from the
-    request URL rather than a full language name.
-
-    Parameters
-    ----------
-    code : str
-        Short identifier, e.g. ``"hi"``.
-
-    Returns
-    -------
-    LanguageSpec
-        The matching entry.
-
-    Raises
-    ------
-    ValueError
-        If no registered language has this code.
-    """
-    for lang in LANGUAGES.values():
-        if lang.code == code:
-            return lang
-    available = ", ".join(sorted(spec.code for spec in LANGUAGES.values())) or "(none registered)"
-    raise ValueError(f"Unknown language code {code!r}. Available: {available}.")
-
-
 def char_tuple(module: ModuleType, attr: str) -> tuple[str, ...]:
     """Return `module.<attr>` if the language module defines it, else `()`.
 

@@ -171,15 +171,6 @@ code {
   margin-left: auto;
 }
 
-.server-save-status {
-  font-size: 0.78rem;
-  margin-top: 0.3rem;
-  min-height: 1.1em;
-}
-
-/* Colored via .status-recorded/.status-missing (defined above), toggled by
-   stroke-recorder.js's saveToServer() - kept unset here so those two win. */
-
 /* ── Buttons ── */
 
 button {

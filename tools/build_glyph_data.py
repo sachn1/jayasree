@@ -605,21 +605,6 @@ def main() -> None:
     if lang.example_custom_cluster:
         result["meta"]["exampleCustomCluster"] = lang.example_custom_cluster
 
-    # Lets tools/stroke-recorder.js know which language it's recording for
-    # without guessing from the cluster text - used to address
-    # demo/serve.py's /api/save-strokes/<code> endpoint (see that file's
-    # docstring) so "Save to server" writes the right language's
-    # stroke-data.<code>.raw.json rather than needing the tracer to say.
-    result["meta"]["langCode"] = lang.code
-    # Repo-root-relative, so the recorder (served from anywhere under the
-    # repo root - see demo/serve.py's _serve_static) can fetch this
-    # language's already-committed strokes with a single absolute path,
-    # `/${strokeDataUrl}`, and merge them in before the first save - see
-    # tools/stroke-recorder.js's `strokeDataUrl` docstring for why that
-    # matters (an unmerged save would otherwise silently discard earlier
-    # work).
-    result["meta"]["strokeDataUrl"] = data_paths(lang).stroke_data_raw.relative_to(ROOT).as_posix()
-
     note = _recorder_note(lang)
     if note:
         result["meta"]["recorderNote"] = note
