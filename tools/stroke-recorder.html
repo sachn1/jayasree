@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="stroke-recorder.css" />
   </head>
   <body>
-    <h1>Stroke Recorder - ജയശ്രീ</h1>
+    <h1>Stroke Recorder - <span id="project-name-native">ജയശ്രീ</span></h1>
     <p class="sub">
       Draw over each ghosted glyph to record how it is written. Each
       pen-down→pen-up gesture becomes one stroke. Export when done and save
@@ -34,6 +34,7 @@
         </div>
         <button id="next-btn">Next ▶</button>
       </div>
+      <p id="recorder-note" class="recorder-note" hidden></p>
       <div class="filter-row">
         <label>
           <input type="checkbox" id="show-all-toggle" />
@@ -63,9 +64,15 @@
         <span id="merge-status"></span>
       </div>
       <div class="add-cluster">
-        <input type="text" id="add-input" placeholder="Add custom cluster, e.g. ന്ന" />
+        <input type="text" id="add-input" placeholder="Add custom cluster" />
         <button id="add-btn">+ Add</button>
       </div>
+      <p class="hint add-cluster-hint">
+        A "custom cluster" is any character sequence you type in that isn't
+        already in this list - e.g. to spot-check a specific conjunct or
+        word part. It's added with no ghost outline (nothing was pre-shaped
+        for it from the font), so you draw it freehand.
+      </p>
     </div>
 
     <div id="export-area">

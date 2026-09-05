@@ -117,6 +117,23 @@ code {
   font-weight: 600;
 }
 
+/* ── Per-language recorder banner (e.g. Hindi's shirorekha notice) ── */
+
+.recorder-note {
+  background: #fffbeb;
+  border: 1px solid #f5c451;
+  color: #92400e;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  margin-bottom: 0.6rem;
+}
+
+.recorder-note[hidden] {
+  display: none;
+}
+
 #canvas-wrap {
   border: 1px solid #e0daf5;
   border-radius: 12px;
@@ -293,6 +310,11 @@ button#eraser-btn.active {
 #add-input:focus {
   outline: 2px solid #6d28d9;
   border-color: transparent;
+}
+
+.add-cluster-hint {
+  text-align: left;
+  margin-top: 0.3rem;
 }
 
 /* ── Merge section (export area) ── */

@@ -347,14 +347,17 @@ Post-recording, once real strokes exist, run the identical check against
 - `docs/languages/hi/reduced-atom-list.txt` (grouped, commented) and `.flat.txt` (the literal `--simulate-atoms` input).
 - `docs/languages/hi/coverage-report-pre-recording.txt`.
 - `python/src/jayasree/_chars_hi.py`, registered in `python/src/jayasree/languages.py` as `"hindi"` (code `hi`, carrier consonant क, `default_font` pointing at the vendored Annapurna SIL fixture).
+- The shirorekha notice: `profile.md`'s "Shirorekha (headline)" section agreed tracers should skip the top line entirely (it's a synthetic, word-level stroke — see `shirorekha-report.md`), but every ghost outline still *shows* it, since it's part of the font's own glyph. `tools/build_glyph_data.py`'s `_recorder_note()` now writes that instruction into `glyph-data.hi.json`'s `meta.recorderNote` (gated behind `lang.code == "hi"`, absent for Malayalam), and `tools/stroke-recorder.{html,css,js}` render it as a persistent banner whenever a loaded glyph-data file has one — generic, data-driven, no Hindi-specific string in the recorder tool itself. Also baked into the regenerated `tools/stroke-recorder-standalone.hi.html`.
+- Two more recorder-UI strings that were previously Malayalam-hardcoded are now per-language data, not tool code: `LanguageSpec.native_name` (this project's own name, "Jayasree," spelled in each script — "जयश्री" for Hindi, "ജയശ്രീ" for Malayalam) drives the page title/`<h1>` via `meta.projectNameNative`, and `LanguageSpec.example_custom_cluster` (a valid example cluster in that script, "क्त" for Hindi — Malayalam's own "ന്ന" isn't valid Devanagari) drives the "Add custom cluster" placeholder via `meta.exampleCustomCluster`. Both are written unconditionally for every registered language (unlike the shirorekha note above), and `js/src/glyph-data.json` (Malayalam) was regenerated too so the mechanism has no special-cased fallback. The "Add custom cluster" row also got a static, script-independent explanation of what a custom cluster actually is (no ghost outline; for spot-checking a cluster outside the reduced set).
 
 ## Using the stroke recorder
 
 `tools/stroke-recorder.html` works against `glyph-data.hi.json` with no
-changes — it's already fully generic (confirmed by reading
-`tools/stroke-recorder.js`: no Malayalam-specific assumptions anywhere,
-its "reduced set" filter is derived purely from whatever `marks{}` the
-loaded glyph-data itself defines). Drop `js/src/glyph-data.hi.json` onto
+Hindi-specific logic hardcoded into it (confirmed by reading
+`tools/stroke-recorder.js`: its "reduced set" filter and the shirorekha
+banner above are both derived purely from whatever `marks{}`/
+`meta.recorderNote` the loaded glyph-data itself defines). Drop
+`js/src/glyph-data.hi.json` onto
 it (or use its file picker) to start tracing.
 
 `tools/build_standalone_recorder.py` didn't support a second language

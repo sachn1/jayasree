@@ -17,7 +17,10 @@ mechanism as Malayalam's chillu spelling; and half-forms/reph (see
 `docs/languages/hi/labeling-worklist.md`'s "headline finding" showed
 neither fits the mark-recipe model rakaar/nukta reuse - see
 `docs/languages/hi/composition-primitives-report.md` for the verification
-behind that table's design.
+behind that table's design; and a `meta.recorderNote` banner text (see
+`_recorder_note()`) tells tools/stroke-recorder.js's tracer to skip the
+shirorekha, which is a synthesized word-level stroke, not a per-character
+one (docs/languages/hi/shirorekha-report.md).
 """
 
 from __future__ import annotations
@@ -406,6 +409,23 @@ _HI_REPH_CONSONANT = "र"
 #: consonants before "य" is ever reached).
 _HI_HALFFORM_EXCLUDED_PAIRS = {(chr(0x95C), "य"), (chr(0x95D), "य")}
 
+#: Shown by tools/stroke-recorder.js as a persistent banner while this
+#: language's data is loaded - the shirorekha (headline) is a *synthetic,
+#: word-level* stroke by design (docs/languages/hi/profile.md's "Shirorekha
+#: (headline)" section, feasibility verified in
+#: docs/languages/hi/shirorekha-report.md), never a per-character traced
+#: one. Every ghost outline still shows it (it's part of the font's own
+#: glyph outline), so without an explicit notice a tracer has no way to
+#: know to skip it - written into glyph-data.json as `meta.recorderNote`
+#: (present only for a language that needs one) rather than hardcoded in
+#: the recorder tool, which stays script-agnostic.
+_HI_RECORDER_NOTE = (
+    "Devanagari's shirorekha (the horizontal line along the top of each "
+    "letter) is generated automatically when words are composed - do not "
+    "trace it. Skip the top line entirely for every character; only draw "
+    "the strokes below it."
+)
+
 
 def _extract_ghost(own_glyph: dict, other_glyph: dict) -> dict:
     """Build a standalone-ghost-shaped entry for one glyph pulled out of an
@@ -530,6 +550,18 @@ def _runtime_quirks(lang: LanguageSpec, chars: object, shaped_clusters: dict) ->
     return quirks
 
 
+def _recorder_note(lang: LanguageSpec) -> str | None:
+    """Return the recorder-banner text for `lang`, or None if it needs none.
+
+    Separate from `_runtime_quirks()` on purpose - that function's output
+    feeds js/src/index.js's runtime composer; this one is read only by
+    tools/stroke-recorder.js and has no effect on composition.
+    """
+    if lang.code == "hi":
+        return _HI_RECORDER_NOTE
+    return None
+
+
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -564,6 +596,18 @@ def main() -> None:
     result = _shape_all(inputs, str(font_path))
     result["marks"] = _build_marks(_composable_marks(lang, chars), str(font_path))
     result.update(_runtime_quirks(lang, chars, result["clusters"]))
+
+    # Read by tools/stroke-recorder.js for the page title/heading and the
+    # "Add custom cluster" placeholder - present for every language (not
+    # gated), so the recorder never falls back to a different script's text.
+    if lang.native_name:
+        result["meta"]["projectNameNative"] = lang.native_name
+    if lang.example_custom_cluster:
+        result["meta"]["exampleCustomCluster"] = lang.example_custom_cluster
+
+    note = _recorder_note(lang)
+    if note:
+        result["meta"]["recorderNote"] = note
 
     out_path = data_paths(lang).glyph_data
     out_path.write_text(json.dumps(result, ensure_ascii=False, separators=(",", ":")))

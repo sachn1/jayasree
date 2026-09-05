@@ -81,6 +81,18 @@ class LanguageSpec:
     #: `--font` explicitly until its own ghost font is chosen (see
     #: `docs/LANGUAGE_ONBOARDING_AGENTS.md`'s Agent 2).
     default_font: str | None = None
+    #: This project's own name ("Jayasree"), spelled in this language's own
+    #: script - shown by tools/stroke-recorder.js as the page title/heading
+    #: (via glyph-data.<lang>.json's `meta.projectNameNative`, written by
+    #: `tools/build_glyph_data.py`). Never assume one script's spelling
+    #: transfers to another.
+    native_name: str = ""
+    #: A short, valid example cluster in this script - shown by
+    #: tools/stroke-recorder.js as the "Add custom cluster" input's
+    #: placeholder (via `meta.exampleCustomCluster`), so the hint text is
+    #: never a different script's example (e.g. Malayalam's ന്ന isn't valid
+    #: Devanagari).
+    example_custom_cluster: str = ""
 
     def chars(self) -> ModuleType:
         """Import and return this language's character-inventory module."""
@@ -98,6 +110,8 @@ LANGUAGES: dict[str, LanguageSpec] = {
         chars_module="jayasree._chars",
         carrier_consonant="ക",
         default_font="python/tests/fixtures/Manjari-Regular.ttf",
+        native_name="ജയശ്രീ",
+        example_custom_cluster="ന്ന",
     ),
     "hindi": LanguageSpec(
         code="hi",
@@ -107,6 +121,8 @@ LANGUAGES: dict[str, LanguageSpec] = {
         # plays - used to shape marks/matras in isolation.
         carrier_consonant="क",
         default_font="python/tests/fixtures/AnnapurnaSIL-Regular.ttf",
+        native_name="जयश्री",
+        example_custom_cluster="क्त",
     ),
     # Planned, not yet onboarded - see docs/LANGUAGE_ONBOARDING_AGENTS.md's
     # target roster (Tamil, Telugu, Kannada, Bengali, Sanskrit, one at a
