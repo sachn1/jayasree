@@ -543,6 +543,49 @@ function loadFile(file) {
   reader.readAsText(file);
 }
 
+/**
+ * Compute this repo's glyph-data path for a language code, mirroring
+ * python/src/jayasree/languages.py's data_paths() (unsuffixed for the
+ * primary language, `.<code>` suffixed for every other one). Duplicated
+ * rather than imported, for the same reason tools/validate_data.py's own
+ * `_PRIMARY_CODE` is duplicated there: this runs in a browser, with no way
+ * to reach into the Python registry.
+ *
+ * @param {string} code - A `LanguageSpec.code`, e.g. "hi".
+ * @returns {string} Repo-root-relative path, e.g. "js/src/glyph-data.hi.json".
+ */
+function glyphDataPathForLangCode(code) {
+  const PRIMARY_CODE = "ml";
+  return code === PRIMARY_CODE ? "js/src/glyph-data.json" : `js/src/glyph-data.${code}.json`;
+}
+
+/**
+ * If the page URL has `?lang=<code>`, fetch that language's glyph-data.json
+ * from this same server and load it, skipping the drop-zone entirely.
+ *
+ * This matters specifically on a tablet: its file picker only ever sees
+ * the tablet's own local storage, not this server's - so without this,
+ * getting the recorder onto a tablet at all over Wi-Fi (see demo/serve.py's
+ * printed `?lang=` links) would still require copying glyph-data.<lang>.json
+ * onto the tablet by hand first, defeating the point.
+ */
+function applyLangParam() {
+  const code = new URLSearchParams(location.search).get("lang");
+  if (!code) return;
+  if (!(location.protocol === "http:" || location.protocol === "https:")) {
+    alert(`?lang=${code} needs this page to be served over http(s), e.g. \`make demo\` - ignoring it.`);
+    return;
+  }
+  const path = glyphDataPathForLangCode(code);
+  fetch(`/${path}`)
+    .then((res) => {
+      if (!res.ok) throw new Error(`${path}: ${res.status} ${res.statusText}`);
+      return res.text();
+    })
+    .then((text) => parseGlyphData(text))
+    .catch((err) => alert(`Could not auto-load ?lang=${code}: ${err.message}`));
+}
+
 // ---------------------------------------------------------------------------
 // Rendering
 // ---------------------------------------------------------------------------
@@ -1130,4 +1173,6 @@ document.addEventListener("DOMContentLoaded", () => {
     };
     reader.readAsText(file);
   });
+
+  applyLangParam();
 });

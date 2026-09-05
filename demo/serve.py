@@ -26,7 +26,7 @@ _REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_REPO_ROOT / "python" / "src"))
 
 from jayasree import shape_word  # noqa: E402
-from jayasree.languages import data_paths, language_by_code  # noqa: E402
+from jayasree.languages import LANGUAGES, data_paths, language_by_code  # noqa: E402
 
 FONT_PATH = _REPO_ROOT / "python" / "tests" / "fixtures" / "Manjari-Regular.ttf"
 
@@ -206,7 +206,15 @@ if __name__ == "__main__":
 
     local_ip = socket.gethostbyname(socket.gethostname())
     print(f"jayasree demo running at http://127.0.0.1:{port}/demo/")
-    print(f"On your tablet (same Wi-Fi): http://{local_ip}:{port}/tools/stroke-recorder.html")
+    print("On your tablet (same Wi-Fi), one link per registered language")
+    print(
+        "(?lang=<code> tells the recorder which glyph-data*.json to fetch"
+        " automatically - see tools/stroke-recorder.js's applyLangParam):"
+    )
+    for lang in sorted(LANGUAGES.values(), key=lambda spec: spec.name):
+        print(
+            f"  {lang.name}: http://{local_ip}:{port}/tools/stroke-recorder.html?lang={lang.code}"
+        )
     print("Ctrl+C to stop.")
     try:
         server.serve_forever()

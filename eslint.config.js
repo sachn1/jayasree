@@ -6,6 +6,7 @@ const browserGlobals = {
   console: "readonly",
   fetch: "readonly",
   URL: "readonly",
+  URLSearchParams: "readonly",
   navigator: "readonly",
   requestAnimationFrame: "readonly",
   performance: "readonly",
