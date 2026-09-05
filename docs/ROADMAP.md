@@ -126,7 +126,7 @@ caution against generalizing from Malayalam's Dravidian-specific quirks.
 **Phase 0 (the code-parametrization prerequisite) is done**: `_chars.py`,
 `build_glyph_data.py`, `cli.py`, `process_strokes.py`, and `validate_data.py`
 are all language-parametrized now (`jayasree.languages`'s registry +
-`--lang`/`LANG=`), with Malayalam's own committed filenames kept unsuffixed
+`--lang`/`PROJECT_LANG=`), with Malayalam's own committed filenames kept unsuffixed
 for backward compatibility. `index.js` was audited and needed no changes -
 its segmentation was already fully data-driven, not the hardcoded
 Malayalam-only regex this section used to warn about. See that doc's

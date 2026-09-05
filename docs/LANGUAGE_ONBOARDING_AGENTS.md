@@ -224,10 +224,15 @@ under pressure during it. What changed:
   regex bounds in index.js" turned out not to describe anything that
   actually exists there.
 - **Makefile** - `build-glyph-data`, `process-strokes`, `update-snapshot`
-  now accept `LANG=<name>`, defaulting to `malayalam` everywhere (`make
-  build-glyph-data` behaves exactly as before if `LANG` is omitted).
+  now accept `PROJECT_LANG=<name>`, defaulting to `malayalam` everywhere
+  (`make build-glyph-data` behaves exactly as before if `PROJECT_LANG` is
+  omitted). Named `PROJECT_LANG`, not `LANG` - the latter was tried first
+  and silently broken on any machine where the shell's own locale `LANG`
+  env var is set (nearly all of them), since make inherits environment
+  variables of the same name ahead of a Makefile's own default; renamed to
+  avoid that collision entirely rather than document around it.
   `validate-data` (plain, no `--update-snapshot`) always checks every
-  language found on disk regardless of `LANG`.
+  language found on disk regardless of `PROJECT_LANG`.
 - **Tests** - `python/tests/test_languages.py` (new) and additions to
   `test_validate_data.py`/`test_cli.py` cover the registry, the
   discovery/path logic, and the new `--lang` argument's error handling.

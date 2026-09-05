@@ -144,7 +144,7 @@ done): `python/src/jayasree/languages.py`'s `LANGUAGES` registry is the
 single source of truth mapping a language name to its character-inventory
 module and its data-file paths (unsuffixed for Malayalam, `.{code}`-suffixed
 for anything else). `build_glyph_data.py`, `cli.py alphabet`, and
-`process_strokes.py` all take `--lang`/`Makefile`'s `LANG=`; `validate_data.py`
+`process_strokes.py` all take `--lang`/`Makefile`'s `PROJECT_LANG=`; `validate_data.py`
 auto-discovers whichever languages' files exist under `js/src/` (and stays
 dependency-free/stdlib-only on purpose - see its module docstring - since
 the pre-commit hook runs it with bare `python3`, no guaranteed `uharfbuzz`).
