@@ -1,5 +1,5 @@
 Coverage report (simulated) - js/src/glyph-data.hi.json
-  seeded 174 simulated atoms
+  seeded 183 simulated atoms
   2443 total clusters
-  134 direct, 2309 composed, 0 fallback
+  144 direct, 2299 composed, 0 fallback
   coverage: 2443/2443 (100.0%)

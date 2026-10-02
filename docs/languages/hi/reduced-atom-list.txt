@@ -113,19 +113,17 @@
 # C1_double_danda_direct_for_now (1)
 ॥
 
-# D1_akhand_fused_ligatures (41)
-क्क
-क्त
+# D1_akhand_fused_ligatures (47)
 क्ष
 ङ्क
 ङ्ख
 ङ्ग
 ङ्घ
-ङ्ङ
+ङ्म
 ङ्य
-ङ्ह
-च्च
+च्छ
 छ्य
+छ्व
 ज्ञ
 ट्ट
 ट्ठ
@@ -133,34 +131,46 @@
 ठ्ठ
 ठ्य
 ड्ड
+ड्ढ
 ड्य
+ढ्ढ
 ढ्य
 त्त
+द्ग
+द्घ
 द्द
 द्ध
+द्ब
+द्भ
 द्म
 द्य
 द्व
 न्न
-प्त
-म्ल
-ल्ल
+प्न
+ब्ध
+व्य
 श्च
+श्न
+श्ल
 श्व
 ष्ट
 ष्ठ
-स्न
+ह्ण
 ह्न
 ह्म
 ह्य
 ह्ल
 ह्व
 
-# D2_halfform_ligature_exceptions (2)
-ड़्य
-ढ़्य
+# D2_halfform_ligature_exceptions (6)
+छ्र
+ज्ज
+ज़्ज
+न्थ
+न्ध
+म्भ
 
-# E1_contextual_form_halfform_atoms (39)
+# E1_contextual_form_halfform_atoms (38)
 क्
 ख्
 ग्
@@ -178,7 +188,6 @@
 ण्
 त्
 थ्
-द्
 ध्
 न्
 प्
@@ -203,4 +212,3 @@
 
 # E2_contextual_form_reph_atom (1)
 र्
-
