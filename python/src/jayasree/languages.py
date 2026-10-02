@@ -131,7 +131,7 @@ LANGUAGES: dict[str, LanguageSpec] = {
         # Renders as a single glyph standalone, same role Malayalam's ക
         # plays - used to shape marks/matras in isolation.
         carrier_consonant="क",
-        default_font="python/tests/fixtures/AnnapurnaSIL-Regular.ttf",
+        default_font="python/tests/fixtures/NotoSansDevanagari-Regular.ttf",
         native_name="जयश्री",
         example_custom_cluster="क्त",
     ),
