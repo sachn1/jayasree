@@ -23,15 +23,17 @@ every category `_chars.py` (Malayalam's) happens to have:
 
 This list isn't closed - it's exactly Malayalam's own categories, not a
 fixed schema. Hindi's onboarding (`docs/languages/hi/`) already needed
-three more that `tools/build_glyph_data.py` also recognizes if present:
+four more that `tools/build_glyph_data.py` also recognizes if present:
 `CANDRABINDU` (a second nasalization mark, phonemically distinct from
 anusvara), `NUKTA` (a combining loanword-sound diacritic attached to
-consonants, e.g. क + ़ = क़), and `NATIVE_PUNCTUATION` (script-owned
+consonants, e.g. क + ़ = क़), `NATIVE_PUNCTUATION` (script-owned
 punctuation like Devanagari's danda - distinct from the shared-Latin
-`UNIVERSAL_CHARS` in `index.js`, and gets a real recorded stroke). Expect
-a future script to introduce further new category names the same way;
-add support for a new one in `build_glyph_data.py` when a real profile
-needs it, not speculatively ahead of one.
+`UNIVERSAL_CHARS` in `index.js`, and gets a real recorded stroke), and
+`RARE_MARKS` (standalone marks that don't fit any other category, e.g.
+Devanagari's avagraha/Om). Expect a future script to introduce further new
+category names the same way; add support for a new one in
+`build_glyph_data.py` when a real profile needs it, not speculatively
+ahead of one.
 
 Only `INDEPENDENT_VOWELS`, `CONSONANTS`, `MATRAS`, and `VIRAMA` are
 load-bearing for a script to be shapeable at all; see `char_tuple()` below
@@ -79,6 +81,18 @@ class LanguageSpec:
     #: `--font` explicitly until its own ghost font is chosen (see
     #: `docs/LANGUAGE_ONBOARDING_AGENTS.md`'s Agent 2).
     default_font: str | None = None
+    #: This project's own name ("Jayasree"), spelled in this language's own
+    #: script - shown by tools/stroke-recorder.js as the page title/heading
+    #: (via glyph-data.<lang>.json's `meta.projectNameNative`, written by
+    #: `tools/build_glyph_data.py`). Never assume one script's spelling
+    #: transfers to another.
+    native_name: str = ""
+    #: A short, valid example cluster in this script - shown by
+    #: tools/stroke-recorder.js as the "Add custom cluster" input's
+    #: placeholder (via `meta.exampleCustomCluster`), so the hint text is
+    #: never a different script's example (e.g. Malayalam's ന്ന isn't valid
+    #: Devanagari).
+    example_custom_cluster: str = ""
 
     def chars(self) -> ModuleType:
         """Import and return this language's character-inventory module."""
@@ -96,10 +110,23 @@ LANGUAGES: dict[str, LanguageSpec] = {
         chars_module="jayasree._chars",
         carrier_consonant="ക",
         default_font="python/tests/fixtures/Manjari-Regular.ttf",
+        native_name="ജയശ്രീ",
+        example_custom_cluster="ന്ന",
+    ),
+    "hindi": LanguageSpec(
+        code="hi",
+        name="Hindi",
+        chars_module="jayasree._chars_hi",
+        # Renders as a single glyph standalone, same role Malayalam's ക
+        # plays - used to shape marks/matras in isolation.
+        carrier_consonant="क",
+        default_font="python/tests/fixtures/NotoSansDevanagari-Regular.ttf",
+        native_name="जयश्री",
+        example_custom_cluster="क्त",
     ),
     # Planned, not yet onboarded - see docs/LANGUAGE_ONBOARDING_AGENTS.md's
-    # target roster (Hindi, Tamil, Telugu, Kannada, Bengali, Sanskrit, one
-    # at a time - and more beyond that). Add a real entry (plus its own
+    # target roster (Tamil, Telugu, Kannada, Bengali, Sanskrit, one at a
+    # time - and more beyond that). Add a real entry (plus its own
     # `_chars_<code>.py`) only once that pipeline's Agent 1/2/3 stages have
     # actually run for one of these; a bare registry entry with no
     # character-inventory module would just fail loudly on first use, so
