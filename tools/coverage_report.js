@@ -8,9 +8,10 @@
  * "standing coverage gate" docs/ROADMAP.md's "Bug-report -> data pipeline"
  * section describes and flags as not-yet-built. Reuses the exact runtime
  * composition functions (`_internal.tryComposeStroke`/
- * `tryComposeFromCharacters`) js/src/index.js's `buildStage` calls - this
- * script is not a reimplementation of that logic, just a driver over every
- * cluster instead of the ones one word happens to use.
+ * `tryComposeContextualForm`/`tryComposeFromCharacters`) js/src/index.js's
+ * `buildStage` calls - this script is not a reimplementation of that logic,
+ * just a driver over every cluster instead of the ones one word happens to
+ * use.
  *
  * Two uses (see docs/LANGUAGE_ONBOARDING_AGENTS.md's Agent 3 section):
  *
@@ -36,7 +37,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { STROKE_LIBRARY, _internal } from "../js/src/index.js";
 
-const { tryComposeStroke, tryComposeFromCharacters } = _internal;
+const { tryComposeStroke, tryComposeContextualForm, tryComposeFromCharacters } = _internal;
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 
@@ -94,15 +95,19 @@ function populateStrokeLibrary(opts) {
 
 function classify(cluster, glyphData) {
   if (STROKE_LIBRARY[cluster]?.strokes?.length) return { status: "direct" };
-  const composed = tryComposeStroke(cluster, glyphData) ?? tryComposeFromCharacters(cluster, glyphData);
+  const composed =
+    tryComposeStroke(cluster, glyphData) ??
+    tryComposeContextualForm(cluster, glyphData) ??
+    tryComposeFromCharacters(cluster, glyphData);
   if (composed?.strokes?.length) return { status: "composed" };
   return { status: "fallback", reason: fallbackReason(cluster, glyphData) };
 }
 
 /** Best-effort explanation for why a cluster couldn't compose - mirrors the
- * checks tryComposeStroke/tryComposeFromCharacters themselves make. */
+ * checks tryComposeStroke/tryComposeContextualForm/tryComposeFromCharacters
+ * themselves make. */
 function fallbackReason(cluster, glyphData) {
-  const { clusters, marks } = glyphData;
+  const { clusters, marks, contextualForms } = glyphData;
   if (![...cluster].every((ch) => STROKE_LIBRARY[ch] || clusters[ch])) {
     return "contains a character with no glyph-data entry at all";
   }
@@ -117,7 +122,17 @@ function fallbackReason(cluster, glyphData) {
       return `mark ${JSON.stringify(markKey)} recipe exists but composition itself failed - investigate directly`;
     }
   }
-  if ([...cluster].length !== (clusters[cluster]?.glyphs.length ?? -1)) {
+  const chars = [...cluster];
+  if (contextualForms && chars.length === 3 && clusters[cluster]?.glyphs.length === 2) {
+    const trigger = chars[0] + chars[1];
+    if (contextualForms[trigger] && !STROKE_LIBRARY[trigger]) {
+      return `contextual form ${JSON.stringify(trigger)} (${contextualForms[trigger].role}) has no recorded stroke yet`;
+    }
+    if (contextualForms[trigger] && STROKE_LIBRARY[trigger]) {
+      return `contextual form ${JSON.stringify(trigger)} recipe exists but composition itself failed - investigate directly`;
+    }
+  }
+  if (chars.length !== (clusters[cluster]?.glyphs.length ?? -1)) {
     return "character count doesn't match glyph count (a character contributes >1 glyph) - per-character composition doesn't apply";
   }
   return "no matching mark recipe and no clean per-character decomposition";

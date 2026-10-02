@@ -129,12 +129,15 @@ const DEPRECATED_ATOMS = new Set(["ൊ", "ോ", "ൌ"]); // ൊ ോ ൌ
 
 /**
  * Cluster strings present in the loaded glyph-data.json's `marks` map (e.g.
- * "്ര") - populated by parseGlyphData. A multi-character mark given its own
- * `clusters` entry (see build_glyph_data.py's `_standalone_inputs()`)
- * genuinely needs its own recorded stroke, same as any single-codepoint
- * mark - it just isn't one. Doesn't affect marks-only entries like
- * ്യ/്വ/്ല, which have no `clusters` ghost at all and so never appear in
- * `trace.glyphs` in the first place.
+ * "്ര") or `contextualForms` map (e.g. "क्") - populated by parseGlyphData.
+ * A multi-character mark given its own `clusters` entry (see
+ * build_glyph_data.py's `_standalone_inputs()`), or a contextual-form
+ * trigger given its own `contextualForms[...].ghost` (see
+ * `_build_contextual_forms()` - deliberately *not* a `clusters` entry, see
+ * parseGlyphData's comment above), genuinely needs its own recorded
+ * stroke, same as any single-codepoint mark - it just isn't one. Doesn't
+ * affect marks-only entries like ്യ/്വ/്ല, which have no ghost at all and
+ * so never appear in `trace.glyphs` in the first place.
  *
  * @type {Set<string>}
  */
@@ -147,13 +150,14 @@ const composableMarkClusters = new Set();
  * of pre-shaping every one").
  *
  * Single codepoints (letters, digits, virama, matras) are always atoms -
- * they can't be decomposed further. A multi-character mark given its own
- * `clusters` ghost (e.g. ്ര - see composableMarkClusters) is an atom for
- * the same reason: it's a mark in its own right, just not a single
- * codepoint. Any other multi-character cluster is an atom only if it's
- * already known to need its own stroke: either it's already recorded in
- * the loaded stroke-data.raw.json (the existing 292-ish hand-picked
- * fused/conjunct forms), or it was just added this session via "+ Add".
+ * they can't be decomposed further. A multi-character mark or contextual
+ * form given its own ghost (e.g. ്ര, or Devanagari's क् - see
+ * composableMarkClusters) is an atom for the same reason: it's a
+ * mark/substitute atom in its own right, just not a single codepoint. Any
+ * other multi-character cluster is an atom only if it's already known to
+ * need its own stroke: either it's already recorded in the loaded
+ * stroke-data.raw.json (the existing 292-ish hand-picked fused/conjunct
+ * forms), or it was just added this session via "+ Add".
  *
  * @param {string} clusterStr
  * @returns {boolean}
@@ -303,8 +307,19 @@ function parseGlyphData(text) {
         paths: entry.glyphs,
         advance: entry.advance,
       }));
+    // Contextual-form atoms (Devanagari half-forms/reph - see
+    // tools/build_glyph_data.py's `_build_contextual_forms` docstring)
+    // deliberately have no `clusters` entry of their own (that would make
+    // real-text segmentation misrender genuine word-final occurrences of
+    // the same 2-character string) - their ghost lives only in
+    // `contextualForms[trigger].ghost`, so it's appended here as its own
+    // navigable/traceable row instead.
+    for (const [trigger, form] of Object.entries(parsed.contextualForms ?? {})) {
+      glyphs.push({ clusterStr: trigger, paths: form.ghost.glyphs, advance: form.ghost.advance });
+    }
     composableMarkClusters.clear();
     for (const markKey of Object.keys(parsed.marks ?? {})) composableMarkClusters.add(markKey);
+    for (const trigger of Object.keys(parsed.contextualForms ?? {})) composableMarkClusters.add(trigger);
   } else {
     // Legacy StrokeTrace array from the Python CLI
     const sources = Array.isArray(parsed) ? parsed : [parsed];
@@ -330,6 +345,29 @@ function parseGlyphData(text) {
 
   trace = { unitsPerEm, ascent, descent, glyphs };
   glyphIndex = 0;
+
+  // Per-language recorder banner (e.g. Hindi's shirorekha notice) - see
+  // tools/build_glyph_data.py's `_recorder_note()`. Absent for every
+  // language that doesn't need one, so the note element stays hidden.
+  const noteEl = document.getElementById("recorder-note");
+  const recorderNote = parsed.meta?.recorderNote;
+  noteEl.textContent = recorderNote ?? "";
+  noteEl.hidden = !recorderNote;
+
+  // The page title/heading and the custom-cluster example are written by
+  // tools/build_glyph_data.py into every language's own `meta` (never
+  // hardcoded to Malayalam here) - see `projectNameNative`/
+  // `exampleCustomCluster` in that file's `main()`.
+  const nativeName = parsed.meta?.projectNameNative;
+  if (nativeName) {
+    document.title = `Stroke Recorder - ${nativeName}`;
+    document.getElementById("project-name-native").textContent = nativeName;
+  }
+  const addInput = document.getElementById("add-input");
+  addInput.placeholder = parsed.meta?.exampleCustomCluster
+    ? `Add custom cluster, e.g. ${parsed.meta.exampleCustomCluster}`
+    : "Add custom cluster";
+
   document.getElementById("drop-zone").classList.add("hidden");
   document.getElementById("recorder").classList.add("active");
   populateSelect();

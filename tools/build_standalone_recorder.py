@@ -10,9 +10,19 @@ without regenerating) is always detectable on demand:
 
     python tools/build_standalone_recorder.py --check
 
+--lang selects which language's glyph-data(.raw)/stroke-data.raw.json get
+bundled (default: malayalam, matching every other --lang-aware tool in
+tools/ - see docs/LANGUAGE_ONBOARDING_AGENTS.md's Phase 0). The output
+filename gets the same `.{code}` suffix data_paths() already uses for
+every other language's committed files, so a second language's standalone
+recorder never collides with Malayalam's - unsuffixed stays
+stroke-recorder-standalone.html for backward compatibility.
+
 Usage (from repo root):
     python tools/build_standalone_recorder.py
     # → tools/stroke-recorder-standalone.html
+    python tools/build_standalone_recorder.py --lang hindi
+    # → tools/stroke-recorder-standalone.hi.html
 """
 
 from __future__ import annotations
@@ -25,16 +35,30 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "python" / "src"))
+
+from jayasree.languages import LANGUAGES, data_paths, get_language  # noqa: E402
+
 HTML_SRC = ROOT / "tools" / "stroke-recorder.html"
 CSS_SRC = ROOT / "tools" / "stroke-recorder.css"
 JS_SRC = ROOT / "tools" / "stroke-recorder.js"
 FAVICON_SRC = ROOT / "favicon.svg"
-GLYPH_DATA = ROOT / "js" / "src" / "glyph-data.json"
-STROKE_DATA_RAW = ROOT / "js" / "src" / "stroke-data.raw.json"
-OUT = ROOT / "tools" / "stroke-recorder-standalone.html"
 
 _HASH_COMMENT = "<!-- source-hash: {} (do not edit; run tools/build_standalone_recorder.py) -->"
 _HASH_RE = re.compile(r"<!-- source-hash: ([0-9a-f]+)")
+
+
+def _out_path(lang_name: str) -> Path:
+    """Return the standalone-recorder output path for `--lang lang_name`.
+
+    Unsuffixed for `malayalam` (backward compatible with the existing
+    committed/documented filename); `.{code}`-suffixed for everything else,
+    mirroring `languages.data_paths()`'s own convention.
+    """
+    lang = get_language(lang_name)
+    is_primary = lang_name == "malayalam"
+    suffix = "" if is_primary else f".{lang.code}"
+    return ROOT / "tools" / f"stroke-recorder-standalone{suffix}.html"
 
 
 def _source_hash() -> str:
@@ -48,13 +72,21 @@ def _source_hash() -> str:
     return hashlib.sha256(combined).hexdigest()[:16]
 
 
-def build() -> None:
-    """Regenerate tools/stroke-recorder-standalone.html from current sources."""
+def build(lang_name: str = "malayalam") -> None:
+    """Regenerate the standalone recorder for `--lang lang_name` from current sources."""
+    lang = get_language(lang_name)
+    paths = data_paths(lang)
+    out = _out_path(lang_name)
+
     html = HTML_SRC.read_text(encoding="utf-8")
     css = CSS_SRC.read_text(encoding="utf-8")
     js = JS_SRC.read_text(encoding="utf-8")
-    glyph_data = GLYPH_DATA.read_text(encoding="utf-8")
-    stroke_data_raw = STROKE_DATA_RAW.read_text(encoding="utf-8")
+    glyph_data = paths.glyph_data.read_text(encoding="utf-8")
+    stroke_data_raw = (
+        paths.stroke_data_raw.read_text(encoding="utf-8")
+        if paths.stroke_data_raw.exists()
+        else "{}"
+    )
 
     # Inline CSS
     html = re.sub(
@@ -115,37 +147,38 @@ window.addEventListener("DOMContentLoaded", () => {
 
     html = re.sub(r"(<html[^>]*>)", rf"\1\n{_HASH_COMMENT.format(_source_hash())}", html, count=1)
 
-    OUT.write_text(html, encoding="utf-8")
-    size_kb = OUT.stat().st_size / 1024
-    print(f"Written {OUT.relative_to(ROOT)}  ({size_kb:.0f} KB)")
+    out.write_text(html, encoding="utf-8")
+    size_kb = out.stat().st_size / 1024
+    print(f"Written {out.relative_to(ROOT)}  ({size_kb:.0f} KB)")
     print("Copy this single file to your tablet - opens offline in any browser.")
 
 
-def check() -> None:
-    """Exit non-zero with a clear message if the standalone file is stale."""
-    if not OUT.exists():
-        print(f"STALE: {OUT.relative_to(ROOT)} does not exist yet.", file=sys.stderr)
+def check(lang_name: str = "malayalam") -> None:
+    """Exit non-zero with a clear message if `--lang lang_name`'s standalone file is stale."""
+    out = _out_path(lang_name)
+    if not out.exists():
+        print(f"STALE: {out.relative_to(ROOT)} does not exist yet.", file=sys.stderr)
         print(
-            "Regenerate with: python tools/build_standalone_recorder.py",
+            f"Regenerate with: python tools/build_standalone_recorder.py --lang {lang_name}",
             file=sys.stderr,
         )
         sys.exit(1)
 
-    existing = OUT.read_text(encoding="utf-8")
+    existing = out.read_text(encoding="utf-8")
     m = _HASH_RE.search(existing)
     current = _source_hash()
     if not m or m.group(1) != current:
         print(
-            f"STALE: {OUT.relative_to(ROOT)} is out of sync with stroke-recorder.{{html,css,js}}.",
+            f"STALE: {out.relative_to(ROOT)} is out of sync with stroke-recorder.{{html,css,js}}.",
             file=sys.stderr,
         )
         print(
-            "Regenerate with: python tools/build_standalone_recorder.py",
+            f"Regenerate with: python tools/build_standalone_recorder.py --lang {lang_name}",
             file=sys.stderr,
         )
         sys.exit(1)
 
-    print(f"{OUT.relative_to(ROOT)} is in sync with its sources.")
+    print(f"{out.relative_to(ROOT)} is in sync with its sources.")
 
 
 def main() -> None:
@@ -156,8 +189,14 @@ def main() -> None:
         action="store_true",
         help="Check whether the standalone file is in sync instead of regenerating it",
     )
+    parser.add_argument(
+        "--lang",
+        default="malayalam",
+        choices=sorted(LANGUAGES),
+        help="Registry key from jayasree.languages.LANGUAGES (default: malayalam).",
+    )
     args = parser.parse_args()
-    check() if args.check else build()
+    check(args.lang) if args.check else build(args.lang)
 
 
 if __name__ == "__main__":

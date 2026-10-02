@@ -116,6 +116,68 @@ class TestValidateGlyphData:
         }
         assert validate_glyph_data(data) == []
 
+    def test_absent_contextual_forms_is_allowed(self) -> None:
+        """Ensure that a language with no contextualForms key at all is unaffected."""
+        data = {
+            "meta": {"unitsPerEm": 2048},
+            "clusters": {"A": {"glyphs": [{"d": "M0 0 L1 1", "x": 0, "y": 0}]}},
+        }
+        assert validate_glyph_data(data) == []
+
+    def test_valid_contextual_forms_has_no_errors(self) -> None:
+        """Ensure that a well-formed contextualForms table passes with no errors."""
+        data = {
+            "meta": {"unitsPerEm": 2048},
+            "clusters": {"A": {"glyphs": [{"d": "M0 0 L1 1", "x": 0, "y": 0}]}},
+            "contextualForms": {
+                "XY": {"role": "halfForm", "ghost": {"glyphs": [{"d": "M0 0", "x": 0, "y": 0}]}},
+            },
+        }
+        assert validate_glyph_data(data) == []
+
+    def test_contextual_forms_must_be_an_object(self) -> None:
+        """Ensure that a non-object contextualForms value is rejected."""
+        data = {
+            "meta": {"unitsPerEm": 2048},
+            "clusters": {"A": {"glyphs": [{"d": "M0 0 L1 1", "x": 0, "y": 0}]}},
+            "contextualForms": ["not", "an", "object"],
+        }
+        errors = validate_glyph_data(data)
+        assert any("contextualForms" in e for e in errors)
+
+    def test_contextual_forms_key_must_be_two_characters(self) -> None:
+        """Ensure that a non-2-character trigger key is rejected."""
+        data = {
+            "meta": {"unitsPerEm": 2048},
+            "clusters": {"A": {"glyphs": [{"d": "M0 0 L1 1", "x": 0, "y": 0}]}},
+            "contextualForms": {
+                "XYZ": {"role": "halfForm", "ghost": {"glyphs": [{"d": "M0 0", "x": 0, "y": 0}]}},
+            },
+        }
+        errors = validate_glyph_data(data)
+        assert any("2-character" in e for e in errors)
+
+    def test_contextual_forms_role_must_be_valid(self) -> None:
+        """Ensure that an invalid role value is rejected."""
+        ghost = {"glyphs": [{"d": "M0 0", "x": 0, "y": 0}]}
+        data = {
+            "meta": {"unitsPerEm": 2048},
+            "clusters": {"A": {"glyphs": [{"d": "M0 0 L1 1", "x": 0, "y": 0}]}},
+            "contextualForms": {"XY": {"role": "notARealRole", "ghost": ghost}},
+        }
+        errors = validate_glyph_data(data)
+        assert any("role" in e for e in errors)
+
+    def test_contextual_forms_ghost_must_have_glyphs(self) -> None:
+        """Ensure that a missing/empty ghost.glyphs is rejected."""
+        data = {
+            "meta": {"unitsPerEm": 2048},
+            "clusters": {"A": {"glyphs": [{"d": "M0 0 L1 1", "x": 0, "y": 0}]}},
+            "contextualForms": {"XY": {"role": "halfForm", "ghost": {"glyphs": []}}},
+        }
+        errors = validate_glyph_data(data)
+        assert any("ghost" in e for e in errors)
+
 
 class TestCrossCheckRawInProcessed:
     """cross_check_raw_in_processed: every raw cluster must survive processing."""
