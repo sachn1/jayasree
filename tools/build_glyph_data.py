@@ -8,6 +8,17 @@ vowels, the two hand-curated extra ghosts) are gated behind `lang.code ==
 "ml"` rather than assumed for every script - a new language's equivalent
 quirks get discovered by that pipeline's Agent 1/2 and added as their own
 gated block, not inherited from Malayalam's.
+
+A language can instead keep its own quirks out of this public file
+entirely, via a private build-time extension module loaded by
+`jayasree.languages.load_build_extension()` - see that function's
+docstring. Hindi's real research (rakaar/vattu composition, nukta's
+encoding duality, half-form/reph derivation via `contextualForms`, and the
+shirorekha recorder-banner text) lives this way, in a private companion
+repo, not inline here - this file only defines the *hooks* an extension
+can fill (`extra_standalone_inputs`, `extra_composable_marks`,
+`runtime_quirks`, `recorder_note`), each called at most once per build,
+each optional.
 """
 
 from __future__ import annotations
@@ -16,6 +27,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from types import ModuleType
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "python" / "src"))
@@ -26,6 +38,7 @@ from jayasree.languages import (  # noqa: E402
     char_tuple,
     data_paths,
     get_language,
+    load_build_extension,
 )
 
 #: Compound vowel signs with a canonical (or, for ai, font-specific) split
@@ -67,7 +80,7 @@ _ML_LEGACY_CHILLU: dict[str, str] = {
 }
 
 
-def _standalone_inputs(lang: LanguageSpec, chars: object) -> list[str]:
+def _standalone_inputs(lang: LanguageSpec, chars: object, ext: ModuleType | None) -> list[str]:
     """Single-codepoint clusters: letters, digits, and standalone diacritics."""
     letters = (
         "".join(char_tuple(chars, "INDEPENDENT_VOWELS"))
@@ -82,6 +95,10 @@ def _standalone_inputs(lang: LanguageSpec, chars: object) -> list[str]:
         # eventual recorded stroke, found via Hindi's onboarding profile
         # (docs/languages/hi/profile.md's "Native punctuation" section).
         + "".join(char_tuple(chars, "NATIVE_PUNCTUATION"))
+        # Standalone marks with no closer-fitting category (e.g.
+        # Devanagari's avagraha/Om) - found the same way NATIVE_PUNCTUATION
+        # was, via Hindi's onboarding profile.
+        + "".join(char_tuple(chars, "RARE_MARKS"))
     )
     inputs = list(letters)
 
@@ -137,6 +154,9 @@ def _standalone_inputs(lang: LanguageSpec, chars: object) -> list[str]:
             # റ takes a distinct contextual glyph here).
             inputs.append(chillu[0] + "റ")
 
+    if ext is not None and hasattr(ext, "extra_standalone_inputs"):
+        inputs += ext.extra_standalone_inputs(chars)
+
     return inputs
 
 
@@ -190,10 +210,10 @@ def _anusvara_visarga_inputs(chars: object) -> list[str]:
     return [b + mark for b in bases for mark in marks]
 
 
-def _build_input_list(lang: LanguageSpec, chars: object) -> list[str]:
+def _build_input_list(lang: LanguageSpec, chars: object, ext: ModuleType | None) -> list[str]:
     """Return all Unicode cluster strings to be shaped, deduplicated in order."""
     inputs = (
-        _standalone_inputs(lang, chars)
+        _standalone_inputs(lang, chars, ext)
         + _consonant_matra_inputs(chars)
         + _conjunct_inputs(chars)
         + _anusvara_visarga_inputs(chars)
@@ -246,7 +266,7 @@ def _shape_all(inputs: list[str], font: str) -> dict:
     return result
 
 
-def _composable_marks(lang: LanguageSpec, chars: object) -> list[str]:
+def _composable_marks(lang: LanguageSpec, chars: object, ext: ModuleType | None) -> list[str]:
     """Return the marks composable onto an arbitrary base cluster at runtime.
 
     The generic part (virama, nukta, every matra, anusvara/visarga/
@@ -272,6 +292,9 @@ def _composable_marks(lang: LanguageSpec, chars: object) -> list[str]:
 
     if lang.code == "ml" and virama:
         marks += [virama + "യ", virama + "വ", virama + "ല", virama + "ര"]
+
+    if ext is not None and hasattr(ext, "extra_composable_marks"):
+        marks += ext.extra_composable_marks(chars)
 
     anusvara = getattr(chars, "ANUSVARA", None)
     visarga = getattr(chars, "VISARGA", None)
@@ -320,28 +343,68 @@ def _build_marks(composable_marks: list[str], font: str) -> dict:
     return marks
 
 
-def _runtime_quirks(lang: LanguageSpec) -> dict:
+def _extract_ghost(own_glyph: dict, other_glyph: dict) -> dict:
+    """Build a standalone-ghost-shaped entry for one glyph pulled out of an
+    already-shaped 2-glyph cluster entry.
+
+    Re-anchors ``own_glyph`` to x=0, matching the convention every other
+    standalone atom's ghost already follows (see `_shape_all` - a
+    freshly-shaped standalone cluster's first glyph starts at or near 0).
+    ``advance`` is approximated as the horizontal gap to `other_glyph` in
+    the source pair - exposed for a build extension's own contextual-form
+    derivation to reuse (e.g. Devanagari half-form/reph ghosts), so each
+    language doesn't need to reimplement this geometry. Never itself
+    rendered as a real standalone cluster, so its exact advance is only
+    ever used for the recorder's own display layout, not for real
+    composition math.
+    """
+    anchor = own_glyph["x"]
+    return {
+        "glyphs": [{"d": own_glyph["d"], "x": 0.0, "y": own_glyph["y"]}],
+        "advance": abs(other_glyph["x"] - anchor),
+    }
+
+
+def _runtime_quirks(
+    lang: LanguageSpec, chars: object, shaped_clusters: dict, ext: ModuleType | None
+) -> dict:
     """Return the language-specific lookup tables js/src/index.js needs at runtime.
 
     Written into glyph-data.json as top-level ``legacyEncodings``/
-    ``splitVowelParts`` keys, present only for a language that actually has
-    them - a language with neither (everything but Malayalam, today) gets
-    no extra keys at all, so index.js never has anything Malayalam-specific
+    ``splitVowelParts``/``contextualForms`` keys, present only for a
+    language that actually has them - a language with none of these gets
+    no extra keys at all, so index.js never has anything script-specific
     to load, hold in memory, or iterate for that language's session. See
     `docs/LANGUAGE_ONBOARDING_AGENTS.md`'s "Don't generalize from Malayalam"
     - a future language's own runtime quirks, if it has any, are a finding
-    from *its* onboarding, added here the same gated way, not inherited.
+    from *its* onboarding, added here the same gated way (or via its own
+    build extension - see `ext`), not inherited.
 
     Returns
     -------
     dict
-        Zero, one, or both of ``{"legacyEncodings": {...}, "splitVowelParts": {...}}``.
+        Zero or more of ``{"legacyEncodings": {...}, "splitVowelParts": {...},
+        "contextualForms": {...}}``.
     """
     quirks: dict = {}
     if lang.code == "ml":
         quirks["legacyEncodings"] = _ML_LEGACY_CHILLU
         quirks["splitVowelParts"] = _ML_SPLIT_VOWEL_PARTS
+    if ext is not None and hasattr(ext, "runtime_quirks"):
+        quirks.update(ext.runtime_quirks(chars, shaped_clusters, _extract_ghost))
     return quirks
+
+
+def _recorder_note(lang: LanguageSpec, ext: ModuleType | None) -> str | None:
+    """Return the recorder-banner text for `lang`, or None if it needs none.
+
+    Separate from `_runtime_quirks()` on purpose - that function's output
+    feeds js/src/index.js's runtime composer; this one is read only by
+    tools/stroke-recorder.js and has no effect on composition.
+    """
+    if ext is not None and hasattr(ext, "recorder_note"):
+        return ext.recorder_note()
+    return None
 
 
 def _parse_args() -> argparse.Namespace:
@@ -374,17 +437,37 @@ def main() -> None:
         )
 
     chars = lang.chars()
-    inputs = _build_input_list(lang, chars)
+    ext = load_build_extension(lang.code)
+    inputs = _build_input_list(lang, chars, ext)
     result = _shape_all(inputs, str(font_path))
-    result["marks"] = _build_marks(_composable_marks(lang, chars), str(font_path))
-    result.update(_runtime_quirks(lang))
+    result["marks"] = _build_marks(_composable_marks(lang, chars, ext), str(font_path))
+    result.update(_runtime_quirks(lang, chars, result["clusters"], ext))
+
+    # Read by tools/stroke-recorder.js for the page title/heading and the
+    # "Add custom cluster" placeholder - present for every language (not
+    # gated), so the recorder never falls back to a different script's text.
+    if lang.native_name:
+        result["meta"]["projectNameNative"] = lang.native_name
+    if lang.example_custom_cluster:
+        result["meta"]["exampleCustomCluster"] = lang.example_custom_cluster
+
+    note = _recorder_note(lang, ext)
+    if note:
+        result["meta"]["recorderNote"] = note
 
     out_path = data_paths(lang).glyph_data
     out_path.write_text(json.dumps(result, ensure_ascii=False, separators=(",", ":")))
 
+    # out_path may sit outside ROOT entirely (a non-primary language
+    # redirected to $JAYASREE_DATA_ROOT - see data_paths()) - fall back to
+    # the absolute path rather than assuming it's always a repo-relative one.
+    try:
+        shown_path = out_path.relative_to(ROOT)
+    except ValueError:
+        shown_path = out_path
     size_kb = out_path.stat().st_size // 1024
     print(
-        f"Written {out_path.relative_to(ROOT)}  ({size_kb} KB, {len(result['clusters'])} clusters)",
+        f"Written {shown_path}  ({size_kb} KB, {len(result['clusters'])} clusters)",
         file=sys.stderr,
     )
 

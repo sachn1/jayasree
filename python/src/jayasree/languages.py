@@ -43,12 +43,23 @@ error.
 
 from __future__ import annotations
 
+import importlib.util
+import os
 from dataclasses import dataclass
 from importlib import import_module
 from pathlib import Path
 from types import ModuleType
 
 ROOT = Path(__file__).resolve().parents[3]
+
+#: Environment variable naming a directory laid out like this repo's own
+#: root (i.e. with its own `js/src/` and `python/tests/snapshots/`) where a
+#: non-primary language's data files actually live - e.g. a private
+#: companion repo holding a premium language's full dataset. Unset by
+#: default, which keeps every language resolving under this repo's own
+#: `ROOT`, exactly as before this existed. `PRIMARY_LANGUAGE` never honors
+#: this - its data is always meant to be committed in this repo.
+DATA_ROOT_OVERRIDE_ENV_VAR = "JAYASREE_DATA_ROOT"
 
 #: The one language whose committed files keep their original, unsuffixed
 #: names (`glyph-data.json`, not `glyph-data.ml.json`) - required for
@@ -159,6 +170,48 @@ def get_language(name: str) -> LanguageSpec:
         raise ValueError(f"Unknown language {name!r}. Available: {available}.") from None
 
 
+def load_build_extension(lang_code: str) -> ModuleType | None:
+    """Import a language's private build-time extension module, if configured.
+
+    `tools/build_glyph_data.py` is the shared, script-agnostic engine - but
+    a script can have real build-time research behind it (e.g. Devanagari's
+    half-form/reph derivation) that's deliberately kept out of this public
+    repo. That logic lives instead in `$JAYASREE_DATA_ROOT/build_ext_
+    <lang_code>.py` (see `DATA_ROOT_OVERRIDE_ENV_VAR`) - a private
+    companion file, not part of this codebase. This loads it directly from
+    that path if present.
+
+    Absent the env var, or the file, this returns None and callers treat
+    that as "this language has no build-time extension" - the same
+    graceful-degradation shape `char_tuple()` already uses for an absent
+    character category, not an error. A language with no real build-time
+    research behind it (or one developed with the extension not wired up
+    yet) still builds; it just doesn't get that extension's contributions.
+
+    Parameters
+    ----------
+    lang_code : str
+        A `LanguageSpec.code`, e.g. ``"hi"``.
+
+    Returns
+    -------
+    ModuleType or None
+        The loaded extension module, or None if not configured.
+    """
+    root = os.environ.get(DATA_ROOT_OVERRIDE_ENV_VAR)
+    if not root:
+        return None
+    ext_path = Path(root) / f"build_ext_{lang_code}.py"
+    if not ext_path.is_file():
+        return None
+    spec = importlib.util.spec_from_file_location(f"_jayasree_build_ext_{lang_code}", ext_path)
+    if spec is None or spec.loader is None:
+        return None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 def char_tuple(module: ModuleType, attr: str) -> tuple[str, ...]:
     """Return `module.<attr>` if the language module defines it, else `()`.
 
@@ -193,11 +246,17 @@ def data_paths(lang: LanguageSpec) -> DataPaths:
         `glyph_data`/`stroke_data_raw`/`stroke_data` under `js/src/`, and
         `snapshot` under `python/tests/snapshots/` - unsuffixed for
         `PRIMARY_LANGUAGE`, `.{code}`-suffixed for every other language.
+        Resolved under `$JAYASREE_DATA_ROOT` instead of this repo's `ROOT`
+        for any non-primary language, if that environment variable is set
+        (see `DATA_ROOT_OVERRIDE_ENV_VAR`).
     """
     is_primary = lang.code == LANGUAGES[PRIMARY_LANGUAGE].code
     suffix = "" if is_primary else f".{lang.code}"
-    js_src = ROOT / "js" / "src"
-    snapshots = ROOT / "python" / "tests" / "snapshots"
+    data_root = ROOT
+    if not is_primary and (override := os.environ.get(DATA_ROOT_OVERRIDE_ENV_VAR)):
+        data_root = Path(override)
+    js_src = data_root / "js" / "src"
+    snapshots = data_root / "python" / "tests" / "snapshots"
     return DataPaths(
         glyph_data=js_src / f"glyph-data{suffix}.json",
         stroke_data_raw=js_src / f"stroke-data{suffix}.raw.json",
