@@ -32,10 +32,16 @@ Rules that keep the data trustworthy:
   the updated snapshot *in the same PR* - that's by design, so every change
   to previously-recorded data is explicit and reviewable, never a silent
   side effect. New characters don't need this; only changed/removed ones do.
-- **Licensing:** by contributing stroke data you agree it's released under
-  the project's data license (CC BY 4.0 - see [LICENSE-DATA](LICENSE-DATA)).
-  You'll be credited in the git history; if you'd like more prominent
-  attribution, say so in the PR.
+- **Licensing:** by contributing Malayalam stroke data you agree it's
+  released under the project's data license (CC BY 4.0 - see
+  [LICENSE-DATA](LICENSE-DATA)). You'll be credited in the git history; if
+  you'd like more prominent attribution, say so in the PR. **This does not
+  extend to other languages.** Some languages onboarded after Malayalam are
+  developed as a premium/commercial dataset and are not released under CC
+  BY 4.0 by default - see "Adding a new language" below. If a language's
+  own data file is explicitly added to `LICENSE-DATA`'s list, that file is
+  CC BY 4.0; otherwise treat it as not openly licensed, regardless of
+  whether it's present in this repository (e.g. as a small demo subset).
 
 ## Contributing code
 
@@ -130,6 +136,16 @@ fixtures, while everything Malayalam-specific lives in
 - Whitespace/punctuation handling (`UNIVERSAL_CHARS` in `js/src/index.js`)
   is already script-agnostic - it's checked before any language-specific
   lookup and never touches per-language data. Nothing to add per language.
+- **Data licensing differs by language.** Malayalam's data is CC BY 4.0
+  (see [LICENSE-DATA](LICENSE-DATA)) as the project's original open
+  dataset. Languages onboarded after it may instead be developed as a
+  premium dataset held in a private companion repository, with only a
+  small demo subset (if any) committed here - see that subset's own entry
+  in `LICENSE-DATA` for its actual terms, which default to all-rights-
+  reserved unless stated otherwise. This repository's engine code
+  (everything under `python/src/`, `js/src/index.js`, `tools/`) stays MIT
+  regardless of which language it's processing - only the *data* license
+  varies per language.
 
 ## Data integrity & governance
 
