@@ -458,9 +458,16 @@ def main() -> None:
     out_path = data_paths(lang).glyph_data
     out_path.write_text(json.dumps(result, ensure_ascii=False, separators=(",", ":")))
 
+    # out_path may sit outside ROOT entirely (a non-primary language
+    # redirected to $JAYASREE_DATA_ROOT - see data_paths()) - fall back to
+    # the absolute path rather than assuming it's always a repo-relative one.
+    try:
+        shown_path = out_path.relative_to(ROOT)
+    except ValueError:
+        shown_path = out_path
     size_kb = out_path.stat().st_size // 1024
     print(
-        f"Written {out_path.relative_to(ROOT)}  ({size_kb} KB, {len(result['clusters'])} clusters)",
+        f"Written {shown_path}  ({size_kb} KB, {len(result['clusters'])} clusters)",
         file=sys.stderr,
     )
 
