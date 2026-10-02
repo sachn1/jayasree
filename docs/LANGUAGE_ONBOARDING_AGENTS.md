@@ -325,9 +325,19 @@ well-organized, not to replace it.
 stance (Malayalam uses Manjari, SIL OFL 1.1 - README's "License & credit"
 section; a new font needs an equivalently open license, not just "free to
 download"), (b) a real outline font HarfBuzz can shape (not a bitmap/color
-font), and (c) **verified**, not claimed, to cover every character and
+font), (c) **verified**, not claimed, to cover every character and
 cluster in Agent 1's profile - including old/rare forms if those were scoped
-in.
+in, and (d) reasonably low-contrast/monoline in its stroke-width modulation.
+Point (d) is a real, not cosmetic, criterion: `docs/CENTERING_EXPERIMENTS.md`
+documents that the adopted centering/straightening approach (gradient ascent
+up a distance-transform field) is already known to get unreliable near
+corners/junctions - a font with pronounced calligraphic ductus (stroke width
+varying by direction, e.g. a broad-nib look) multiplies exactly those
+ambiguous junctions wherever strokes join (headline-to-stem, conjunct joins),
+so prefer the candidate with flatter stroke-width variation when coverage and
+license are otherwise tied, and note the tradeoff explicitly in
+`font-report.md` if the best-covered candidate is also the most calligraphic
+one.
 
 Verification is mechanical, reusing this project's own shaping code
 (`python/src/jayasree/strokes.py`'s HarfBuzz path, the same one
