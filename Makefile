@@ -24,15 +24,17 @@ help:
 	@echo "  make ci             everything CI runs, for both languages, in one shot"
 	@echo "  make demo           serve the demo AND the stroke recorder (same server, see"
 	@echo "                      its printed URLs) at :8000 - alias: make record"
-	@echo "  make build-glyph-data [FONT=/path/to/Font.ttf] [LANG=malayalam]   regenerate glyph-data.json"
-	@echo "  make process-strokes [LANG=malayalam]              regenerate stroke-data.json"
-	@echo "  make build-recorder                                bundle the standalone recorder"
-	@echo "  make update-snapshot [LANG=malayalam]              re-approve the data snapshot"
-	@echo "  make validate-data [LANG=malayalam]                (LANG only affects --update-snapshot)"
-	@echo "  make coverage-report                               per-cluster direct/composed/fallback report"
+	@echo "  make build-glyph-data [FONT=/path/to/Font.ttf] [PROJECT_LANG=malayalam]   regenerate glyph-data.json"
+	@echo "  make process-strokes [PROJECT_LANG=malayalam]              regenerate stroke-data.json"
+	@echo "  make build-recorder                                        bundle the standalone recorder"
+	@echo "  make update-snapshot [PROJECT_LANG=malayalam]              re-approve the data snapshot"
+	@echo "  make validate-data [PROJECT_LANG=malayalam]                (PROJECT_LANG only affects --update-snapshot)"
+	@echo "  make coverage-report                                       per-cluster direct/composed/fallback report"
 	@echo ""
-	@echo "  LANG picks a registry key from python/src/jayasree/languages.py -"
-	@echo "  see docs/LANGUAGE_ONBOARDING_AGENTS.md. Defaults to malayalam everywhere."
+	@echo "  PROJECT_LANG picks a registry key from python/src/jayasree/languages.py -"
+	@echo "  see docs/LANGUAGE_ONBOARDING_AGENTS.md. Defaults to malayalam everywhere. Named"
+	@echo "  PROJECT_LANG, not LANG, so it can't collide with your shell's own locale LANG"
+	@echo "  env var (make silently inherits environment variables of the same name)."
 	@echo "  make bump           cut a release: bump semver from commit history, tag, changelog"
 	@echo "  make clean          remove venvs/node_modules/coverage artifacts"
 
@@ -78,7 +80,7 @@ validate-data:
 	python3 tools/validate_data.py
 
 update-snapshot:
-	python3 tools/validate_data.py --update-snapshot $(if $(LANG),--lang $(LANG),)
+	python3 tools/validate_data.py --update-snapshot $(if $(PROJECT_LANG),--lang $(PROJECT_LANG),)
 
 # ── Release ──────────────────────────────────────────────────────────────
 
@@ -134,13 +136,13 @@ demo record:
 	cd python && poetry run python ../demo/serve.py
 
 build-glyph-data:
-	cd python && poetry run python ../tools/build_glyph_data.py $(FONT) $(if $(LANG),--lang $(LANG),)
+	cd python && poetry run python ../tools/build_glyph_data.py $(FONT) $(if $(PROJECT_LANG),--lang $(PROJECT_LANG),)
 
 process-strokes:
-	python3 tools/process_strokes.py --preset=full $(if $(LANG),--lang $(LANG),)
+	python3 tools/process_strokes.py --preset=full $(if $(PROJECT_LANG),--lang $(PROJECT_LANG),)
 
 build-recorder:
-	python3 tools/build_standalone_recorder.py
+	python3 tools/build_standalone_recorder.py $(if $(PROJECT_LANG),--lang $(PROJECT_LANG),)
 
 coverage-report:
 	node tools/coverage_report.js

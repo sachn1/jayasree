@@ -26,7 +26,7 @@ animate).
 | What's planned but not done | `docs/ROADMAP.md` |
 | Rules for contributing code or stroke data, commit conventions | `CONTRIBUTING.md` |
 | Plan for onboarding a new Indic language via agents | `docs/LANGUAGE_ONBOARDING_AGENTS.md` |
-| Invokable subagents for that pipeline (`Agent(language-researcher, ...)` etc.) | `.claude/agents/` |
+| Invokable subagents - both the onboarding pipeline's (`Agent(language-researcher, ...)` etc.) and general-purpose ones (`Agent(code-reviewer, ...)`) | `.claude/agents/` |
 
 `docs/ARCHITECTURE.md` in particular documents four real, shipped-and-fixed
 composition bugs (anchor correction, segmentation priority, tighten-trim on
@@ -144,7 +144,7 @@ done): `python/src/jayasree/languages.py`'s `LANGUAGES` registry is the
 single source of truth mapping a language name to its character-inventory
 module and its data-file paths (unsuffixed for Malayalam, `.{code}`-suffixed
 for anything else). `build_glyph_data.py`, `cli.py alphabet`, and
-`process_strokes.py` all take `--lang`/`Makefile`'s `LANG=`; `validate_data.py`
+`process_strokes.py` all take `--lang`/`Makefile`'s `PROJECT_LANG=`; `validate_data.py`
 auto-discovers whichever languages' files exist under `js/src/` (and stays
 dependency-free/stdlib-only on purpose - see its module docstring - since
 the pre-commit hook runs it with bare `python3`, no guaranteed `uharfbuzz`).
