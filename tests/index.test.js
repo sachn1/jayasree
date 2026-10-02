@@ -30,6 +30,7 @@ const {
   applySequentialMarkStrokes,
   tryComposeStroke,
   charDx,
+  tryComposeContextualForm,
   tryComposeFromCharacters,
   resolveSegments,
   normalizeChillus,
@@ -337,6 +338,80 @@ describe("tryComposeFromCharacters", () => {
   it("composes normally when a character's mark is suffix-only", () => {
     const marks = { B: { prefix: [], suffix: [{ d: "M0 0", x: 0, y: 0 }] } };
     expect(tryComposeFromCharacters("AB", { clusters, marks })).not.toBeNull();
+  });
+});
+
+describe("tryComposeContextualForm", () => {
+  // Synthetic, script-agnostic fixture shaped like Devanagari's half-form/
+  // reph clusters - "AB" is the 2-character trigger (e.g. consonant+virama),
+  // "C" the third character, "ABC" the full 3-character/2-glyph cluster.
+  const clusters = {
+    ABC: { glyphs: [{ x: 0, y: 0 }, { x: 100, y: 0 }], advance: 200 },
+  };
+
+  beforeEach(() => {
+    STROKE_LIBRARY.AB = { strokes: [{ d: "M0 0 L10 0" }] };
+    STROKE_LIBRARY.C = { strokes: [{ d: "M0 0 L20 0" }] };
+  });
+
+  it("composes a halfForm cluster with the atom first, other char second", () => {
+    const glyphData = { clusters, contextualForms: { AB: { role: "halfForm" } } };
+    const result = tryComposeContextualForm("ABC", glyphData);
+    expect(result.strokes).toEqual([
+      { d: "M0 0 L10 0" },
+      { d: "M 100.0 0.0 L 120.0 0.0" },
+    ]);
+  });
+
+  it("composes a reph cluster with the other char first, atom second (swapped order)", () => {
+    const glyphData = { clusters, contextualForms: { AB: { role: "reph" } } };
+    const result = tryComposeContextualForm("ABC", glyphData);
+    expect(result.strokes).toEqual([
+      { d: "M0 0 L20 0" }, // zero offset - offsetSvgPath returns the same reference unchanged
+      { d: "M 100.0 0.0 L 110.0 0.0" },
+    ]);
+  });
+
+  it("memoizes the composed result into STROKE_LIBRARY", () => {
+    const glyphData = { clusters, contextualForms: { AB: { role: "halfForm" } } };
+    tryComposeContextualForm("ABC", glyphData);
+    expect(STROKE_LIBRARY.ABC).toBeDefined();
+  });
+
+  it("is a no-op when contextualForms is absent (Malayalam safety)", () => {
+    expect(tryComposeContextualForm("ABC", { clusters })).toBeNull();
+  });
+
+  it("returns null when the cluster isn't 3 characters", () => {
+    const glyphData = {
+      clusters: { AB: { glyphs: [{ x: 0, y: 0 }], advance: 100 } },
+      contextualForms: { AB: { role: "halfForm" } },
+    };
+    expect(tryComposeContextualForm("AB", glyphData)).toBeNull();
+  });
+
+  it("returns null when the cluster doesn't resolve to exactly 2 glyphs", () => {
+    const glyphData = {
+      clusters: { ABC: { glyphs: [{ x: 0, y: 0 }], advance: 100 } },
+      contextualForms: { AB: { role: "halfForm" } },
+    };
+    expect(tryComposeContextualForm("ABC", glyphData)).toBeNull();
+  });
+
+  it("returns null when there's no registered contextual form for the trigger", () => {
+    expect(tryComposeContextualForm("ABC", { clusters, contextualForms: {} })).toBeNull();
+  });
+
+  it("returns null when the atom's own stroke hasn't been recorded", () => {
+    delete STROKE_LIBRARY.AB;
+    const glyphData = { clusters, contextualForms: { AB: { role: "halfForm" } } };
+    expect(tryComposeContextualForm("ABC", glyphData)).toBeNull();
+  });
+
+  it("returns null when the other character has no recorded/composable stroke", () => {
+    delete STROKE_LIBRARY.C;
+    const glyphData = { clusters, contextualForms: { AB: { role: "halfForm" } } };
+    expect(tryComposeContextualForm("ABC", glyphData)).toBeNull();
   });
 });
 

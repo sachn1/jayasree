@@ -12,6 +12,7 @@ from __future__ import annotations
 from jayasree.stroke_compose import (
     _char_dx,
     compose_all,
+    compose_contextual_form,
     compose_per_glyph,
     find_matching_standalone_glyph_x,
     offset_svg_path,
@@ -156,6 +157,89 @@ class TestComposePerGlyph:
         assert result is not None
 
 
+# Fixture for TestComposeContextualForm, deliberately isolated from
+# CLUSTERS/STROKE_DATA above (own "XY"/"Z"/"XYZ" letters) so it can't
+# accidentally interact with TestComposeAll's assertions about which keys
+# get composed from the shared fixture data.
+CONTEXTUAL_CLUSTERS = {
+    "XYZ": {"glyphs": [{"x": 0.0, "y": 0.0}, {"x": 100.0, "y": 0.0}], "advance": 200.0},
+}
+CONTEXTUAL_STROKE_DATA = {
+    "XY": {"strokes": [{"d": "M0 0 L10 0"}]},
+    "Z": {"strokes": [{"d": "M0 0 L20 0"}]},
+}
+
+
+class TestComposeContextualForm:
+    """compose_contextual_form: Devanagari half-form/reph composition."""
+
+    def test_composes_halfform_with_atom_first(self) -> None:
+        """halfForm: the trigger's own atom fills glyph 0, the third character glyph 1."""
+        forms = {"XY": {"role": "halfForm"}}
+        cluster_entry = CONTEXTUAL_CLUSTERS["XYZ"]
+        result = compose_contextual_form(
+            "XYZ", cluster_entry, CONTEXTUAL_STROKE_DATA, CONTEXTUAL_CLUSTERS, forms
+        )
+        assert result == [
+            {"d": "M0 0 L10 0"},
+            {"d": "M 100.0 0.0 L 120.0 0.0"},
+        ]
+
+    def test_composes_reph_with_atom_second(self) -> None:
+        """reph: the third character fills glyph 0, the trigger's own atom glyph 1 (swapped)."""
+        forms = {"XY": {"role": "reph"}}
+        cluster_entry = CONTEXTUAL_CLUSTERS["XYZ"]
+        result = compose_contextual_form(
+            "XYZ", cluster_entry, CONTEXTUAL_STROKE_DATA, CONTEXTUAL_CLUSTERS, forms
+        )
+        assert result == [
+            {"d": "M0 0 L20 0"},  # zero offset - offset_svg_path returns it unchanged
+            {"d": "M 100.0 0.0 L 110.0 0.0"},
+        ]
+
+    def test_returns_none_when_cluster_is_not_three_characters(self) -> None:
+        """Ensure that a cluster key with fewer than 3 characters is rejected."""
+        cluster_entry = {"glyphs": [{"x": 0.0, "y": 0.0}], "advance": 100.0}
+        forms = {"XY": {"role": "halfForm"}}
+        result = compose_contextual_form(
+            "XY", cluster_entry, CONTEXTUAL_STROKE_DATA, CONTEXTUAL_CLUSTERS, forms
+        )
+        assert result is None
+
+    def test_returns_none_when_glyph_count_is_not_two(self) -> None:
+        """Ensure that a cluster not resolving to exactly 2 glyphs is rejected."""
+        cluster_entry = {"glyphs": [{"x": 0.0, "y": 0.0}], "advance": 100.0}
+        forms = {"XY": {"role": "halfForm"}}
+        result = compose_contextual_form(
+            "XYZ", cluster_entry, CONTEXTUAL_STROKE_DATA, CONTEXTUAL_CLUSTERS, forms
+        )
+        assert result is None
+
+    def test_returns_none_when_no_form_is_registered_for_the_trigger(self) -> None:
+        """Ensure that an unregistered trigger key is rejected."""
+        cluster_entry = CONTEXTUAL_CLUSTERS["XYZ"]
+        result = compose_contextual_form(
+            "XYZ", cluster_entry, CONTEXTUAL_STROKE_DATA, CONTEXTUAL_CLUSTERS, {}
+        )
+        assert result is None
+
+    def test_returns_none_when_the_atoms_own_stroke_is_missing(self) -> None:
+        """Ensure that a missing atom stroke aborts composition entirely."""
+        forms = {"XY": {"role": "halfForm"}}
+        partial = {"Z": CONTEXTUAL_STROKE_DATA["Z"]}  # XY is missing
+        cluster_entry = CONTEXTUAL_CLUSTERS["XYZ"]
+        result = compose_contextual_form("XYZ", cluster_entry, partial, CONTEXTUAL_CLUSTERS, forms)
+        assert result is None
+
+    def test_returns_none_when_the_other_characters_stroke_is_missing(self) -> None:
+        """Ensure that a missing third-character stroke aborts composition entirely."""
+        forms = {"XY": {"role": "halfForm"}}
+        partial = {"XY": CONTEXTUAL_STROKE_DATA["XY"]}  # Z is missing
+        cluster_entry = CONTEXTUAL_CLUSTERS["XYZ"]
+        result = compose_contextual_form("XYZ", cluster_entry, partial, CONTEXTUAL_CLUSTERS, forms)
+        assert result is None
+
+
 class TestComposeAll:
     """compose_all: compose strokes for every glyph-data cluster still missing one."""
 
@@ -182,3 +266,34 @@ class TestComposeAll:
             {"d": "M5 5 L15 5"},
             {"d": "M 102.0 2.0 L 112.0 2.0"},
         ]
+
+    def test_falls_back_to_contextual_form_when_per_glyph_composition_cant_apply(self) -> None:
+        """A 3-char/2-glyph cluster (glyph-count mismatch bails compose_per_glyph)
+        should still compose via `contextualForms`, exercising `compose_all`'s
+        own wiring of `compose_contextual_form` - not just the function in
+        isolation (see TestComposeContextualForm).
+        """
+        glyph_data = {
+            "clusters": CONTEXTUAL_CLUSTERS,
+            "contextualForms": {"XY": {"role": "halfForm"}},
+        }
+        out, generated, skipped = compose_all(glyph_data, CONTEXTUAL_STROKE_DATA)
+        assert generated == 1
+        assert skipped == 0
+        assert out["XYZ"]["strokes"] == [
+            {"d": "M0 0 L10 0"},
+            {"d": "M 100.0 0.0 L 120.0 0.0"},
+        ]
+
+    def test_skips_a_cluster_neither_mechanism_can_compose_even_with_contextual_forms_present(
+        self,
+    ) -> None:
+        """A `contextualForms` table being present must not make `compose_all`
+        blindly assume every cluster resolves - AM3's char/glyph mismatch still
+        isn't a contextual-form shape (no registered trigger matches it), so it
+        must still land in `skipped`, same as with no `contextualForms` at all.
+        """
+        glyph_data = {"clusters": CLUSTERS, "contextualForms": {"XY": {"role": "halfForm"}}}
+        out, _, skipped = compose_all(glyph_data, STROKE_DATA)
+        assert skipped == 1
+        assert "AM3" not in out
