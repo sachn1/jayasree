@@ -1,0 +1,88 @@
+{
+  "language": "Malayalam",
+  "code": "ml",
+  "script": "Malayalam",
+  "unicode_block": "U+0D00–U+0D7F",
+  "status": "retrospective snapshot - shipped and verified, not a proposal. See profile.md's status banner. python/src/jayasree/_chars.py is the actual source of truth; this file may drift from it over time and should not be treated as authoritative if it does.",
+  "categories": {
+    "independent_vowels": {
+      "characters": [
+        "അ", "ആ", "ഇ", "ഈ", "ഉ", "ഊ", "ഋ", "എ", "ഏ", "ഐ", "ഒ", "ഓ", "ഔ"
+      ],
+      "note": "13 standard letters, standalone at word start. INDEPENDENT_VOWELS in _chars.py."
+    },
+    "rare_vowels": {
+      "characters": ["ൠ", "ഌ", "ൡ"],
+      "note": "RARE_VOWELS in _chars.py. Sanskrit-loanword-only: ൠ long vocalic R, ഌ vocalic L, ൡ long vocalic L. Shipped and recorded, not excluded."
+    },
+    "consonants": {
+      "characters": [
+        "ക", "ഖ", "ഗ", "ഘ", "ങ", "ച", "ഛ", "ജ", "ഝ", "ഞ",
+        "ട", "ഠ", "ഡ", "ഢ", "ണ", "ത", "ഥ", "ദ", "ധ", "ന",
+        "പ", "ഫ", "ബ", "ഭ", "മ", "യ", "ര", "ല", "വ", "ശ",
+        "ഷ", "സ", "ഹ"
+      ],
+      "note": "REGULAR_CONSONANTS in _chars.py - 33 basic consonants, Sanskrit-derived inventory."
+    },
+    "special_consonants": {
+      "characters": ["ള", "ഴ", "റ"],
+      "note": "SPECIAL_CONSONANTS in _chars.py - 3 Dravidian consonants with no Sanskrit equivalent (retroflex la, zha, alveolar ra). CONSONANTS = REGULAR_CONSONANTS + SPECIAL_CONSONANTS (36 total)."
+    },
+    "rare_consonants": {
+      "characters": ["ഩ", "ഺ"],
+      "note": "RARE_CONSONANTS in _chars.py - ഩ (alveolar na, U+0D29), ഺ (alveolar ta, U+0D3A). Traditional-text tier, included for completeness; NOT part of the 36-member CONSONANTS tuple - add explicitly where needed."
+    },
+    "chillu": {
+      "characters": ["ൻ", "ർ", "ൽ", "ൾ", "ൺ", "ൿ"],
+      "note": "CHILLU in _chars.py - 6 bare word-final consonant forms (no inherent vowel). Each has a legacy 3-codepoint spelling (consonant+virama+ZWJ) that is visually identical and normalized to this atomic codepoint at runtime before any lookup - see docs/ARCHITECTURE.md's 'Chillu letters' section for the full mechanism, not restated here."
+    },
+    "matras": {
+      "characters": ["ാ", "ി", "ീ", "ു", "ൂ", "ൃ", "െ", "േ", "ൈ", "ൊ", "ോ", "ൌ"],
+      "note": "MATRAS in _chars.py - 12 dependent vowel signs. ൊ/ോ/ൌ are compound/split signs with a canonical NFD decomposition into a prefix+suffix pair (ൊ→െ+ാ, ോ→േ+ാ, ൌ→െ+ൗ); ൈ is the one exception with no decomposition (single prefix-only glyph in Manjari). See docs/ARCHITECTURE.md's 'Compound vowel signs' section for the composition mechanism - stated here only as the linguistic fact of which signs split and how."
+    },
+    "au_length_mark": {
+      "characters": ["ൗ"],
+      "note": "AU_LENGTH_MARK in _chars.py (U+0D57) - a separate codepoint from the au vowel sign ൌ (U+0D4C) in matras above; used standalone or as ൌ's own suffix component after decomposition. Distinct role, don't conflate the two."
+    },
+    "rare_matras": {
+      "characters": ["ൄ", "ൢ", "ൣ"],
+      "note": "RARE_MATRAS in _chars.py - vocalic RR (U+0D44), vocalic L (U+0D62), vocalic LL (U+0D63) signs. Sanskrit-loanword tier, shipped and recorded."
+    },
+    "virama": {
+      "characters": ["്"],
+      "note": "VIRAMA in _chars.py (chandrakkala, U+0D4D) - suppresses the inherent vowel; also the trigger for chillu's legacy spelling and every subjoined conjunct tail."
+    },
+    "anusvara": {
+      "characters": ["ം"],
+      "note": "ANUSVARA in _chars.py (U+0D02) - nasalization sign."
+    },
+    "visarga": {
+      "characters": ["ഃ"],
+      "note": "VISARGA in _chars.py (U+0D03) - aspiration sign."
+    },
+    "numerals": {
+      "characters": ["൦", "൧", "൨", "൩", "൪", "൫", "൬", "൭", "൮", "൯"],
+      "note": "NUMERALS in _chars.py - 10 Malayalam digits. As with Hindi's Devanagari digits, Latin digits are also common in modern Malayalam text but are UNIVERSAL_CHARS-shaped (script-independent), not part of this category."
+    },
+    "subjoined_conjunct_tails": {
+      "characters": ["്യ", "്വ", "്ല", "്ര"],
+      "note": "Not a category in _chars.py itself (these are 2-codepoint sequences: consonant-independent virama+ya/va/la/ra, not standalone characters) - listed here because they are composable marks in glyph-data.json's marks table (23 entries total, alongside every matra + virama + anusvara + visarga + au-length-mark + 3 rare matras) with their own {shift, prefix, suffix, trailingWidth} recipe, the closest Devanagari-half-form analogue this project has. See docs/ARCHITECTURE.md's 'The mark recipe' section for the mechanism."
+    },
+    "true_ligatures": {
+      "characters": [],
+      "note": "Not enumerated as a flat list here (~108 conjunct clusters, font- and shaping-dependent - see docs/ARCHITECTURE.md's Stage-1 section and README's Status section for the figure's provenance). These are consonant+consonant (and consonant-chain) conjuncts that fuse into a single Manjari glyph unrelated to their parts' own shapes, verified by real HarfBuzz shaping during build_glyph_data.py's run, not hypothesized - the equivalent of Hindi's still-open 'akhand ligature' question, already closed here since Malayalam is shipped."
+    }
+  },
+  "font": {
+    "name": "Manjari",
+    "designer": "Santhosh Thottingal & Swathanthra Malayalam Computing",
+    "license": "SIL Open Font License 1.1",
+    "source": "https://smc.org.in/fonts/manjari",
+    "note": "See README.md's 'License & credit' section for the full license text pointer (LICENSE-DATA) and attribution requirements."
+  },
+  "sources": [
+    "python/src/jayasree/_chars.py",
+    "docs/ARCHITECTURE.md",
+    "README.md"
+  ]
+}
