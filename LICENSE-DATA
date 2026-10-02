@@ -14,6 +14,15 @@ Attribution 4.0 International license (CC BY 4.0):
 
 Full license text: https://creativecommons.org/licenses/by/4.0/legalcode
 
+**Scope.** This grant covers only the files explicitly listed above -
+Malayalam's data. It does not extend by pattern or by analogy to any other
+language's equivalent files (e.g. `stroke-data.hi.raw.json`,
+`stroke-data.hi.json`, or any other `.{lang-code}.json`/`.raw.json` file),
+whether or not such a file exists in this repository at a given time. A
+new language's data is CC BY 4.0 only if its specific files are added to
+the list above; until then, assume no license is granted and all rights
+are reserved.
+
 What CC BY 4.0 means in practice: you may copy, redistribute, remix, and
 build on this content - including commercially - as long as you give
 appropriate credit. Please credit as:
