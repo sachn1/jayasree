@@ -224,10 +224,15 @@ under pressure during it. What changed:
   regex bounds in index.js" turned out not to describe anything that
   actually exists there.
 - **Makefile** - `build-glyph-data`, `process-strokes`, `update-snapshot`
-  now accept `LANG=<name>`, defaulting to `malayalam` everywhere (`make
-  build-glyph-data` behaves exactly as before if `LANG` is omitted).
+  now accept `PROJECT_LANG=<name>`, defaulting to `malayalam` everywhere
+  (`make build-glyph-data` behaves exactly as before if `PROJECT_LANG` is
+  omitted). Named `PROJECT_LANG`, not `LANG` - the latter was tried first
+  and silently broken on any machine where the shell's own locale `LANG`
+  env var is set (nearly all of them), since make inherits environment
+  variables of the same name ahead of a Makefile's own default; renamed to
+  avoid that collision entirely rather than document around it.
   `validate-data` (plain, no `--update-snapshot`) always checks every
-  language found on disk regardless of `LANG`.
+  language found on disk regardless of `PROJECT_LANG`.
 - **Tests** - `python/tests/test_languages.py` (new) and additions to
   `test_validate_data.py`/`test_cli.py` cover the registry, the
   discovery/path logic, and the new `--lang` argument's error handling.
@@ -320,9 +325,19 @@ well-organized, not to replace it.
 stance (Malayalam uses Manjari, SIL OFL 1.1 - README's "License & credit"
 section; a new font needs an equivalently open license, not just "free to
 download"), (b) a real outline font HarfBuzz can shape (not a bitmap/color
-font), and (c) **verified**, not claimed, to cover every character and
+font), (c) **verified**, not claimed, to cover every character and
 cluster in Agent 1's profile - including old/rare forms if those were scoped
-in.
+in, and (d) reasonably low-contrast/monoline in its stroke-width modulation.
+Point (d) is a real, not cosmetic, criterion: `docs/CENTERING_EXPERIMENTS.md`
+documents that the adopted centering/straightening approach (gradient ascent
+up a distance-transform field) is already known to get unreliable near
+corners/junctions - a font with pronounced calligraphic ductus (stroke width
+varying by direction, e.g. a broad-nib look) multiplies exactly those
+ambiguous junctions wherever strokes join (headline-to-stem, conjunct joins),
+so prefer the candidate with flatter stroke-width variation when coverage and
+license are otherwise tied, and note the tradeoff explicitly in
+`font-report.md` if the best-covered candidate is also the most calligraphic
+one.
 
 Verification is mechanical, reusing this project's own shaping code
 (`python/src/jayasree/strokes.py`'s HarfBuzz path, the same one
