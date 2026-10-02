@@ -9,7 +9,13 @@ from pathlib import Path
 import pytest
 
 from jayasree import languages
-from jayasree.languages import LANGUAGES, char_tuple, data_paths, get_language
+from jayasree.languages import (
+    LANGUAGES,
+    char_tuple,
+    data_paths,
+    get_language,
+    load_build_extension,
+)
 
 
 class TestGetLanguage:
@@ -91,6 +97,40 @@ class TestDataPaths:
         monkeypatch.setenv(languages.DATA_ROOT_OVERRIDE_ENV_VAR, str(tmp_path))
         paths = data_paths(get_language("malayalam"))
         assert paths.glyph_data == languages.ROOT / "js" / "src" / "glyph-data.json"
+
+
+class TestLoadBuildExtension:
+    """load_build_extension: optional private per-language build-time module."""
+
+    def test_returns_none_when_env_var_unset(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Ensure no extension is loaded if $JAYASREE_DATA_ROOT isn't set."""
+        monkeypatch.delenv(languages.DATA_ROOT_OVERRIDE_ENV_VAR, raising=False)
+        assert load_build_extension("hi") is None
+
+    def test_returns_none_when_extension_file_absent(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """Ensure a configured root with no matching file degrades to None."""
+        monkeypatch.setenv(languages.DATA_ROOT_OVERRIDE_ENV_VAR, str(tmp_path))
+        assert load_build_extension("hi") is None
+
+    def test_loads_matching_extension_file(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """Ensure a present build_ext_<code>.py is imported and usable."""
+        monkeypatch.setenv(languages.DATA_ROOT_OVERRIDE_ENV_VAR, str(tmp_path))
+        (tmp_path / "build_ext_hi.py").write_text("def recorder_note():\n    return 'test note'\n")
+        ext = load_build_extension("hi")
+        assert ext is not None
+        assert ext.recorder_note() == "test note"
+
+    def test_only_loads_the_requested_language_code(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """Ensure one language's extension file doesn't leak to another's code."""
+        monkeypatch.setenv(languages.DATA_ROOT_OVERRIDE_ENV_VAR, str(tmp_path))
+        (tmp_path / "build_ext_hi.py").write_text("x = 1\n")
+        assert load_build_extension("ta") is None
 
 
 def test_registry_entries_have_importable_chars_modules() -> None:

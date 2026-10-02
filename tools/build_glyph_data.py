@@ -7,20 +7,18 @@ Malayalam-specific quirks (subjoined-conjunct marks, the split compound
 vowels, the two hand-curated extra ghosts) are gated behind `lang.code ==
 "ml"` rather than assumed for every script - a new language's equivalent
 quirks get discovered by that pipeline's Agent 1/2 and added as their own
-gated block, not inherited from Malayalam's. Hindi's own quirks, gated
-behind `lang.code == "hi"`: `्र` (rakaar/vattu) is recorded and composed
-generically exactly like Malayalam's ്ര (see docs/languages/hi/
-font-report.md); nukta's encoding duality (precomposed U+0958-095E vs.
-decomposed base+U+093C) is normalized via `legacyEncodings`, the same
-mechanism as Malayalam's chillu spelling; and half-forms/reph (see
-`_build_contextual_forms()` below) get a `contextualForms` table once
-`docs/languages/hi/labeling-worklist.md`'s "headline finding" showed
-neither fits the mark-recipe model rakaar/nukta reuse - see
-`docs/languages/hi/composition-primitives-report.md` for the verification
-behind that table's design; and a `meta.recorderNote` banner text (see
-`_recorder_note()`) tells tools/stroke-recorder.js's tracer to skip the
-shirorekha, which is a synthesized word-level stroke, not a per-character
-one (docs/languages/hi/shirorekha-report.md).
+gated block, not inherited from Malayalam's.
+
+A language can instead keep its own quirks out of this public file
+entirely, via a private build-time extension module loaded by
+`jayasree.languages.load_build_extension()` - see that function's
+docstring. Hindi's real research (rakaar/vattu composition, nukta's
+encoding duality, half-form/reph derivation via `contextualForms`, and the
+shirorekha recorder-banner text) lives this way, in a private companion
+repo, not inline here - this file only defines the *hooks* an extension
+can fill (`extra_standalone_inputs`, `extra_composable_marks`,
+`runtime_quirks`, `recorder_note`), each called at most once per build,
+each optional.
 """
 
 from __future__ import annotations
@@ -29,6 +27,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from types import ModuleType
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "python" / "src"))
@@ -39,6 +38,7 @@ from jayasree.languages import (  # noqa: E402
     char_tuple,
     data_paths,
     get_language,
+    load_build_extension,
 )
 
 #: Compound vowel signs with a canonical (or, for ai, font-specific) split
@@ -79,34 +79,8 @@ _ML_LEGACY_CHILLU: dict[str, str] = {
     "ക" + _ML_VIRAMA_ZWJ: "ൿ",
 }
 
-#: Hindi's own encoding-duality case (docs/languages/hi/profile.md's
-#: "Encoding duality" section, direct parallel to _ML_LEGACY_CHILLU above):
-#: every one of these 7 nukta consonants has a real Unicode *canonical*
-#: NFD decomposition into base-consonant + U+093C (verified directly via
-#: `unicodedata.decomposition()` while building this table - this
-#: corrects profile.md's own hedge that "some... are not canonical-
-#: equivalent to their decomposed sequence"; all 7 actually are). Real text
-#: mixes both spellings unpredictably, and this font shapes both to the
-#: exact same single fused glyph (verified via HarfBuzz), so - same as
-#: chillu - one recorded atom (the precomposed codepoint, kept in the
-#: standard CONSONANTS set) covers both spellings once the decomposed one
-#: normalizes to it here.
-# Precomposed codepoints written as chr(0x...) rather than literal
-# characters - a literal precomposed nukta letter in source text is
-# visually indistinguishable from (and too easy for an editor/tool to
-# silently NFC/NFD-normalize into) its own decomposed form, which would
-# make the *values* below equal to the *keys*, silently turning this table
-# into a no-op. chr() sidesteps that entirely.
-_HI_NUKTA_BASE = "\u0915\u0916\u0917\u091c\u0921\u0922\u092b"  # क ख ग ज ड ढ फ
-_HI_NUKTA_PRECOMPOSED = "\u0958\u0959\u095a\u095b\u095c\u095d\u095e"  # क़ ख़ ग़ ज़ ड़ ढ़ फ़
-_HI_NUKTA_MARK = "\u093c"  # ़
-_HI_NUKTA_CONSONANTS: dict[str, str] = {
-    base + _HI_NUKTA_MARK: precomposed
-    for base, precomposed in zip(_HI_NUKTA_BASE, _HI_NUKTA_PRECOMPOSED, strict=True)
-}
 
-
-def _standalone_inputs(lang: LanguageSpec, chars: object) -> list[str]:
+def _standalone_inputs(lang: LanguageSpec, chars: object, ext: ModuleType | None) -> list[str]:
     """Single-codepoint clusters: letters, digits, and standalone diacritics."""
     letters = (
         "".join(char_tuple(chars, "INDEPENDENT_VOWELS"))
@@ -180,20 +154,8 @@ def _standalone_inputs(lang: LanguageSpec, chars: object) -> list[str]:
             # റ takes a distinct contextual glyph here).
             inputs.append(chillu[0] + "റ")
 
-    if lang.code == "hi" and virama:
-        # ्र (rakaar/vattu - र as a non-first conjunct member) - direct
-        # Devanagari analogue of Malayalam's ്ര above: an exhaustive
-        # 33x33 sweep (docs/languages/hi/font-report.md, reconfirmed
-        # directly against this font by this build) shows every
-        # <consonant>+्+र pair fuses into its own dedicated glyph, but the
-        # *visual content* is consistently "the base consonant, plus this
-        # one reusable diagonal tail" - so, exactly like ്ര, it's recorded
-        # once and composed generically (see _composable_marks below) at
-        # the accepted cost of not reproducing the font's exact per-pair
-        # kerning (docs/ARCHITECTURE.md's "Compound vowel signs" section
-        # documents this same trade-off for Malayalam). Give the recorder
-        # a real reference ghost the same way.
-        inputs.append(virama + "र")
+    if ext is not None and hasattr(ext, "extra_standalone_inputs"):
+        inputs += ext.extra_standalone_inputs(chars)
 
     return inputs
 
@@ -248,10 +210,10 @@ def _anusvara_visarga_inputs(chars: object) -> list[str]:
     return [b + mark for b in bases for mark in marks]
 
 
-def _build_input_list(lang: LanguageSpec, chars: object) -> list[str]:
+def _build_input_list(lang: LanguageSpec, chars: object, ext: ModuleType | None) -> list[str]:
     """Return all Unicode cluster strings to be shaped, deduplicated in order."""
     inputs = (
-        _standalone_inputs(lang, chars)
+        _standalone_inputs(lang, chars, ext)
         + _consonant_matra_inputs(chars)
         + _conjunct_inputs(chars)
         + _anusvara_visarga_inputs(chars)
@@ -304,7 +266,7 @@ def _shape_all(inputs: list[str], font: str) -> dict:
     return result
 
 
-def _composable_marks(lang: LanguageSpec, chars: object) -> list[str]:
+def _composable_marks(lang: LanguageSpec, chars: object, ext: ModuleType | None) -> list[str]:
     """Return the marks composable onto an arbitrary base cluster at runtime.
 
     The generic part (virama, nukta, every matra, anusvara/visarga/
@@ -331,12 +293,8 @@ def _composable_marks(lang: LanguageSpec, chars: object) -> list[str]:
     if lang.code == "ml" and virama:
         marks += [virama + "യ", virama + "വ", virama + "ല", virama + "ര"]
 
-    if lang.code == "hi" and virama:
-        # ्र (rakaar/vattu) - see _standalone_inputs's matching block above
-        # for the full derivation. Shaping "्र" alone confirms it's a real,
-        # dedicated, generic tail glyph (not र's own full form reused) -
-        # exactly the same shape of finding as Malayalam's ്ര.
-        marks.append(virama + "र")
+    if ext is not None and hasattr(ext, "extra_composable_marks"):
+        marks += ext.extra_composable_marks(chars)
 
     anusvara = getattr(chars, "ANUSVARA", None)
     visarga = getattr(chars, "VISARGA", None)
@@ -385,48 +343,6 @@ def _build_marks(composable_marks: list[str], font: str) -> dict:
     return marks
 
 
-#: Devanagari's reph-triggering consonant - see _build_contextual_forms().
-#: Hardcoded here rather than sourced from _chars_hi.py, matching this
-#: file's existing precedent for rakaar (the literal "र" already appears
-#: directly in _standalone_inputs's and _composable_marks's hi-gated
-#: blocks above) - Hindi's own onboarding data already lives inline in
-#: this tool's gated sections, not exclusively in the chars module.
-_HI_REPH_CONSONANT = "र"
-
-#: Pairs excluded from the generic half-form derivation below - verified
-#: (docs/languages/hi/composition-primitives-report.md §1) to fuse into a
-#: genuine ya-phala-style ligature instead of using the base consonant's
-#: ordinary half-form shape. Structurally the same category as any true
-#: akhand ligature - recorded/composed directly, not via contextualForms.
-#:
-#: Written via chr() for the two nukta consonants, not literal characters -
-#: same silent-NFD-round-trip trap _chars_hi.py's NUKTA_CONSONANTS docstring
-#: warns about (confirmed here too: a literal "ड़"/"ढ़" typed directly into
-#: this file previously got silently decomposed on save, so this set's keys
-#: never matched `consonants`' precomposed codepoints and the exclusion was
-#: a silent no-op - harmless only by coincidence, since "क" already
-#: satisfies the "one representative partner" loop below for both
-#: consonants before "य" is ever reached).
-_HI_HALFFORM_EXCLUDED_PAIRS = {(chr(0x95C), "य"), (chr(0x95D), "य")}
-
-#: Shown by tools/stroke-recorder.js as a persistent banner while this
-#: language's data is loaded - the shirorekha (headline) is a *synthetic,
-#: word-level* stroke by design (docs/languages/hi/profile.md's "Shirorekha
-#: (headline)" section, feasibility verified in
-#: docs/languages/hi/shirorekha-report.md), never a per-character traced
-#: one. Every ghost outline still shows it (it's part of the font's own
-#: glyph outline), so without an explicit notice a tracer has no way to
-#: know to skip it - written into glyph-data.json as `meta.recorderNote`
-#: (present only for a language that needs one) rather than hardcoded in
-#: the recorder tool, which stays script-agnostic.
-_HI_RECORDER_NOTE = (
-    "Devanagari's shirorekha (the horizontal line along the top of each "
-    "letter) is generated automatically when words are composed - do not "
-    "trace it. Skip the top line entirely for every character; only draw "
-    "the strokes below it."
-)
-
-
 def _extract_ghost(own_glyph: dict, other_glyph: dict) -> dict:
     """Build a standalone-ghost-shaped entry for one glyph pulled out of an
     already-shaped 2-glyph cluster entry.
@@ -435,10 +351,12 @@ def _extract_ghost(own_glyph: dict, other_glyph: dict) -> dict:
     standalone atom's ghost already follows (see `_shape_all` - a
     freshly-shaped standalone cluster's first glyph starts at or near 0).
     ``advance`` is approximated as the horizontal gap to `other_glyph` in
-    the source pair - this ghost is never itself rendered as a real
-    standalone cluster (see `_build_contextual_forms`'s docstring for why),
-    so its exact advance is only ever used for the recorder's own display
-    layout, not for real composition math.
+    the source pair - exposed for a build extension's own contextual-form
+    derivation to reuse (e.g. Devanagari half-form/reph ghosts), so each
+    language doesn't need to reimplement this geometry. Never itself
+    rendered as a real standalone cluster, so its exact advance is only
+    ever used for the recorder's own display layout, not for real
+    composition math.
     """
     anchor = own_glyph["x"]
     return {
@@ -447,90 +365,20 @@ def _extract_ghost(own_glyph: dict, other_glyph: dict) -> dict:
     }
 
 
-def _build_contextual_forms(lang: LanguageSpec, chars: object, shaped_clusters: dict) -> dict:
-    """Derive Devanagari's half-form/reph substitute atoms (hi-gated).
-
-    `docs/languages/hi/labeling-worklist.md`'s "headline finding": a
-    virama between two consonants almost never produces its own glyph, so
-    neither existing composition mechanism (mark recipes, per-character
-    fallback) fits half-forms (the *base* consonant substitutes a
-    different shape) or reph (the mark detaches from its own typed
-    position entirely). `docs/languages/hi/composition-primitives-report.md`
-    verifies the fix: each consonant's half-form, and the reph hook, really
-    is one single reusable glyph shape - but that shape must be pulled out
-    of an already-shaped `<consonant><virama><consonant>` cluster entry
-    (from `_conjunct_inputs()`'s brute-force sweep, already in
-    `shaped_clusters`), never obtained by shaping the 2-character trigger
-    standalone: that instead produces the *linguistically different*
-    word-final "explicit halant" glyph (confirmed empirically, not
-    assumed - see that report's §3), which is also the glyph real running
-    text ending in that trigger correctly needs, via virama's own
-    pre-existing `marks` entry.
-
-    That's exactly why this returns a *separate* `contextualForms` table
-    rather than adding `<consonant><virama>` entries to `clusters` (what
-    every other atom in this file does): a `clusters["<C1><virama>"]`
-    entry would make `resolveSegments`'s direct-match tier pick up real
-    word-final `<C1><virama>` text and render it as the mid-conjunct
-    half-form - silently wrong. Keeping the ghost data out of `clusters`
-    entirely, reachable only via `contextualForms[trigger]["ghost"]`,
-    means only the recorder (for tracing) and the new
-    `tryComposeContextualForm`/`compose_contextual_form` composition
-    functions (via `STROKE_LIBRARY[trigger]` once traced - a namespace
-    `resolveSegments` never consults) ever see it; real text segmentation
-    is completely unaffected and untouched.
-
-    Returns
-    -------
-    dict
-        ``{"<C1><virama>": {"role": "halfForm" | "reph", "ghost": {...}}}``,
-        empty for every language but Hindi.
-    """
-    if lang.code != "hi":
-        return {}
-    virama = getattr(chars, "VIRAMA", None)
-    consonants = char_tuple(chars, "CONSONANTS")
-    if not virama:
-        return {}
-
-    forms: dict = {}
-
-    for c1 in consonants:
-        if c1 == _HI_REPH_CONSONANT:
-            continue
-        for c2 in consonants:
-            if (c1, c2) in _HI_HALFFORM_EXCLUDED_PAIRS:
-                continue
-            entry = shaped_clusters.get(c1 + virama + c2)
-            if not entry or len(entry["glyphs"]) != 2:
-                continue
-            g0, g1 = entry["glyphs"]
-            forms[c1 + virama] = {"role": "halfForm", "ghost": _extract_ghost(g0, g1)}
-            break  # one representative partner suffices - identity verified per-consonant
-
-    for c2 in consonants:
-        entry = shaped_clusters.get(_HI_REPH_CONSONANT + virama + c2)
-        if not entry or len(entry["glyphs"]) != 2:
-            continue
-        g0, g1 = entry["glyphs"]
-        forms[_HI_REPH_CONSONANT + virama] = {"role": "reph", "ghost": _extract_ghost(g1, g0)}
-        break  # reph hook shape verified identical across all 40 partners
-
-    return forms
-
-
-def _runtime_quirks(lang: LanguageSpec, chars: object, shaped_clusters: dict) -> dict:
+def _runtime_quirks(
+    lang: LanguageSpec, chars: object, shaped_clusters: dict, ext: ModuleType | None
+) -> dict:
     """Return the language-specific lookup tables js/src/index.js needs at runtime.
 
     Written into glyph-data.json as top-level ``legacyEncodings``/
     ``splitVowelParts``/``contextualForms`` keys, present only for a
-    language that actually has them - a language with none of these
-    (everything but Malayalam and Hindi, today) gets no extra keys at all,
-    so index.js never has anything script-specific to load, hold in
-    memory, or iterate for that language's session. See
+    language that actually has them - a language with none of these gets
+    no extra keys at all, so index.js never has anything script-specific
+    to load, hold in memory, or iterate for that language's session. See
     `docs/LANGUAGE_ONBOARDING_AGENTS.md`'s "Don't generalize from Malayalam"
     - a future language's own runtime quirks, if it has any, are a finding
-    from *its* onboarding, added here the same gated way, not inherited.
+    from *its* onboarding, added here the same gated way (or via its own
+    build extension - see `ext`), not inherited.
 
     Returns
     -------
@@ -542,23 +390,20 @@ def _runtime_quirks(lang: LanguageSpec, chars: object, shaped_clusters: dict) ->
     if lang.code == "ml":
         quirks["legacyEncodings"] = _ML_LEGACY_CHILLU
         quirks["splitVowelParts"] = _ML_SPLIT_VOWEL_PARTS
-    if lang.code == "hi":
-        quirks["legacyEncodings"] = _HI_NUKTA_CONSONANTS
-        contextual_forms = _build_contextual_forms(lang, chars, shaped_clusters)
-        if contextual_forms:
-            quirks["contextualForms"] = contextual_forms
+    if ext is not None and hasattr(ext, "runtime_quirks"):
+        quirks.update(ext.runtime_quirks(chars, shaped_clusters, _extract_ghost))
     return quirks
 
 
-def _recorder_note(lang: LanguageSpec) -> str | None:
+def _recorder_note(lang: LanguageSpec, ext: ModuleType | None) -> str | None:
     """Return the recorder-banner text for `lang`, or None if it needs none.
 
     Separate from `_runtime_quirks()` on purpose - that function's output
     feeds js/src/index.js's runtime composer; this one is read only by
     tools/stroke-recorder.js and has no effect on composition.
     """
-    if lang.code == "hi":
-        return _HI_RECORDER_NOTE
+    if ext is not None and hasattr(ext, "recorder_note"):
+        return ext.recorder_note()
     return None
 
 
@@ -592,10 +437,11 @@ def main() -> None:
         )
 
     chars = lang.chars()
-    inputs = _build_input_list(lang, chars)
+    ext = load_build_extension(lang.code)
+    inputs = _build_input_list(lang, chars, ext)
     result = _shape_all(inputs, str(font_path))
-    result["marks"] = _build_marks(_composable_marks(lang, chars), str(font_path))
-    result.update(_runtime_quirks(lang, chars, result["clusters"]))
+    result["marks"] = _build_marks(_composable_marks(lang, chars, ext), str(font_path))
+    result.update(_runtime_quirks(lang, chars, result["clusters"], ext))
 
     # Read by tools/stroke-recorder.js for the page title/heading and the
     # "Add custom cluster" placeholder - present for every language (not
@@ -605,7 +451,7 @@ def main() -> None:
     if lang.example_custom_cluster:
         result["meta"]["exampleCustomCluster"] = lang.example_custom_cluster
 
-    note = _recorder_note(lang)
+    note = _recorder_note(lang, ext)
     if note:
         result["meta"]["recorderNote"] = note
 

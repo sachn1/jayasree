@@ -43,6 +43,7 @@ error.
 
 from __future__ import annotations
 
+import importlib.util
 import os
 from dataclasses import dataclass
 from importlib import import_module
@@ -167,6 +168,48 @@ def get_language(name: str) -> LanguageSpec:
     except KeyError:
         available = ", ".join(sorted(LANGUAGES)) or "(none registered)"
         raise ValueError(f"Unknown language {name!r}. Available: {available}.") from None
+
+
+def load_build_extension(lang_code: str) -> ModuleType | None:
+    """Import a language's private build-time extension module, if configured.
+
+    `tools/build_glyph_data.py` is the shared, script-agnostic engine - but
+    a script can have real build-time research behind it (e.g. Devanagari's
+    half-form/reph derivation) that's deliberately kept out of this public
+    repo. That logic lives instead in `$JAYASREE_DATA_ROOT/build_ext_
+    <lang_code>.py` (see `DATA_ROOT_OVERRIDE_ENV_VAR`) - a private
+    companion file, not part of this codebase. This loads it directly from
+    that path if present.
+
+    Absent the env var, or the file, this returns None and callers treat
+    that as "this language has no build-time extension" - the same
+    graceful-degradation shape `char_tuple()` already uses for an absent
+    character category, not an error. A language with no real build-time
+    research behind it (or one developed with the extension not wired up
+    yet) still builds; it just doesn't get that extension's contributions.
+
+    Parameters
+    ----------
+    lang_code : str
+        A `LanguageSpec.code`, e.g. ``"hi"``.
+
+    Returns
+    -------
+    ModuleType or None
+        The loaded extension module, or None if not configured.
+    """
+    root = os.environ.get(DATA_ROOT_OVERRIDE_ENV_VAR)
+    if not root:
+        return None
+    ext_path = Path(root) / f"build_ext_{lang_code}.py"
+    if not ext_path.is_file():
+        return None
+    spec = importlib.util.spec_from_file_location(f"_jayasree_build_ext_{lang_code}", ext_path)
+    if spec is None or spec.loader is None:
+        return None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def char_tuple(module: ModuleType, attr: str) -> tuple[str, ...]:
