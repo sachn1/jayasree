@@ -4,6 +4,8 @@ docs/LANGUAGE_ONBOARDING_AGENTS.md).
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from jayasree import languages
@@ -64,6 +66,31 @@ class TestDataPaths:
         assert paths.stroke_data_raw.name == "stroke-data.ta.raw.json"
         assert paths.stroke_data.name == "stroke-data.ta.json"
         assert paths.snapshot.name == "stroke_data_raw_snapshot.ta.json"
+
+    def test_non_primary_language_honors_data_root_override(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """Ensure a non-primary language resolves under $JAYASREE_DATA_ROOT if set."""
+        monkeypatch.setenv(languages.DATA_ROOT_OVERRIDE_ENV_VAR, str(tmp_path))
+        fake = languages.LanguageSpec(
+            code="ta",
+            name="Tamil",
+            chars_module="jayasree._chars",
+            carrier_consonant="க",
+        )
+        paths = data_paths(fake)
+        assert paths.glyph_data == tmp_path / "js" / "src" / "glyph-data.ta.json"
+        assert paths.snapshot == (
+            tmp_path / "python" / "tests" / "snapshots" / "stroke_data_raw_snapshot.ta.json"
+        )
+
+    def test_primary_language_ignores_data_root_override(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """Ensure Malayalam's files always stay under this repo's own ROOT."""
+        monkeypatch.setenv(languages.DATA_ROOT_OVERRIDE_ENV_VAR, str(tmp_path))
+        paths = data_paths(get_language("malayalam"))
+        assert paths.glyph_data == languages.ROOT / "js" / "src" / "glyph-data.json"
 
 
 def test_registry_entries_have_importable_chars_modules() -> None:

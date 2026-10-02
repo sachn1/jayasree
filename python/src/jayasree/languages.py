@@ -43,12 +43,22 @@ error.
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from importlib import import_module
 from pathlib import Path
 from types import ModuleType
 
 ROOT = Path(__file__).resolve().parents[3]
+
+#: Environment variable naming a directory laid out like this repo's own
+#: root (i.e. with its own `js/src/` and `python/tests/snapshots/`) where a
+#: non-primary language's data files actually live - e.g. a private
+#: companion repo holding a premium language's full dataset. Unset by
+#: default, which keeps every language resolving under this repo's own
+#: `ROOT`, exactly as before this existed. `PRIMARY_LANGUAGE` never honors
+#: this - its data is always meant to be committed in this repo.
+DATA_ROOT_OVERRIDE_ENV_VAR = "JAYASREE_DATA_ROOT"
 
 #: The one language whose committed files keep their original, unsuffixed
 #: names (`glyph-data.json`, not `glyph-data.ml.json`) - required for
@@ -193,11 +203,17 @@ def data_paths(lang: LanguageSpec) -> DataPaths:
         `glyph_data`/`stroke_data_raw`/`stroke_data` under `js/src/`, and
         `snapshot` under `python/tests/snapshots/` - unsuffixed for
         `PRIMARY_LANGUAGE`, `.{code}`-suffixed for every other language.
+        Resolved under `$JAYASREE_DATA_ROOT` instead of this repo's `ROOT`
+        for any non-primary language, if that environment variable is set
+        (see `DATA_ROOT_OVERRIDE_ENV_VAR`).
     """
     is_primary = lang.code == LANGUAGES[PRIMARY_LANGUAGE].code
     suffix = "" if is_primary else f".{lang.code}"
-    js_src = ROOT / "js" / "src"
-    snapshots = ROOT / "python" / "tests" / "snapshots"
+    data_root = ROOT
+    if not is_primary and (override := os.environ.get(DATA_ROOT_OVERRIDE_ENV_VAR)):
+        data_root = Path(override)
+    js_src = data_root / "js" / "src"
+    snapshots = data_root / "python" / "tests" / "snapshots"
     return DataPaths(
         glyph_data=js_src / f"glyph-data{suffix}.json",
         stroke_data_raw=js_src / f"stroke-data{suffix}.raw.json",
