@@ -357,3 +357,8 @@ not-yet-done work (multi-language support, Git LFS, deployment, ...).
 - **Letterforms** - `glyph-data.json` (and the outlines inside the generated
   SVGs) derive from the [Manjari](https://smc.org.in/fonts/manjari) typeface
   (SIL OFL 1.1) by Santhosh Thottingal & Swathanthra Malayalam Computing.
+- **Prior art** - [mlmash](https://gitlab.com/smc/mlmash) (live at
+  [learn.smc.org.in](https://learn.smc.org.in)) by Santhosh Thottingal came
+  first, by several years, and also animates Malayalam handwriting with SVG
+  strokes. [His write-up](https://thottingal.in/blog/2020/10/27/learning-to-write-malayalam-svg-animation/)
+  explains how it works.
