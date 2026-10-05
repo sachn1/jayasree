@@ -1,12 +1,12 @@
 repos:
   - repo: https://github.com/commitizen-tools/commitizen
-    rev: v4.16.4  # keep in sync with python/pyproject.toml's commitizen version
+    rev: v4.19.1  # keep in sync with python/pyproject.toml's commitizen version
     hooks:
       - id: commitizen  # enforces conventional commit messages (see CONTRIBUTING.md)
         stages: [commit-msg]
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.15.22
+    rev: v0.16.5
     hooks:
       - id: ruff
         args: [--fix]
