@@ -19,9 +19,9 @@ classifiers = [
     "Topic :: Multimedia :: Graphics",
 ]
 dependencies = [
-    "fonttools>=4.62",
-    "uharfbuzz>=0.55",
-    "svgpathtools (>=1.7.2,<2.0.0)",
+    "fonttools>=4.65.0",
+    "uharfbuzz>=0.56.2",
+    "svgpathtools (>=1.8.0,<2.0.0)",
     "numpy>=1.26",
     "scipy>=1.11",
     "pillow>=10.0",
@@ -63,7 +63,7 @@ pre-commit = "^4.6.0"
 interrogate = "^1.7.0"
 pytest = "^9.1"
 pytest-cov = "^7.1"
-ruff = "0.16.5"  # pinned to match .pre-commit-config.yaml's ruff-pre-commit rev
+ruff = "0.16.10"  # pinned to match .pre-commit-config.yaml's ruff-pre-commit rev
 # python marker only because commitizen declares <4.0 and this project doesn't
 commitizen = { version = "^4.16", python = "<4.0" }
 
