@@ -57,8 +57,11 @@ jobs:
       - name: Bump version
         id: bump
         run: |
+          # Call cz directly, not through `make bump-ci`: make reports any failed recipe as its
+          # own exit code 2, so the 21 ("nothing to release") and 3 checks below could never
+          # match and every merge with nothing to release failed the job.
           set +e
-          make bump-ci
+          python/.venv/bin/cz bump --yes
           code=$?
           set -e
           if [ "$code" -eq 21 ] || [ "$code" -eq 3 ]; then
