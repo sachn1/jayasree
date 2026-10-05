@@ -14,6 +14,10 @@
 name = "cz_conventional_commits"
 version = "0.4.1"
 tag_format = "v$version"
+# Annotated, so `git push --follow-tags` in release-on-merge.yml pushes the tag. cz's default
+# lightweight tags are silently skipped by --follow-tags, which left v0.4.1 unpushed and made
+# the next release run fail (NO_REVISION).
+annotated_tag = true
 update_changelog_on_bump = true
 version_files = [
     "python/pyproject.toml:^version",
