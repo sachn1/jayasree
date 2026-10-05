@@ -1,18 +1,32 @@
 # Keeps the three toolchains' dependencies fresh via automated PRs.
 # Monthly cadence: this is a small project; weekly would be mostly noise.
+#
+# Routine (minor and patch) updates are grouped into one PR per ecosystem, so a month
+# produces three PRs at most instead of one per package. Major versions still arrive as
+# their own PRs, because those are the ones worth a deliberate look. Security updates are
+# separate from version updates and are not grouped.
 version: 2
 updates:
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: monthly
+    groups:
+      github-actions:
+        patterns: ["*"]
 
   - package-ecosystem: npm
     directory: /
     schedule:
       interval: monthly
+    groups:
+      npm-minor-patch:
+        update-types: ["minor", "patch"]
 
   - package-ecosystem: pip # reads python/pyproject.toml + poetry.lock
     directory: /python
     schedule:
       interval: monthly
+    groups:
+      pip-minor-patch:
+        update-types: ["minor", "patch"]
