@@ -117,6 +117,11 @@ code {
   font-weight: 600;
 }
 
+.status-remark {
+  color: #6d28d9;
+  font-weight: 600;
+}
+
 /* ── Per-language recorder banner (e.g. Hindi's shirorekha notice) ── */
 
 .recorder-note {
@@ -315,6 +320,54 @@ button#eraser-btn.active {
 .add-cluster-hint {
   text-align: left;
   margin-top: 0.3rem;
+}
+
+/* ── Remark section ── */
+
+.remark-section {
+  margin-top: 0.75rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid #e3ddf5;
+  text-align: left;
+}
+
+.remark-section label {
+  display: block;
+  font-size: 0.82rem;
+  color: #6b6591;
+  margin-bottom: 0.25rem;
+}
+
+#remark-text {
+  width: 100%;
+  font: inherit;
+  font-size: 0.88rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: 8px;
+  border: 1px solid #c4b5e8;
+  resize: vertical;
+}
+
+.remark-ref-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.remark-ref-row label {
+  margin-bottom: 0;
+  white-space: nowrap;
+}
+
+#remark-ref {
+  font: inherit;
+  font-size: 0.88rem;
+  padding: 0.32rem 0.6rem;
+  border-radius: 8px;
+  border: 1px solid #c4b5e8;
+  min-width: 6rem;
 }
 
 /* ── Merge section (export area) ── */

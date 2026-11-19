@@ -36,7 +36,13 @@ stages - script-agnostic, despite the alias's name; pass explicit
 
 --lang selects which language's default --input/--glyph-data/--output paths
 to use (jayasree.languages.LANGUAGES; default: malayalam) - pass explicit
---input/--glyph-data/--output to override any of them individually.
+--input/--glyph-data/--output to override any of them individually. Before
+any stage runs, a `lang.code`-gated block may synthesize some clusters'
+strokes from others already hand-traced (e.g. Hindi's `_hi_derive_strokes()`
+below, for its decomposable nukta consonants) instead of requiring a second
+human trace - same gated-by-language-code convention as every other
+language-specific quirk in this project, never a private mechanism. Never
+overrides a cluster stroke-data.raw.json already genuinely has.
 
 Usage (from repo root):
     python tools/process_strokes.py --preset=full
@@ -48,6 +54,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -58,6 +65,19 @@ from jayasree import centering, geometry, ghost_reference, stroke_compose  # noq
 from jayasree.languages import data_paths, get_language  # noqa: E402
 
 N_SAMPLES = 120  # arc-length-uniform points sampled per stroke before center/smooth
+
+#: Curve-straightening (ghost_reference's circle-matching) is a separate,
+#: still-unfinished feature from the sparse-piece smoothing fix below -
+#: confirmed via real testing to still introduce its own splice-boundary
+#: artifacts (see docs/CENTERING_EXPERIMENTS.md's "Curve straightening"
+#: section, "Still open when this was paused"). Deliberately its own
+#: switch, not folded into any `lang_code == "hi"` check - the two are
+#: unrelated fixes that happen to both touch Hindi, and gating them
+#: together was itself a bug (flipping this on by accident reintroduced
+#: jagged output immediately after the smoothing fix had just cleaned it
+#: up). Flip to True only once that section's open tangent-continuity
+#: problem is actually resolved and visually verified.
+_CURVE_STRAIGHTEN_ENABLED = False
 
 _ALL_STAGES: dict[str, bool] = {"center": True, "smooth": True, "straighten": True, "expand": True}
 PRESETS: dict[str, dict[str, bool]] = {
@@ -110,9 +130,10 @@ def parse_args() -> argparse.Namespace:
     args = parser.parse_args()
 
     try:
-        lang_paths = data_paths(get_language(args.lang))
+        lang = get_language(args.lang)
     except ValueError as exc:
         parser.error(str(exc))
+    lang_paths = data_paths(lang)
     args.input = args.input or lang_paths.stroke_data_raw
     args.glyph_data = args.glyph_data or lang_paths.glyph_data
     args.output = args.output or lang_paths.stroke_data
@@ -158,15 +179,32 @@ def _process_stroke(
     field: centering.DistField | None,
     refs: list[dict],
     args: argparse.Namespace,
+    lang_code: str,
+    curve_refs: list[dict] | None = None,
 ) -> str:
-    """Run one stroke through the center/smooth/straighten stages, in that order."""
+    """Run one stroke through the center/smooth/straighten stages, in that order.
+
+    `lang_code` gates Hindi-only fixes directly in code (`lang_code == "hi"`),
+    the same way every other per-language quirk in this project is gated
+    (see tools/build_glyph_data.py) - never a configurable default any
+    language could inherit by omission. Malayalam's own path through this
+    function never evaluates to anything but the plain, original behavior.
+    """
     if args.center or args.smooth:
         pts = geometry.sample_path(d, N_SAMPLES)
         if len(pts) >= 4:
             if args.center and field is not None:
                 pts = centering.center_points(pts, field)
             if args.smooth:
-                smoothed = geometry.smooth_points(pts)
+                # Hindi-only: re-fit an RDP-over-simplified piece from its
+                # real points instead of leaving it too sparse to curve
+                # through - see geometry.smooth_points's
+                # `sparse_piece_fallback` docstring for the confirmed bug
+                # this fixes (docs/CENTERING_EXPERIMENTS.md's "Curve
+                # straightening" section). Malayalam's call below never
+                # passes this - its own already-approved, snapshot-gated
+                # output is untouched by construction, not by a default.
+                smoothed = geometry.smooth_points(pts, sparse_piece_fallback=(lang_code == "hi"))
                 if smoothed:
                     d = smoothed
             else:
@@ -175,9 +213,114 @@ def _process_stroke(
                 d = "M " + " L ".join(f"{x:.1f} {y:.1f}" for x, y in pts)
 
     if args.straighten and refs:
-        d = ghost_reference.refine_stroke(d, refs)
+        d = ghost_reference.refine_stroke(
+            d,
+            refs,
+            curve_refs if _CURVE_STRAIGHTEN_ENABLED else None,
+            # Hindi-only: reject a reference segment too short to actually
+            # represent the piece being matched - see
+            # ghost_reference.REF_LENGTH_MATCH_RATIO's docstring for the
+            # confirmed bug this fixes (a long curved "bridge" stroke
+            # collapsing onto an unrelated short straight edge) and why
+            # it's opt-in rather than on by default (367 of Malayalam's
+            # 1721 already-committed clusters change if enabled
+            # unconditionally - Malayalam's own call here never passes
+            # this, so its output is untouched by construction).
+            ghost_reference.REF_LENGTH_MATCH_RATIO if lang_code == "hi" else 0.0,
+        )
 
     return d
+
+
+#: Of Hindi's 7 nukta consonants, these 5 are verified (byte-identical first
+#: SVG subpath against the plain base consonant - see
+#: tools/build_glyph_data.py's `_HI_DECOMPOSABLE_NUKTA_BASE` docstring,
+#: duplicated here rather than imported across these two standalone scripts)
+#: to be exactly their base consonant's own outline plus one small
+#: additional dot contour at a font-given position - genuinely decomposable.
+#: ख़/फ़ are deliberately excluded: Noto draws a genuinely different base
+#: shape for those two, same category as a true akhand ligature.
+_HI_DECOMPOSABLE_NUKTA_BASE: dict[str, str] = {
+    chr(0x958): "क",
+    chr(0x95A): "ग",
+    chr(0x95B): "ज",
+    chr(0x95C): "ड",
+    chr(0x95D): "ढ",
+}
+
+_HI_NUKTA_MARK = "़"
+_HI_SUBPATH_RE = re.compile(r"M[^M]*")
+_HI_COORD_RE = re.compile(r"-?\d+\.?\d*")
+
+
+def _hi_path_bbox_center(d: str) -> tuple[float, float]:
+    """Rough bounding-box center of every x/y coordinate pair in `d`.
+
+    Deliberately crude (treats curve control points the same as
+    endpoints) - good enough for this function's one use: locating a
+    small, near-circular dot's position well enough to compute a
+    translation offset, not a general SVG bbox calculator.
+    """
+    nums = [float(n) for n in _HI_COORD_RE.findall(d)]
+    xs, ys = nums[0::2], nums[1::2]
+    return (min(xs) + max(xs)) / 2, (min(ys) + max(ys)) / 2
+
+
+def _hi_derive_strokes(stroke_data: dict, shaped_clusters: dict) -> dict:
+    """Synthesize Hindi's 5 decomposable nukta consonants' strokes, if derivable.
+
+    Reuses two already-recorded things verbatim, never asking for a second
+    human trace:
+
+    1. The plain base consonant's own recorded strokes, as-is - its outline
+       is byte-identical inside the fused nukta glyph (see
+       `_HI_DECOMPOSABLE_NUKTA_BASE` above), so no translation is needed for
+       this part; same coordinate frame already.
+    2. The nukta mark's (़, U+093C) own recorded stroke(s) - Hindi's Group B
+       synthetic atom (docs/languages/hi/profile.md) - translated from
+       wherever it was drawn to the exact position this specific nukta
+       consonant's real shaped outline puts its dot (`shaped_clusters[nukta_
+       char]`'s last SVG subpath), using `stroke_compose.offset_svg_path`
+       (the same helper reph/half-form composition already uses).
+
+    Only fires once *both* dependencies (the base consonant, the nukta
+    mark) have real recorded strokes, and never overrides a nukta consonant
+    that already has its own real entry - the caller only uses
+    `dict.setdefault`.
+
+    Parameters
+    ----------
+    stroke_data : dict
+        The hand-authored stroke-data.raw.json content.
+    shaped_clusters : dict
+        glyph-data.hi.json's own `clusters` - this build's real HarfBuzz
+        output, consulted only to locate each fused glyph's real dot
+        subpath, never to invent geometry the font doesn't actually have.
+
+    Returns
+    -------
+    dict
+        ``{nukta_consonant: {"strokes": [...]}}`` for whichever of the 5
+        have both dependencies recorded.
+    """
+    mark_entry = stroke_data.get(_HI_NUKTA_MARK)
+    if not mark_entry or not mark_entry.get("strokes"):
+        return {}
+    mark_strokes = mark_entry["strokes"]
+    mark_center = _hi_path_bbox_center(mark_strokes[0]["d"])
+
+    derived: dict = {}
+    for nukta_char, base_char in _HI_DECOMPOSABLE_NUKTA_BASE.items():
+        base_entry = stroke_data.get(base_char)
+        fused = shaped_clusters.get(nukta_char)
+        if not base_entry or not base_entry.get("strokes") or not fused:
+            continue
+        dot_d = _HI_SUBPATH_RE.findall(fused["glyphs"][0]["d"])[-1]
+        dot_center = _hi_path_bbox_center(dot_d)
+        dx, dy = dot_center[0] - mark_center[0], dot_center[1] - mark_center[1]
+        dot_strokes = [{"d": stroke_compose.offset_svg_path(s["d"], dx, dy)} for s in mark_strokes]
+        derived[nukta_char] = {"strokes": [*base_entry["strokes"], *dot_strokes]}
+    return derived
 
 
 def main() -> None:
@@ -197,22 +340,51 @@ def main() -> None:
     clusters = glyph_data["clusters"]
     marks = glyph_data.get("marks", {})
 
+    # Resolved once, reused for every `lang_code == "hi"` gate below - same
+    # inline per-language-code gating this project already uses throughout
+    # tools/build_glyph_data.py, never a configurable default any language
+    # could inherit by omission.
+    lang_code = get_language(args.lang).code
+
+    # A language may be able to derive some clusters' strokes from others
+    # already hand-traced (e.g. Hindi's nukta consonants - see
+    # `_hi_derive_strokes()` above) rather than needing a second human
+    # trace. Merged in before the main loop so centering/straightening
+    # apply to derived strokes exactly like any other recorded one, against
+    # that cluster's own real font reference - never overrides a cluster
+    # that's already genuinely present.
+    if lang_code == "hi":
+        for cluster, entry in _hi_derive_strokes(stroke_data, clusters).items():
+            stroke_data.setdefault(cluster, entry)
+
     needs_dist_field = args.center or args.straighten
     out: dict = {}
 
     for cluster, entry in stroke_data.items():
+        # "_remarks" (tools/stroke-recorder.js's authoring-time notes on why
+        # a cluster was skipped / what it might compose from - see
+        # tools/validate_data.py's RESERVED_STROKE_DATA_KEYS, duplicated
+        # here rather than imported per that module's dependency-free
+        # docstring) is metadata for a human/agent reviewer, never runtime
+        # data - drop it instead of emitting a bogus "_remarks" cluster.
+        if cluster == "_remarks":
+            continue
         cluster_info = clusters.get(cluster)
 
         field = None
         refs: list[dict] = []
+        curve_refs: list[dict] = []
         if needs_dist_field and cluster_info is not None:
             ref_glyphs = _reference_glyphs(cluster, cluster_info, marks)
             field = centering.make_dist_field(ref_glyphs)
             if args.straighten:
                 refs = ghost_reference.build_reference_segments(ref_glyphs, field)
+                if _CURVE_STRAIGHTEN_ENABLED:
+                    curve_refs = ghost_reference.build_curve_reference_segments(ref_glyphs, field)
 
         new_strokes = [
-            {"d": _process_stroke(s["d"], field, refs, args)} for s in entry.get("strokes", [])
+            {"d": _process_stroke(s["d"], field, refs, args, lang_code, curve_refs)}
+            for s in entry.get("strokes", [])
         ]
         out[cluster] = {"strokes": new_strokes}
 

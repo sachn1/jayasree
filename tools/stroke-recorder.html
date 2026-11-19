@@ -73,6 +73,28 @@
         word part. It's added with no ghost outline (nothing was pre-shaped
         for it from the font), so you draw it freehand.
       </p>
+      <div class="remark-section">
+        <label for="remark-text">
+          Remark for this character (why skipped, or how it might compose
+          from something already traced):
+        </label>
+        <textarea
+          id="remark-text"
+          rows="2"
+          placeholder="e.g. this might just be क + ़ - not sure it needs its own stroke"
+        ></textarea>
+        <div class="remark-ref-row">
+          <label for="remark-ref">Possibly derivable from atom(s), comma-separated:</label>
+          <input type="text" id="remark-ref" placeholder="e.g. क, ़" />
+          <button id="remark-save-btn">💬 Save remark</button>
+          <button id="remark-clear-btn">✕ Clear remark</button>
+        </div>
+        <p class="hint">
+          Saved remarks export under stroke-data.raw.json's reserved
+          <code>_remarks</code> key - they're for a human/agent reviewer,
+          never consumed by the runtime composition code.
+        </p>
+      </div>
     </div>
 
     <div id="export-area">

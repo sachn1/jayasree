@@ -121,8 +121,8 @@ const BUNDLED_STROKE_DATA = {stroke_data_raw};
 // Auto-load bundled data once the recorder script has initialised.
 window.addEventListener("DOMContentLoaded", () => {
   if (typeof BUNDLED_STROKE_DATA !== "undefined") {
-    existingStrokeData = BUNDLED_STROKE_DATA;
-    const count = Object.keys(existingStrokeData).length;
+    setExistingStrokeData(BUNDLED_STROKE_DATA);
+    const count = realClusterCount(existingStrokeData);
     document.getElementById("merge-status").textContent =
       `✓ ${count} existing cluster(s) loaded - export will merge`;
   }

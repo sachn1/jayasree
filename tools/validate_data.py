@@ -47,6 +47,16 @@ ROOT = Path(__file__).resolve().parent.parent
 #: docstring for why this is a duplicated literal, not an import.
 _PRIMARY_CODE = "ml"
 
+#: Top-level stroke-data.raw.json key reserved for tools/stroke-recorder.js's
+#: authoring-time remarks (why a cluster was skipped / which other atom it
+#: might compose from) - sibling to real cluster entries, never one itself,
+#: so every function below that treats `raw.items()`/`raw.keys()` as "the
+#: clusters" must skip it explicitly. `tools/process_strokes.py` duplicates
+#: this same literal (own module, no cross-import - see this file's
+#: docstring for why it stays dependency-free) and must also drop it when
+#: building stroke-data.json; it's authoring metadata, never runtime data.
+RESERVED_STROKE_DATA_KEYS = frozenset({"_remarks"})
+
 _GLYPH_DATA_RE = re.compile(r"^glyph-data(?:\.(?P<code>[a-z]+))?\.json$")
 
 
@@ -179,6 +189,57 @@ def validate_stroke_d(d: Any, where: str) -> list[str]:
     return []
 
 
+def validate_remarks(remarks: Any, filename: str) -> list[str]:
+    """Validate stroke-data.raw.json's reserved `_remarks` key, if present.
+
+    Written by tools/stroke-recorder.js when a human notes why a cluster
+    was left unrecorded (e.g. "believe this is just क + ़" or "maybe
+    derivable from क्") - `refAtoms` is a free-text list of pointers for a
+    reviewer to follow up on (a remark can name more than one dependency,
+    e.g. a nukta consonant naming both its base consonant and the nukta
+    mark), not a verified composition rule, so it's checked here only for
+    *shape* (a list of strings), never cross-checked against glyph-data's
+    real clusters - that cross-check is exactly the kind of judgment call
+    this project's pipeline leaves to a human/agent reviewer, not a
+    mechanical structural validator.
+
+    Parameters
+    ----------
+    remarks : Any
+        `data.get("_remarks")` - `None` if the key is absent (the common
+        case; most clusters don't need one).
+    filename : str
+        Name used in error messages.
+
+    Returns
+    -------
+    list[str]
+        Error messages; empty if `remarks` is `None` or well-formed.
+    """
+    if remarks is None:
+        return []
+    if not isinstance(remarks, dict):
+        return [f"{filename}:_remarks: must be an object, got {type(remarks).__name__}"]
+
+    errors: list[str] = []
+    for cluster, note in remarks.items():
+        where = f"{filename}:_remarks[{cluster!r}]"
+        if not isinstance(note, dict):
+            errors.append(f"{where}: must be an object, got {type(note).__name__}")
+            continue
+        text = note.get("text")
+        if not isinstance(text, str) or not text.strip():
+            errors.append(f"{where}.text: missing or empty")
+        if "refAtoms" in note:
+            ref_atoms = note["refAtoms"]
+            valid = isinstance(ref_atoms, list) and all(
+                isinstance(a, str) and a.strip() for a in ref_atoms
+            )
+            if not valid:
+                errors.append(f"{where}.refAtoms: must be a list of non-empty strings")
+    return errors
+
+
 def validate_stroke_data(data: Any, filename: str) -> list[str]:
     """Validate a stroke-data(.raw).json structure, returning error messages.
 
@@ -198,7 +259,11 @@ def validate_stroke_data(data: Any, filename: str) -> list[str]:
     if not isinstance(data, dict):
         return [f"{filename}: top level must be an object, got {type(data).__name__}"]
 
+    errors.extend(validate_remarks(data.get("_remarks"), filename))
+
     for cluster, entry in data.items():
+        if cluster in RESERVED_STROKE_DATA_KEYS:
+            continue
         where = f"{filename}:{cluster!r}"
         if not isinstance(entry, dict) or "strokes" not in entry:
             errors.append(f"{where}: missing 'strokes' key")
@@ -307,7 +372,7 @@ def cross_check_raw_in_processed(raw: dict, processed: dict) -> list[str]:
     list[str]
         One error message per raw cluster missing from the processed file.
     """
-    missing = sorted(set(raw) - set(processed))
+    missing = sorted(set(raw) - set(processed) - RESERVED_STROKE_DATA_KEYS)
     return [f"stroke-data.json: missing hand-authored cluster {c!r} from raw" for c in missing]
 
 
@@ -342,7 +407,11 @@ def build_snapshot(raw: dict) -> dict[str, str]:
     dict[str, str]
         Mapping of cluster key to its stroke-content hash.
     """
-    return {cluster: hash_strokes(entry) for cluster, entry in raw.items()}
+    return {
+        cluster: hash_strokes(entry)
+        for cluster, entry in raw.items()
+        if cluster not in RESERVED_STROKE_DATA_KEYS
+    }
 
 
 def update_snapshot(raw: dict, snapshot_path: Path = SNAPSHOT) -> None:
