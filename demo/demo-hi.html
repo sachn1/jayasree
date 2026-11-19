@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Jayasree - Hindi demo (in progress)</title>
+    <link rel="icon" type="image/svg+xml" href="../favicon.svg" />
+    <link rel="stylesheet" href="../js/src/style.css" />
+    <link rel="stylesheet" href="demo.css" />
+  </head>
+  <body>
+    <p class="tagline">Devanagari (Hindi) handwriting, animated stroke by stroke</p>
+    <p class="sub">
+      Hindi's onboarding is still in progress - only some atoms are traced
+      so far, so only words built entirely from already-traced/composed
+      clusters will animate correctly. This page is a progress check, not
+      the polished demo (that's <a href="index.html">index.html</a>,
+      Malayalam only for now).
+    </p>
+
+    <form id="traceForm">
+      <input id="wordInput" type="text" value="भारत" lang="hi" autocomplete="off" />
+      <button type="submit" id="traceBtn">Trace</button>
+    </form>
+
+    <div class="chips">
+      Try: &nbsp;
+      <button type="button" data-word="भारत">भारत (India)</button>
+      <button type="button" data-word="कमल">कमल (lotus)</button>
+      <button type="button" data-word="गणेश">गणेश (Ganesha)</button>
+      <button type="button" data-word="राम">राम (Ram)</button>
+    </div>
+
+    <details id="letterBrowser" open>
+      <summary>Browse letters (for checking individual traces)</summary>
+      <div id="letterChips" class="chips"></div>
+    </details>
+
+    <div id="status"></div>
+    <div id="stage"></div>
+    <button id="replay" type="button">↺ Replay</button>
+
+    <div id="controls">
+      <label>
+        Speed
+        <input id="speedCtl" type="range" min="0.25" max="3" step="0.25" value="1" />
+        <span id="speedVal" class="ctl-val">1×</span>
+      </label>
+      <label>
+        Repeat
+        <select id="countCtl">
+          <option value="1" selected>1×</option>
+          <option value="2">2×</option>
+          <option value="3">3×</option>
+        </select>
+      </label>
+    </div>
+
+    <script type="module" src="demo-hi.js"></script>
+  </body>
+</html>
