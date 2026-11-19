@@ -21,6 +21,34 @@ body {
   margin: 0 auto;
 }
 
+#logo-stage[hidden],
+#logo-live[hidden] {
+  display: none;
+}
+
+/* Live wordmark for languages without a pre-exported SVG: same look as the
+   Malayalam one (purple fill revealed after an ink outline is drawn). */
+#logo-live {
+  display: flex;
+  justify-content: center;
+  height: 90px;
+  cursor: pointer;
+  --ms-ink-color: #1a1a2e;
+  --ms-stylus-color: #e8b84b;
+}
+
+#logo-live svg {
+  width: auto;
+  height: 90px;
+  overflow: visible;
+}
+
+#logo-live .ms-ghost path {
+  fill: #a78bfa;
+  fill-opacity: 0.9;
+  stroke: none;
+}
+
 p.tagline {
   color: #6b6591;
   font-size: 0.8rem;

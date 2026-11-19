@@ -9,7 +9,11 @@
     <link rel="stylesheet" href="demo.css" />
   </head>
   <body>
+    <!-- The wordmark. Malayalam's is a pre-exported, self-animating SVG; a
+         language whose config has a `logo` entry gets a live one in
+         #logo-live instead (see demo.js "Wordmark"). -->
     <img id="logo-stage" src="jayasree.svg" alt="ജയശ്രീ - animated stroke trace of the word Jayasree" />
+    <div id="logo-live" role="img" aria-label="Jayasree wordmark, animated" title="Click to replay" hidden></div>
 
     <!-- One tab per language; demo.js builds them from its LANGUAGES table
          (add a language there, not here). The URL hash (#ml, #hi) selects a

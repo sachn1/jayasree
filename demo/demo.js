@@ -33,6 +33,9 @@ import { createStrokeWriter, STROKE_LIBRARY } from "../js/src/index.js";
  * @property {string} strokeDataRaw   Raw strokes - fetched but not awaited (see ensureLanguage).
  * @property {number} strokeWidth     Initial ink thickness (fraction of unitsPerEm).
  * @property {number} [speed]         Writer base pen speed; omit for index.js's default.
+ * @property {{word: string, speed: number}} [logo]
+ *   Draw the wordmark live for this language (see "Wordmark"). Omit to keep
+ *   the page's static, pre-exported Malayalam wordmark.
  */
 
 /** @type {LanguageConfig[]} */
@@ -92,11 +95,14 @@ const LANGUAGES = [
     // some strokes were too fast to watch, especially single letters. The
     // speed slider still reads "1x" at this pace.
     speed: 1500,
+    // "Jayasree" in Devanagari: ज य श्री.
+    logo: { word: "जयश्री", speed: 42000 },
   },
 ];
 
-// The ജയശ്രീ wordmark is a plain <img src="jayasree.svg"> in the HTML - the
-// same pre-exported, self-animating (SMIL, no JS) asset the homepage uses.
+// Malayalam's ജയശ്രീ wordmark is a plain <img src="jayasree.svg"> in the HTML
+// - the same pre-exported, self-animating (SMIL, no JS) asset the homepage
+// uses. See "Wordmark" below for how other languages get theirs.
 
 // ---------------------------------------------------------------------------
 // DOM
@@ -111,6 +117,8 @@ const input = $("wordInput");
 const status = $("status");
 const btn = $("traceBtn");
 const stageHost = $("stage");
+const logoImg = $("logo-stage");
+const logoLive = $("logo-live");
 const wordChips = $("wordChips");
 const letterBrowser = $("letterBrowser");
 const letterChips = $("letterChips");
@@ -128,7 +136,10 @@ const countCtl = $("countCtl");
  * @typedef {object} LanguageState
  * @property {LanguageConfig} config
  * @property {HTMLElement} stageEl
- * @property {Promise<void> | null} ready  Set once loading starts.
+ * @property {Promise<object> | null} glyphReady  Glyph data, set once its fetch starts.
+ * @property {Promise<void> | null} ready  Everything incl. strokes, set once loading starts.
+ * @property {ReturnType<typeof createStrokeWriter> | null} logoWriter
+ * @property {boolean} logoDrawn
  * @property {object | null} glyphData
  * @property {ReturnType<typeof createStrokeWriter> | null} writer
  * @property {number} strokeWidth   Current thickness for this language.
@@ -145,8 +156,11 @@ for (const config of LANGUAGES) {
   states.set(config.code, {
     config,
     stageEl,
+    glyphReady: null,
     ready: null,
     glyphData: null,
+    logoWriter: null,
+    logoDrawn: false,
     writer: null,
     strokeWidth: config.strokeWidth,
     word: config.defaultWord,
@@ -164,7 +178,29 @@ function makeWriter(state) {
 }
 
 /**
- * Fetch a language's data and create its writer, once.
+ * Fetch a language's glyph data and create its writer, once. Cheap enough
+ * (a few MB) that the wordmark can draw from it without waiting for strokes.
+ *
+ * @param {LanguageState} state
+ * @returns {Promise<object>}
+ */
+function ensureGlyphData(state) {
+  state.glyphReady ??= (async () => {
+    const { config } = state;
+    const resp = await fetch(`${config.glyphData}?v=${Date.now()}`);
+    if (!resp.ok) throw new Error(`Failed to load ${config.glyphData}: ${resp.status}`);
+    state.glyphData = await resp.json();
+    state.writer = makeWriter(state);
+    return state.glyphData;
+  })().catch((err) => {
+    state.glyphReady = null; // allow a retry the next time the tab is opened
+    throw err;
+  });
+  return state.glyphReady;
+}
+
+/**
+ * Load everything a language needs to trace words: glyph data, then strokes.
  *
  * The processed stroke data is awaited - it alone covers every suggested
  * word and the default word, so the first trace can start as soon as it's
@@ -178,19 +214,97 @@ function makeWriter(state) {
  */
 function ensureLanguage(state) {
   state.ready ??= (async () => {
+    await ensureGlyphData(state);
     const { config } = state;
-    const resp = await fetch(`${config.glyphData}?v=${Date.now()}`);
-    if (!resp.ok) throw new Error(`Failed to load ${config.glyphData}: ${resp.status}`);
-    state.glyphData = await resp.json();
-    state.writer = makeWriter(state);
     await state.writer.loadStrokes(`${config.strokeData}?v=${Date.now()}`);
     state.writer.loadStrokes(`${config.strokeDataRaw}?v=${Date.now()}`);
   })().catch((err) => {
-    state.ready = null; // allow a retry the next time the tab is opened
+    state.ready = null;
     throw err;
   });
   return state.ready;
 }
+
+// ---------------------------------------------------------------------------
+// Wordmark
+// ---------------------------------------------------------------------------
+
+// Malayalam shows a pre-exported SVG. For a language with a `logo` config we
+// draw the equivalent live, the way demo/logo-preview.html does: the library's
+// outline-only mode draws the ink outline of the word, then the purple fill is
+// revealed left to right through a clip rect. It only needs the language's
+// glyph data (already fetched for the tab), not its strokes.
+
+/** Bumped to abandon an in-flight reveal when the tab changes or replays. */
+let logoRun = 0;
+
+/**
+ * Show the right wordmark for the active language and (re)play it.
+ *
+ * @param {LanguageState} state
+ */
+async function showLogo(state) {
+  const live = state.config.logo;
+  const imgWasHidden = logoImg.hidden;
+  logoImg.hidden = Boolean(live);
+  logoLive.hidden = !live;
+  // A self-animating SVG shown again after display:none doesn't reliably
+  // restart; reloading it does (the homepage replays its logo the same way).
+  if (!live && imgWasHidden) logoImg.src = `jayasree.svg?${Date.now()}`;
+  logoRun++;
+  for (const s of states.values()) s.logoWriter?.cancel();
+  if (!live) return;
+
+  const run = logoRun;
+  try {
+    await ensureGlyphData(state);
+  } catch {
+    return; // the trace area already reports a load failure
+  }
+  if (run !== logoRun) return;
+
+  state.logoWriter ??= createStrokeWriter(logoLive, {
+    glyphData: state.glyphData,
+    speed: live.speed,
+    outlineOnly: true,
+  });
+  const replay = state.logoDrawn;
+  state.logoDrawn = true;
+  // play()/replay() build the SVG synchronously before their first await, so
+  // the ghost layer exists right after the call - same assumption as
+  // logo-preview.html.
+  const drawn = replay ? state.logoWriter.replay() : state.logoWriter.play(live.word);
+  const svg = logoLive.querySelector("svg");
+  const ghost = svg?.querySelector(".ms-ghost");
+  if (!ghost) return;
+
+  const bbox = ghost.getBBox();
+  const ns = "http://www.w3.org/2000/svg";
+  const clip = document.createElementNS(ns, "clipPath");
+  clip.id = "logo-reveal-clip";
+  const rect = document.createElementNS(ns, "rect");
+  rect.setAttribute("x", String(bbox.x));
+  rect.setAttribute("y", String(bbox.y - 4));
+  rect.setAttribute("width", "0");
+  rect.setAttribute("height", String(bbox.height + 8));
+  clip.appendChild(rect);
+  svg.appendChild(clip);
+  ghost.setAttribute("clip-path", "url(#logo-reveal-clip)");
+
+  await drawn;
+  if (run !== logoRun) return;
+  const duration = 650;
+  const start = performance.now();
+  const step = (now) => {
+    if (run !== logoRun) return;
+    const t = Math.min(1, (now - start) / duration);
+    rect.setAttribute("width", String(bbox.width * (1 - (1 - t) ** 3)));
+    if (t < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+
+logoLive.addEventListener("click", () => showLogo(active));
 
 // ---------------------------------------------------------------------------
 // Controls - speed / thickness / repeat
@@ -351,6 +465,7 @@ function activate(code) {
   } catch {
     /* file:// or sandboxed - the hash is a convenience only */
   }
+  showLogo(state);
   traceWord(state.word);
 }
 
