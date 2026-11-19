@@ -1,8 +1,8 @@
 """Complete Unicode character inventory for Hindi (Devanagari script).
 
-Promoted from `docs/languages/hi/chars.json` (Agent 1's structured
+Promoted from `docs/languages/hi/README.md` (Agent 1's structured
 inventory, agent-reviewed and project-owner-approved - see
-`docs/languages/hi/profile.md`'s "Resolved" section), per
+`docs/languages/hi/README.md`'s "Resolved" section), per
 `docs/LANGUAGE_ONBOARDING_AGENTS.md`'s Agent 3 step 1. Mirrors `_chars.py`'s
 shape (tuple constants, fine-grained + combined tuples) but is not a copy
 of its category set - Devanagari's actual structure needed three category
@@ -44,7 +44,7 @@ CORE_INDEPENDENT_VOWELS: tuple[str, ...] = tuple("अआइईउऊऋएऐओ
 
 #: 2 modern loan-vowel letters (candra e/o, for English/other loanword
 #: sounds not native to Hindi - बैंक, कॉलेज). Distinct codepoints from their
-#: matra forms (LOAN_MATRAS below) - see docs/languages/hi/profile.md's
+#: matra forms (LOAN_MATRAS below) - see docs/languages/hi/README.md's
 #: "Independent vowels" section for why the two must never be conflated.
 LOAN_VOWELS: tuple[str, ...] = ("ऍ", "ऑ")
 
@@ -66,7 +66,7 @@ STANDARD_CONSONANTS: tuple[str, ...] = tuple("कखगघङचछजझञट�
 #: 7 nukta-modified consonants (precomposed codepoints, U+0958-095E) for
 #: Perso-Arabic/English loan sounds - font-gated scope (RESOLVED,
 #: profile.md #1): all 7 are in scope since the chosen font (Annapurna SIL)
-#: renders all of them (docs/languages/hi/font-report.md). Also exist as
+#: renders all of them (docs/languages/hi/README.md). Also exist as
 #: decomposed `consonant + ़ (NUKTA)` sequences in real text - see NUKTA
 #: below and profile.md's encoding-duality note; both spellings need to
 #: resolve to the same rendering (see build_glyph_data.py's
@@ -109,7 +109,7 @@ RARE_MATRAS: tuple[str, ...] = ("ॄ", "ॢ", "ॣ")
 
 #: Virama/halant - suppresses the inherent vowel; also the trigger for
 #: every Devanagari conjunct-formation mechanism (reph, rakaar, half-forms,
-#: akhand ligatures - see docs/languages/hi/font-report.md).
+#: akhand ligatures - see docs/languages/hi/README.md).
 VIRAMA: str = "्"
 
 #: Anusvara - nasalization before a following consonant.
@@ -126,7 +126,7 @@ VISARGA: str = "ः"
 #: Nukta (U+093C) - combining loanword-sound diacritic attached directly to
 #: a consonant (क + ़ = क़). RESOLVED (profile.md #1): needs NO recorded
 #: stroke at all - synthesize it programmatically as a small dot (see
-#: docs/languages/hi/labeling-worklist.md's "Synthetic strokes" group and
+#: docs/languages/hi/README.md's "Synthetic strokes" group and
 #: docs/LANGUAGE_ONBOARDING_AGENTS.md's "New composition primitives" note).
 #: Its real font glyph outline is still needed (for the ghost/composition
 #: geometry), just not a hand-traced ink stroke.

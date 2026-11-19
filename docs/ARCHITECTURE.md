@@ -334,7 +334,7 @@ Languages without the quirk (Malayalam included) have no `contextualForms`
 table, which makes this path a guaranteed no-op for them - verified by
 composing all 2052 Malayalam clusters with and without it and diffing the
 results. The rationale and the per-font sweep are in
-`docs/languages/hi/composition-primitives-report.md`.
+`docs/languages/hi/README.md`.
 
 ### Last resort: per-character fallback
 

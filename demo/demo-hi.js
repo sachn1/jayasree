@@ -2,7 +2,7 @@
  * demo-hi.js - minimal progress-check demo for Hindi, trimmed from demo.js.
  *
  * Hindi's onboarding is still in progress (see docs/languages/hi/
- * labeling-worklist.md) - this intentionally only supports the handful of
+ * README.md) - this intentionally only supports the handful of
  * controls that matter for checking real traced/composed output, not the
  * full feature set demo.js has for Malayalam (speech input, thickness
  * control, stroke-library drag-and-drop). Loads glyph-data.hi.json +

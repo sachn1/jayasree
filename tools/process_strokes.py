@@ -277,7 +277,7 @@ def _hi_derive_strokes(stroke_data: dict, shaped_clusters: dict) -> dict:
        `_HI_DECOMPOSABLE_NUKTA_BASE` above), so no translation is needed for
        this part; same coordinate frame already.
     2. The nukta mark's (़, U+093C) own recorded stroke(s) - Hindi's Group B
-       synthetic atom (docs/languages/hi/profile.md) - translated from
+       synthetic atom (docs/languages/hi/README.md) - translated from
        wherever it was drawn to the exact position this specific nukta
        consonant's real shaped outline puts its dot (`shaped_clusters[nukta_
        char]`'s last SVG subpath), using `stroke_compose.offset_svg_path`

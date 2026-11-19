@@ -10,7 +10,7 @@ Computing (https://gitlab.com/smc/fonts/manjari), licensed under the SIL
 Open Font License 1.1 - see OFL.txt in this directory.
 
 `AnnapurnaSIL-Regular.ttf` was Agent 2's **original** proposed ghost font
-for Hindi (Devanagari) - see `docs/languages/hi/font-report.md` for the
+for Hindi (Devanagari) - see `docs/languages/hi/README.md` for the
 original candidate comparison and HarfBuzz coverage-verification results.
 Kept vendored for the record (its coverage/conjunct data is still valid
 and referenced by the report), but **superseded** by
@@ -25,7 +25,7 @@ in this directory.
 Hindi, after a re-evaluation pass triggered by a new font-choice
 criterion (low stroke-width contrast / monoline ductus, since this
 project's centering algorithm is unreliable near corners/junctions and a
-calligraphic font multiplies those) - see `docs/languages/hi/font-report.md`'s
+calligraphic font multiplies those) - see `docs/languages/hi/README.md`'s
 "Re-evaluation" section for the full comparison, quantitative
 stroke-width-contrast measurements, and HarfBuzz coverage-verification
 results. This is a **static instance** (`wght=400 wdth=100`, i.e.
@@ -36,9 +36,9 @@ produce byte-identical HarfBuzz shaping output to the source variable
 font across every atom/conjunct test in the report. **Wired into
 `languages.py`** as the `"hindi"` `LanguageSpec`'s `default_font` -
 `js/src/glyph-data.hi.json` was regenerated against it, and
-`docs/languages/hi/labeling-worklist.md`,
-`docs/languages/hi/composition-primitives-report.md`, and
-`docs/languages/hi/shirorekha-report.md` were all re-verified against it
+`docs/languages/hi/README.md`,
+`docs/languages/hi/README.md`, and
+`docs/languages/hi/README.md` were all re-verified against it
 (Agent 3's re-run, per that font-report's approval). Designed by the Noto
 Project Authors (https://github.com/notofonts/devanagari), licensed under
 the SIL Open Font License 1.1 - see NotoSansDevanagari-OFL.txt in this

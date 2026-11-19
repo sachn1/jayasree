@@ -170,8 +170,7 @@ would produce.)
    out to have gaps) can inform the next rather than several languages
    independently repeating the same mistake.
 6. **Coverage is bounded by the font, not by linguistic minimalism.**
-   (Project owner, resolving Hindi's open questions - `docs/languages/hi/
-   profile.md`.) The objective is to animate whatever the user actually
+   (Project owner, resolving Hindi's open questions - `docs/languages/hi/README.md`.) The objective is to animate whatever the user actually
    types, so scope questions default to inclusion within "does the chosen
    font support this," not "is this common/standard enough to bother
    with." This governs judgment calls like which nukta letters or which
@@ -419,7 +418,7 @@ Everything else is left to compose automatically at runtime/build time, the
 same as Malayalam's ~1760 non-atom clusters do today.
 
 **Two more ways to shrink the labeling set, found during Hindi's profiling
-(`docs/languages/hi/profile.md`), beyond the three bullets above:**
+(`docs/languages/hi/README.md`), beyond the three bullets above:**
 
 - **Synthetic strokes.** A mark simple enough to generate procedurally
   (Hindi's nukta - just a small dot) needs no human-traced recording at
@@ -550,9 +549,7 @@ docs/languages/<lang-code>/
 ├── reduced-atom-list.flat.txt   # Agent 3 - same set, one per line (the
 │                                 #   --simulate-atoms input for coverage_report.js)
 └── coverage-report-pre-recording.txt   # Agent 3 - simulated coverage, verbatim
-                                         # (+ any script-specific research reports,
-                                         #  e.g. Hindi's composition-primitives-
-                                         #  report.md and shirorekha-report.md)
+                                         # (+ any script-specific research reports)
 
 python/src/jayasree/_chars_<lang-code>.py   # written by Agent 3 from chars.json
 python/tests/test_chars_<lang-code>.py       # its own test module
@@ -561,6 +558,20 @@ js/src/glyph-data.<lang-code>.json           # Agent 3 output (generated),
 js/src/stroke-data.<lang-code>.raw.json      # stage 4 - the human's recording
 js/src/stroke-data.<lang-code>.json          # stage 5 - generated from the above
 ```
+
+**Working files vs. the record.** The files above are working artifacts: they
+exist so the next stage (and the human sign-off) has something to read. Once a
+language's stage 5 is done, don't keep them all - fold them into one short
+`docs/languages/<code>/README.md` and delete the rest (they stay in git
+history; name the commit in the README). Keep `reduced-atom-list.flat.txt`,
+which tooling reads. `docs/languages/hi/README.md` is the worked example; its
+sections are the template: **Status** (stage-by-stage outcome and sign-off
+dates), **Scope decisions** (owner resolutions, exclusions), **Font decision**
+(candidates, measured criteria, licence, what the switch cost), **the atom set**
+(groups and counts), **the script's headline finding** (what didn't fit the
+existing composition model), **Corrections the mechanical pass found**,
+**Still open**, **Reproducing**, **Sources**. Malayalam's
+`docs/languages/ml/` predates this and is kept as is.
 
 Plus one `LanguageSpec` entry added to `python/src/jayasree/languages.py`'s
 `LANGUAGES` registry (`code`, `name`, `chars_module`, `carrier_consonant`,
@@ -583,7 +594,7 @@ anticipate, in the order they bit:
   invalidates Agent 3's output (the atom set went from 174 to **183**: 15
   pairs started fusing, 9 stopped). The feedback edge is therefore
   *font -> Agent 3 re-run*, not only *font -> Agent 1*. A 4th font-selection
-  criterion came out of this (see `docs/languages/hi/font-report.md` and
+  criterion came out of this (see `docs/languages/hi/README.md` and
   `.claude/agents/font-selector.md`). The true-ligature set is
   font-specific and must be re-swept per font, never hand-curated.
 - **Devanagari needed a composition primitive Malayalam never did.**

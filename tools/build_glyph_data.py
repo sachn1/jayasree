@@ -85,8 +85,8 @@ _HI_REPH_CONSONANT = "र"
 #: half-form shape (used before most following consonants) is verified
 #: identical across nearly every partner, but which shapes as a distinctly
 #: *different* 2-glyph pair (same glyph count, different glyph[0] path) for
-#: one or two specific partners - docs/languages/hi/composition-primitives-
-#: report.md§1 verifies this per font. Derived for Noto Sans Devanagari
+#: one or two specific partners - docs/languages/hi/README.md ("The headline
+#: finding") verifies this per font. Derived for Noto Sans Devanagari
 #: (2026-09-06 font re-evaluation, see font-report.md's "Re-evaluation"
 #: section) - **not the same pairs Annapurna SIL needed**: Annapurna's
 #: exceptions were ड़/ढ़ before य (a ya-phala-style fusion); under Noto,
@@ -184,7 +184,7 @@ _HI_DECOMPOSABLE_NUKTA_BASE: dict[str, str] = {
 
 #: Shown by tools/stroke-recorder.js as a persistent banner while Hindi's
 #: data is loaded - the shirorekha (headline) is a *synthetic, word-level*
-#: stroke by design (docs/languages/hi/shirorekha-report.md), never a
+#: stroke by design (docs/languages/hi/README.md), never a
 #: per-character traced one. Every ghost outline still shows it (it's part
 #: of the font's own glyph outline), so without an explicit notice a tracer
 #: has no way to know to skip it.
@@ -198,7 +198,7 @@ _HI_RECORDER_NOTE = (
 #: The shirorekha (headline) band's y-range, in this build's own SVG-space
 #: font units (unitsPerEm = 1000 for Noto Sans Devanagari) - verified
 #: directly against real rasterized outlines, not estimated. See
-#: docs/languages/hi/shirorekha-report.md's "A real structural difference
+#: docs/languages/hi/README.md's "A real structural difference
 #: from Annapurna, found immediately" and "Headline gaps in rounded-loop
 #: letters" sections. Consumed generically by js/src/index.js's synthetic
 #: word-level shirorekha-stroke logic via `glyphData.shirorekha.y0`/`.y1` -
@@ -221,7 +221,7 @@ def _hi_headline_bar_edges(d: str, y0: float, y1: float, tol: float = 1.0) -> li
     swept a single horizontal line through the glyph and reported every
     ink crossing there; that over-detects, because a rounded loop/knot
     (e.g. भ/अ/आ's own top curve - see docs/languages/hi/
-    shirorekha-report.md's "Headline gaps in rounded-loop letters") often
+    README.md's "Shirorekha" section) often
     also happens to cross the same height without being the headline bar
     at all - confirmed directly: भ's loop ink at headline-mid-height
     shifts continuously from [117,244] at the band's top to split into two
@@ -338,7 +338,7 @@ def _hi_extract_contextual_forms(
 ) -> dict:
     """Derive Devanagari's half-form/reph substitute atoms.
 
-    docs/languages/hi/labeling-worklist.md's "headline finding": a virama
+    docs/languages/hi/README.md's "headline finding": a virama
     between two consonants almost never produces its own glyph, so neither
     existing composition mechanism (mark recipes, per-character fallback)
     fits half-forms (the *base* consonant substitutes a different shape) or
@@ -405,7 +405,7 @@ def _hi_extract_contextual_forms(
 def _hi_extract_true_ligatures(chars: object, shaped_clusters: dict) -> list[str]:
     """Return every `<C1><virama><C2>` cluster that needs its own direct trace.
 
-    This is the other half of docs/languages/hi/labeling-worklist.md's
+    This is the other half of docs/languages/hi/README.md's
     Group D (47 true akhand ligatures + 6 half-form exceptions, 53 total) -
     computed mechanically here, reusing `shaped_clusters` (this build's own
     HarfBuzz output) rather than hand-copying the doc's prose list, so it
@@ -462,7 +462,7 @@ def _standalone_inputs(lang: LanguageSpec, chars: object) -> list[str]:
         # unlike UNIVERSAL_CHARS (Latin, shared across every script), this
         # is part of the script's own letterforms and gets a real ghost +
         # eventual recorded stroke, found via Hindi's onboarding profile
-        # (docs/languages/hi/profile.md's "Native punctuation" section).
+        # (docs/languages/hi/README.md's "Native punctuation" section).
         + "".join(char_tuple(chars, "NATIVE_PUNCTUATION"))
         # Standalone marks with no closer-fitting category (e.g.
         # Devanagari's avagraha/Om) - found the same way NATIVE_PUNCTUATION
@@ -475,7 +475,7 @@ def _standalone_inputs(lang: LanguageSpec, chars: object) -> list[str]:
     visarga = char_tuple(chars, "VISARGA")
     au_length_mark = getattr(chars, "AU_LENGTH_MARK", None)
     # Candrabindu (Devanagari's alternate nasalization mark, phonemically
-    # distinct from anusvara - see docs/languages/hi/profile.md) is the
+    # distinct from anusvara - see docs/languages/hi/README.md) is the
     # same kind of always-follows-a-vowel mark as anusvara/visarga.
     candrabindu = char_tuple(chars, "CANDRABINDU")
 
@@ -526,7 +526,7 @@ def _standalone_inputs(lang: LanguageSpec, chars: object) -> list[str]:
     if lang.code == "hi" and virama:
         # ्र (rakaar/vattu - र as a non-first conjunct member) - direct
         # Devanagari analogue of Malayalam's ്ര above: an exhaustive 33x33
-        # sweep (docs/languages/hi/font-report.md) shows every
+        # sweep (docs/languages/hi/README.md) shows every
         # <consonant>+्+र pair fuses into its own dedicated glyph, but the
         # *visual content* is consistently "the base consonant, plus this
         # one reusable diagonal tail" - so, exactly like ്ര, it's recorded

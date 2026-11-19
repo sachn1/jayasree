@@ -49,7 +49,7 @@ with its authors.
 
 js/src/glyph-data.hi.json is derived from Noto Sans Devanagari (The Noto
 Project Authors), also licensed under the SIL Open Font License 1.1 - see
-docs/languages/hi/font-report.md for the selection rationale.
+docs/languages/hi/README.md for the selection rationale.
 
 If you regenerate a language's glyph-data.json from a different font, that
 font's own license applies to your output instead.

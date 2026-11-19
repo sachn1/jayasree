@@ -6,7 +6,7 @@ docs/ARCHITECTURE.md's "Composition" section for why. Devanagari's
 half-form/reph "contextual form" composition (see `compose_contextual_form`)
 is its own distinct mechanism, mirroring js/src/index.js's
 `tryComposeContextualForm` - see that function's docstring and
-docs/languages/hi/composition-primitives-report.md.
+docs/languages/hi/README.md.
 """
 
 from __future__ import annotations
@@ -184,8 +184,8 @@ def compose_contextual_form(
 ) -> list[dict] | None:
     """Compose a "contextual form" cluster - mirrors js/src/index.js's
     `tryComposeContextualForm` exactly; see its docstring for the full
-    derivation (docs/languages/hi/labeling-worklist.md's "headline
-    finding", docs/languages/hi/composition-primitives-report.md).
+    derivation (docs/languages/hi/README.md's "headline
+    finding", docs/languages/hi/README.md).
 
     A 3-character, 2-glyph cluster where a virama contributes no glyph of
     its own: one glyph slot is filled by a registered "contextual form"

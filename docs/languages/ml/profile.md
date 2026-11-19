@@ -56,7 +56,7 @@ rather than excluded as archaic-only.
 This is Malayalam's single most Dravidian-specific structural feature, and
 the one `docs/LANGUAGE_ONBOARDING_AGENTS.md` explicitly warns not to expect
 an equivalent of in other scripts (confirmed true for Hindi - see
-`docs/languages/hi/profile.md`'s `chillu_equivalent` note: Devanagari has
+`docs/languages/hi/README.md`'s `chillu_equivalent` note: Devanagari has
 none, a bare consonant is just written with an explicit virama). Each
 chillu has a legacy 3-codepoint spelling
 (`consonant + ് (virama, U+0D4D) + ZWJ (U+200D)`), visually identical to
@@ -126,7 +126,7 @@ ya/va/la/ra` sequence, not a standalone `_chars.py` character but a
 first-class entry in `glyph-data.json`'s `marks` table (23 entries total:
 virama, all 12 core matras, 3 rare matras, the au-length mark, anusvara,
 visarga, and these 4): ്യ, ്വ, ്ല, ്ര. These are the closest Malayalam
-analogue to Hindi's "half-form" mechanism (`docs/languages/hi/profile.md`'s
+analogue to Hindi's "half-form" mechanism (`docs/languages/hi/README.md`'s
 conjunct hypotheses) - a productive, reusable prefix-mark recipe applying
 across many base consonants, rather than a per-pair bespoke shape. (See
 `docs/ARCHITECTURE.md`'s "The mark recipe" section for exactly how a

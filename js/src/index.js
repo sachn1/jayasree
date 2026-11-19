@@ -731,8 +731,8 @@ function tryComposeFromCharacters(cluster, glyphData) {
  * positions (`glyphData.clusters[cluster].glyphs`) each resolve to a
  * `STROKE_LIBRARY` key that isn't the literal character at that position.
  * Devanagari half-forms and reph are the two known cases (see
- * `docs/languages/hi/labeling-worklist.md`'s "headline finding" and
- * `docs/languages/hi/composition-primitives-report.md`) - neither fits
+ * `docs/languages/hi/README.md`'s "headline finding" and
+ * `docs/languages/hi/README.md`) - neither fits
  * {@link tryComposeStroke}'s mark-recipe model (the base itself changes
  * shape, or the mark detaches from its own position) nor
  * {@link tryComposeFromCharacters}'s `chars.length === glyphs.length` gate.
@@ -1098,7 +1098,7 @@ export function createStrokeWriter(container, options = {}) {
   /**
    * Build the synthetic word-level shirorekha glyph unit, if `glyphData`
    * declares one - drawn last (appended after every real character's own
-   * unit), per docs/languages/hi/shirorekha-report.md's agreed sequencing.
+   * unit), per docs/languages/hi/README.md's agreed sequencing.
    *
    * @param {{ totalAdvance: number, segGroups: object[] }} trace
    * @param {{ shirorekha?: object }} traceGlyphData

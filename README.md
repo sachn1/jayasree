@@ -431,7 +431,7 @@ not-yet-done work (multi-language support, Git LFS, deployment, ...).
   SVGs) derive from the [Manjari](https://smc.org.in/fonts/manjari) typeface
   (SIL OFL 1.1) by Santhosh Thottingal & Swathanthra Malayalam Computing.
   `glyph-data.hi.json` derives from Noto Sans Devanagari (The Noto Project
-  Authors, SIL OFL 1.1) - see `docs/languages/hi/font-report.md`.
+  Authors, SIL OFL 1.1) - see `docs/languages/hi/README.md`.
 
 ### A fuller acknowledgment
 
