@@ -65,10 +65,10 @@ STANDARD_CONSONANTS: tuple[str, ...] = tuple("कखगघङचछजझञट�
 
 #: 7 nukta-modified consonants (precomposed codepoints, U+0958-095E) for
 #: Perso-Arabic/English loan sounds - font-gated scope (RESOLVED,
-#: profile.md #1): all 7 are in scope since the chosen font (Annapurna SIL)
-#: renders all of them (docs/languages/hi/README.md). Also exist as
+#: docs/languages/hi/README.md decision 1): all 7 are in scope since the
+#: chosen font (Noto Sans Devanagari) renders all of them. Also exist as
 #: decomposed `consonant + ़ (NUKTA)` sequences in real text - see NUKTA
-#: below and profile.md's encoding-duality note; both spellings need to
+#: below and docs/languages/hi/README.md's encoding-duality note; both spellings need to
 #: resolve to the same rendering (see build_glyph_data.py's
 #: `_HI_NUKTA_CONSONANTS`/`legacyEncodings`).
 #:
