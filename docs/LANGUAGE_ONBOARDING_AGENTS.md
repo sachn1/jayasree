@@ -9,16 +9,42 @@ reduced labeling set. It stops there, at the same handoff point
 the recording session, triaging bug reports, and everything after is a
 separate, later design (see "Out of scope" below).
 
-Everything here is a **plan**, not yet implemented. No agent orchestration
-code exists in the repo for this yet. Phase 0 (the prerequisite code
-parametrization below) *is* implemented - see its section for what changed.
+**Status.** Implemented and run once, end to end, on Hindi. The role specs
+below are the portable source of truth; `.claude/agents/*.md` are thin Claude
+Code adapters over them and `.claude/skills/onboard-language/SKILL.md` is the
+single entry point that runs them in order and enforces the human sign-offs
+(see "The sequence at a glance" and "Making this actually invokable"). Phase 0
+(the prerequisite code parametrization) is done too. Hindi's first run is
+written up in "What Hindi's first run taught us" - read that before running
+the pipeline for a second language, since it changed some of this doc's
+original assumptions.
+
+## The sequence at a glance
+
+Run in this order, one language at a time. `/onboard-language <name>` does
+the stage detection and the gates for you; each agent can also be invoked
+directly, e.g. `Agent(language-researcher, "Tamil")`.
+
+| # | Stage | Who | Reads | Writes | Gate before the next stage |
+|---|---|---|---|---|---|
+| 1a | Research & profile the script | `language-researcher` (Agent 1) | the web, "Don't generalize from Malayalam" | `docs/languages/<code>/profile.md`, `chars.json` | - |
+| 1b | Adversarial review of the draft | `language-reviewer` (read-only; loops with 1a) | the draft profile | critique | **human sign-off** on the profile |
+| 2 | Ghost-font selection + HarfBuzz verification | `font-selector` (Agent 2) | the signed-off profile | `docs/languages/<code>/font-report.md` | **human sign-off** on one font; a falsified ligature/coverage claim goes back to stage 1 |
+| 3 | Reduced atom set | `atom-reducer` (Agent 3) | the signed-off font | `_chars_<code>.py`, the `LanguageSpec` registry entry, `glyph-data.<code>.json`, `labeling-worklist.md`, `reduced-atom-list*.txt`, a simulated coverage report | human spot-check of the worklist |
+| 4 | Record strokes | **a human** (no agent) - `tools/stroke-recorder.html` | the worklist | `js/src/stroke-data.<code>.raw.json` | the owner has traced every atom (or noted why one was skipped) |
+| 5 | Process + verify | **commands, not an agent** - see "Post-recording gate" | the raw strokes | `js/src/stroke-data.<code>.json` | `validate-data` OK and `coverage_report.js` at 100% / 0 fallbacks |
+| 6 | Inspect and clean up | a human, in a browser | the demo | follow-up fixes (a separate branch) | - |
+
+`code-reviewer` is **not** a stage of this pipeline - it reviews code diffs
+and is invoked separately.
 
 ## Target languages
 
-Malayalam is the only language onboarded so far - everything else here is
-planned. The intended roster, onboarded **one language at a time** (never
-several in flight at once - see "Design principles" below), in the order
-given to this plan:
+Hindi is the first language onboarded after Malayalam (all stages above done
+as of this writing, with visual cleanup still open - see ROADMAP); everything
+else here is planned. The intended roster, onboarded **one language at a
+time** (never several in flight at once - see "Design principles" below), in
+the order given to this plan:
 
 1. Hindi (Devanagari)
 2. Tamil (Tamil script)
@@ -519,11 +545,21 @@ docs/languages/<lang-code>/
 ├── profile.md              # Agent 1 - narrative + sources
 ├── chars.json               # Agent 1 - structured inventory
 ├── font-report.md            # Agent 2 - candidates, license, coverage
-└── labeling-worklist.md       # Agent 3 - what a human traces, in order
+├── labeling-worklist.md       # Agent 3 - what a human traces, in order
+├── reduced-atom-list.txt       # Agent 3 - the atom set, grouped/commented
+├── reduced-atom-list.flat.txt   # Agent 3 - same set, one per line (the
+│                                 #   --simulate-atoms input for coverage_report.js)
+└── coverage-report-pre-recording.txt   # Agent 3 - simulated coverage, verbatim
+                                         # (+ any script-specific research reports,
+                                         #  e.g. Hindi's composition-primitives-
+                                         #  report.md and shirorekha-report.md)
 
-python/src/jayasree/_chars_<lang-code>.py   # promoted from chars.json
+python/src/jayasree/_chars_<lang-code>.py   # written by Agent 3 from chars.json
+python/tests/test_chars_<lang-code>.py       # its own test module
 js/src/glyph-data.<lang-code>.json           # Agent 3 output (generated),
                                               # via build_glyph_data.py --lang
+js/src/stroke-data.<lang-code>.raw.json      # stage 4 - the human's recording
+js/src/stroke-data.<lang-code>.json          # stage 5 - generated from the above
 ```
 
 Plus one `LanguageSpec` entry added to `python/src/jayasree/languages.py`'s
@@ -535,6 +571,73 @@ and a `default_font` once Agent 2 has picked one) - this is what makes
 `<lang-code>` should be a stable, short identifier (ISO 639 - `ta` for
 Tamil, etc.), matching the `data(ml)`/`data(ta)` commit-scope convention
 `CONTRIBUTING.md` already uses and the `LanguageSpec.code` field above.
+
+## What Hindi's first run taught us
+
+Hindi was the first full run of stages 1-5. Things the original plan did not
+anticipate, in the order they bit:
+
+- **The font choice can change after Agent 3 has already run.** Hindi's
+  ghost font moved from Annapurna SIL to **Noto Sans Devanagari** once a
+  re-evaluation found Noto fuses a different set of conjuncts. That
+  invalidates Agent 3's output (the atom set went from 174 to **183**: 15
+  pairs started fusing, 9 stopped). The feedback edge is therefore
+  *font -> Agent 3 re-run*, not only *font -> Agent 1*. A 4th font-selection
+  criterion came out of this (see `docs/languages/hi/font-report.md` and
+  `.claude/agents/font-selector.md`). The true-ligature set is
+  font-specific and must be re-swept per font, never hand-curated.
+- **Devanagari needed a composition primitive Malayalam never did.**
+  Half-forms and reph are "contextual forms": the base consonant changes
+  shape, or the mark detaches from its own position, so neither a mark
+  recipe nor per-character composition fits. They are carried by
+  `glyph-data.<code>.json`'s `contextualForms` table and composed by
+  `tryComposeContextualForm` / `stroke_compose.py` (see
+  `docs/ARCHITECTURE.md`). Malayalam has no such table, which makes that
+  path a guaranteed no-op for it.
+- **The worklist is the contract, and a first recording pass is rarely
+  complete.** The owner recorded the ~113 standalone letters first; the
+  remaining 70 atoms (nukta consonants, true ligatures, half-form
+  exceptions, ॉ, ङ्/ड् half-forms) came second. Until they existed, real
+  coverage was 88.5% with 280 clusters on the outline fallback - and
+  `coverage_report.js --verbose` named exactly which atoms were missing.
+  With all 183 recorded: 2443/2443 clusters, 0 fallbacks.
+- **Skipping an atom on purpose is legitimate** - something derivable from
+  others - but should be recorded in the recorder's remarks field, so the
+  gap is a decision, not an accident.
+- **Naming pitfalls.** `--lang` / `PROJECT_LANG=` take the *registry name*
+  (`hindi`), not the code (`hi`); the code is for file suffixes and commit
+  scopes (`data(hi)`). The Python tools import `uharfbuzz`, so run them
+  inside the Poetry environment - a bare `python3 tools/process_strokes.py`
+  fails with `No module named 'uharfbuzz'`.
+
+### Post-recording gate (stage 5)
+
+Not an agent: a fixed command sequence, run from the repo root, all of which
+must pass before a language's data is committed.
+
+```bash
+cd python && poetry run python ../tools/process_strokes.py --preset=full --lang hindi && cd ..
+python3 tools/validate_data.py
+node tools/coverage_report.js --glyph-data js/src/glyph-data.hi.json \
+                              --stroke-data js/src/stroke-data.hi.json   # want: 0 fallback
+```
+
+If clusters fall back, `--verbose` explains each one: a missing atom means
+record it (stage 4); "recipe exists but composition itself failed" means a
+composition bug to fix in shared code - with Malayalam's tests unmodified.
+Commit the raw and processed strokes together as a one-line `data(<code>)`
+commit. A language's *first* data needs no `make update-snapshot`; a later
+change to an already-recorded cluster does.
+
+### Is a 6th agent needed?
+
+Not yet. Everything after stage 3 is either a human task (recording,
+inspecting) or a fixed command sequence (the gate above) - neither is
+open-ended judgment, which is what agents are for here. The one plausible
+candidate is **coverage triage** (turn `coverage_report.js --verbose` into a
+"record these / fix this recipe" list); build it only if a second language
+shows the same recurring pattern. Visual QA of the animation needs a
+browser and is deliberately out of scope for this branch's work.
 
 ## Open questions
 
@@ -560,6 +663,9 @@ Tamil, etc.), matching the `data(ml)`/`data(ta)` commit-scope convention
   (per "one language at a time" above).
 
 ## Out of scope (deferred - "Phase 2")
+
+*(Hindi's first run did stages 4-5 by hand, so this list shrank - see "What
+Hindi's first run taught us". What is still deliberately not designed:)*
 
 Everything after `labeling-worklist.md` exists: actually orchestrating the
 native-speaker recording session, `docs/ROADMAP.md`'s "Bug-report → data

@@ -313,6 +313,29 @@ font-outline trace instead of a real composed stroke - not wrong, just a
 visibly different (and, worse, occasionally including a stray
 dotted-circle artifact, per Bug #2 above) style from its neighbors.
 
+### Contextual forms: Devanagari half-forms and reph
+
+Some scripts have clusters that fit neither a mark recipe nor
+per-character composition. In Devanagari a conjunct like "क्त" can
+render as 2 glyphs from 3 characters (the virama contributes none), and the
+base consonant itself changes shape (a *half-form*), or the mark detaches
+from its typed position (*reph*, which types first but renders last).
+`glyph-data.<code>.json`'s `contextualForms` table lists each such
+2-character *trigger* (e.g. "क्", "र्") with a `role` of `halfForm` or
+`reph`; the trigger is recorded once as its own atom, keyed by the trigger
+string and never by a `clusters`/`marks` key, so segmentation can't
+accidentally pick it up.
+
+`tryComposeContextualForm` (`index.js`) and its Python twin in
+`stroke_compose.py` then fill the cluster's two glyph slots from the trigger's
+atom and the third character's own stroke - in glyph order for `halfForm`,
+swapped for `reph`. Hindi has 39 triggers (38 half-forms + 1 reph).
+Languages without the quirk (Malayalam included) have no `contextualForms`
+table, which makes this path a guaranteed no-op for them - verified by
+composing all 2052 Malayalam clusters with and without it and diffing the
+results. The rationale and the per-font sweep are in
+`docs/languages/hi/composition-primitives-report.md`.
+
 ### Last resort: per-character fallback
 
 If neither direct composition nor mark-chain recursion applies, both engines

@@ -25,7 +25,7 @@ animate).
 | Why does centering/smoothing/straightening work this way | `docs/CENTERING_EXPERIMENTS.md` |
 | What's planned but not done | `docs/ROADMAP.md` |
 | Rules for contributing code or stroke data, commit conventions | `CONTRIBUTING.md` |
-| Plan for onboarding a new Indic language via agents | `docs/LANGUAGE_ONBOARDING_AGENTS.md` |
+| Onboarding a new Indic language: the agent sequence, gates, and Hindi's lessons | `docs/LANGUAGE_ONBOARDING_AGENTS.md` (or just `/onboard-language <name>`) |
 | Invokable subagents - both the onboarding pipeline's (`Agent(language-researcher, ...)` etc.) and general-purpose ones (`Agent(code-reviewer, ...)`) | `.claude/agents/` |
 
 `docs/ARCHITECTURE.md` in particular documents four real, shipped-and-fixed
@@ -79,8 +79,14 @@ make validate-data      # structural check of the 3 committed JSON data files
 make ci                  # everything CI runs, both languages, in one shot
 make build-glyph-data FONT=/path/to/Font.ttf   # regenerate glyph-data.json
 make process-strokes                            # regenerate stroke-data.json
+make coverage-report                             # direct/composed/fallback per cluster
 make demo                                        # serve demo + stroke recorder at :8000
 ```
+
+`--lang`/`PROJECT_LANG=` take the registry name (`hindi`), not the code
+(`hi`) - the code is for file suffixes and commit scopes. The Python tools
+need their dependencies (`uharfbuzz`): run them via `cd python && poetry run
+python ../tools/<tool>.py ...` if a bare `python3` fails to import them.
 
 `make ci` is exactly what CI runs (`.github/workflows/ci.yml` just calls
 `make ci-py`/`make ci-js`) - if it's green locally, trust that it's green in
@@ -137,9 +143,11 @@ agent doesn't have to re-derive it each time.
 
 ## Current scope
 
-Malayalam is the only language with actual data (`_chars.py`,
-`glyph-data.json`, `stroke-data(.raw).json`) today, but the tooling is now
-language-parametrized (Phase 0 of `docs/LANGUAGE_ONBOARDING_AGENTS.md`,
+Two languages have data: **Malayalam** (`_chars.py`, `glyph-data.json`,
+`stroke-data(.raw).json` - the original, unsuffixed) and **Hindi**
+(`_chars_hi.py`, `glyph-data.hi.json`, `stroke-data.hi(.raw).json` - first
+language onboarded through the agent pipeline, 183 recorded atoms, 100%
+cluster coverage). The tooling is language-parametrized (Phase 0 of `docs/LANGUAGE_ONBOARDING_AGENTS.md`,
 done): `python/src/jayasree/languages.py`'s `LANGUAGES` registry is the
 single source of truth mapping a language name to its character-inventory
 module and its data-file paths (unsuffixed for Malayalam, `.{code}`-suffixed
@@ -149,10 +157,14 @@ auto-discovers whichever languages' files exist under `js/src/` (and stays
 dependency-free/stdlib-only on purpose - see its module docstring - since
 the pre-commit hook runs it with bare `python3`, no guaranteed `uharfbuzz`).
 
-The target roster for onboarding an actual second language (Hindi, Tamil,
-Telugu, Kannada, Bengali, Sanskrit, one at a time, more beyond that) and the
-multi-agent pipeline for doing it (research → ghost font → reduced labeling
-set) are in `docs/LANGUAGE_ONBOARDING_AGENTS.md` - including an explicit
+The onboarding sequence is research (`language-researcher` + `language-reviewer`)
+→ human sign-off → ghost font (`font-selector`) → human sign-off → atom set
+(`atom-reducer`) → a human records strokes → process + `validate_data.py` +
+`tools/coverage_report.js` until 0 fallbacks. `/onboard-language <name>` runs
+it and enforces the gates; **never invoke Agent 2/3 without a real sign-off
+from the user in the conversation**. The roster still to onboard (Tamil,
+Telugu, Kannada, Bengali, Sanskrit, one at a time) and the full spec are in
+`docs/LANGUAGE_ONBOARDING_AGENTS.md` - including an explicit
 caution against generalizing from Malayalam's Dravidian-specific quirks
 (chillu, its particular conjunct/ligature set) when profiling a
 structurally different script like Devanagari, Tamil, Telugu, Kannada, or

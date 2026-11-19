@@ -132,8 +132,19 @@ its segmentation was already fully data-driven, not the hardcoded
 Malayalam-only regex this section used to warn about. See that doc's
 "Phase 0" section for the full list of what changed.
 
-What's left for a real second language (Tamil is the obvious next
-candidate, per early conversations about this project) is now just the
+**Hindi is the first language onboarded through this pipeline** (all five
+stages: research, font - Noto Sans Devanagari, 183-atom worklist, recording,
+processing; real coverage 2443/2443). It also added the contextual-form
+composition primitive (Devanagari half-forms and reph) and a coverage-report
+tool - see "What Hindi's first run taught us" in
+`docs/LANGUAGE_ONBOARDING_AGENTS.md`. Still open for Hindi, deliberately on a
+separate branch from the data: stroke cleanup (de-wobbling hand-recorded
+strokes against the font's ink ridge - prototyped in notebooks, not wired
+into the pipeline), the known rendering glitches (e.g. the bridge in ञ, a
+shirorekha pause in ङ, a gap in ऊ), a more fluid animation, and deciding
+what to do with the stroke-source survey's findings.
+
+What's left for the *next* language (Tamil is the obvious candidate) is the
 per-language *content*, not further plumbing:
 
 - Agent 1/2/3's work: a sourced character-inventory module

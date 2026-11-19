@@ -124,9 +124,11 @@ fixtures, while everything Malayalam-specific lives in
   `_chars.py`, `stroke-data.raw.json`, or Malayalam tests. If a "common"
   feature needs changes to shared code, the existing language's tests must
   pass unmodified - if you had to change them, the feature wasn't common.
-- Add a sibling character-inventory module (e.g. `_chars_tamil.py`), its own
-  data files (see the README's "Data size & deployment" on per-script
-  splitting), and its own test module mirroring `test_chars_malayalam.py`.
+- Add a sibling character-inventory module (`_chars_hi.py` is the worked
+  example), a `LanguageSpec` entry in `languages.py`'s `LANGUAGES` registry,
+  its own data files (see the README's "Data size & deployment" on
+  per-script splitting), and its own test module mirroring
+  `test_chars_malayalam.py` (`test_chars_hi.py`).
 - Recording needs a native speaker/writer of that script - strokes drawn by
   someone who doesn't write it daily are worse than no strokes (the outline
   fallback is always correct, just less handwriting-like).
@@ -143,6 +145,31 @@ fixtures, while everything Malayalam-specific lives in
   `python/src/`, `js/src/index.js`, `tools/`) stays MIT regardless of
   which language it's processing - only the *data* license differs from
   the code's.
+
+### The onboarding sequence
+
+Don't start from a blank file - follow the pipeline in
+[`docs/LANGUAGE_ONBOARDING_AGENTS.md`](docs/LANGUAGE_ONBOARDING_AGENTS.md)
+(or run `/onboard-language <name>` in Claude Code, which does the stage
+detection and sign-off gates for you). In order, one language at a time:
+
+1. **Research & profile** - `language-researcher`, then `language-reviewer`.
+   Output: `docs/languages/<code>/profile.md`, `chars.json`. A human who
+   reads the script signs off before anything else starts.
+2. **Ghost font** - `font-selector`. Output: `font-report.md`. A human signs
+   off on one specific font (OFL-licensed, HarfBuzz-verified).
+3. **Atom set** - `atom-reducer`. Writes `_chars_<code>.py`, the registry
+   entry and `glyph-data.<code>.json`, and produces `labeling-worklist.md`.
+4. **Record** - a native writer traces the worklist in
+   `tools/stroke-recorder.html`. This is the one step no agent does.
+5. **Process & verify** - `process_strokes.py --lang <name>` (registry name,
+   e.g. `hindi`, not the code), `python3 tools/validate_data.py`, and
+   `node tools/coverage_report.js --glyph-data ... --stroke-data ...` until it
+   reports 100% with 0 fallbacks. Commit as one-line `data(<code>)` commits.
+
+Hard stops: never skip a human sign-off, never run two languages at once,
+and never hand-edit generated data. The agents themselves are bound by the
+same "must not touch Malayalam" rule as everyone else.
 
 ## Data integrity & governance
 

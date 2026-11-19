@@ -1,11 +1,15 @@
 
 # Jayasree ![ജയശ്രീ - animated stroke trace](demo/jayasree.svg)
 
-*Malayalam handwriting, animated stroke by stroke.*
+*Indic-script handwriting, animated stroke by stroke - Malayalam and Hindi so far.*
 
-A JavaScript library for animating Malayalam script as handwriting - showing
+A JavaScript library for animating Indic scripts as handwriting - showing
 *how* to write a letter or word, not just what it looks like. Think
-[Hanzi Writer](https://hanziwriter.org/) but for Malayalam.
+[Hanzi Writer](https://hanziwriter.org/) but for Malayalam, Devanagari and,
+over time, the other Indic scripts. Malayalam is the original and most
+complete language; Hindi (Devanagari) has all its strokes recorded and is
+being inspected and cleaned up (its demo, `demo/demo-hi.html`, is a
+progress-check page rather than the polished demo).
 
 **Live site & demo:** <https://sachn1.github.io/jayasree/> -
 deployed from this repo by `.github/workflows/pages.yml` (one-time setup:
@@ -24,12 +28,34 @@ runtime composition system builds most of the ~2050 supported clusters from
 just ~290 hand-recorded atoms plus a per-mark recipe, rather than needing
 every combination shaped or drawn individually.
 
+Each language has its own set of those three files - Malayalam's keep the
+plain names above (for backward compatibility with the published package),
+every other language's carry a code suffix (`glyph-data.hi.json`,
+`stroke-data.hi.raw.json`, `stroke-data.hi.json`). Scripts with contextual
+conjunct forms (Devanagari half-forms and reph) add a `contextualForms`
+table to their `glyph-data`, which the runtime composes the same way it
+composes mark recipes.
+
 See **[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)** for the full pipeline
 walkthrough (all four stages, file by file) and how runtime composition,
 whitespace handling, and chillu-letter encoding work - including worked
 examples of real bugs this project shipped and fixed. See
 **[`docs/CENTERING_EXPERIMENTS.md`](docs/CENTERING_EXPERIMENTS.md)** for the
 centering/smoothing/straightening trial-and-error log behind that pipeline.
+
+## Languages
+
+| Language | Code | Ghost font | Hand-recorded atoms | Clusters covered | Status |
+|---|---|---|---|---|---|
+| Malayalam | `ml` (files unsuffixed) | Manjari | 297 | ~2050 | the original; production |
+| Hindi (Devanagari) | `hi` | Noto Sans Devanagari | 183 | 2443 (100%, 0 outline fallbacks) | all strokes recorded; visual cleanup pending |
+| Tamil, Telugu, Kannada, Bengali, Sanskrit | - | - | - | - | planned, one at a time - see [`docs/LANGUAGE_ONBOARDING_AGENTS.md`](docs/LANGUAGE_ONBOARDING_AGENTS.md) |
+
+`python/src/jayasree/languages.py`'s `LANGUAGES` registry is the single
+source of truth: it maps a language *name* (`malayalam`, `hindi`) to its
+character-inventory module and data-file paths. The build tools take
+`--lang <name>`; `make` targets take `PROJECT_LANG=<name>` (default:
+`malayalam`).
 
 ## Creating handwriting from scratch
 
@@ -96,8 +122,13 @@ at all. Two options:
 ### 3. Process
 
 ```bash
-make process-strokes
+make process-strokes                       # Malayalam
+make process-strokes PROJECT_LANG=hindi    # any other registered language
 ```
+
+(The Python tools import `uharfbuzz`; run them inside the Poetry environment
+- `cd python && poetry run python ../tools/process_strokes.py --lang hindi`
+- if a bare `python3` doesn't have the dependencies.)
 
 Centers each stroke against `glyph-data.json`'s outline (gradient ascent
 onto the ink's centerline), smooths it (corner-aware spline fit), straightens
@@ -163,6 +194,25 @@ letting it grow unchecked:
   committed JSON files are Malayalam-only today - but the format is
   already per-cluster keyed data, so splitting it by script is a
   file-naming/build-tooling change, not a data-model rewrite.
+
+## Adding a new language
+
+Onboarding is a fixed, human-gated sequence - research, font, atom set, then
+*you* record, then process and verify. Three agents (plus one reviewer) do
+the first three steps; `/onboard-language <name>` in Claude Code runs them in
+order and stops at each sign-off:
+
+1. **Research** - `language-researcher`, reviewed by `language-reviewer` -> `docs/languages/<code>/profile.md` + `chars.json`. *Human sign-off.*
+2. **Ghost font** - `font-selector` -> `font-report.md`. *Human sign-off.*
+3. **Atom set** - `atom-reducer` -> `_chars_<code>.py`, the registry entry, `glyph-data.<code>.json`, `labeling-worklist.md`.
+4. **Record** - a native writer traces the worklist in `tools/stroke-recorder.html` (no agent can do this).
+5. **Process & verify** - `process_strokes.py --lang <name>`, `make validate-data`, `node tools/coverage_report.js` (want 100%, 0 fallbacks).
+
+The full spec, the per-agent roles, what Hindi's first run taught us, and
+the post-recording gate are in
+[`docs/LANGUAGE_ONBOARDING_AGENTS.md`](docs/LANGUAGE_ONBOARDING_AGENTS.md);
+the contributor rules (a new language must never touch Malayalam's files) are
+in [`CONTRIBUTING.md`](CONTRIBUTING.md#adding-a-new-language).
 
 ## Quickstart
 
@@ -261,10 +311,13 @@ jayasree/
 │   ├── src/index.js               # main export - segmentation, composition, animation
 │   ├── src/glyph-data.json        # pre-computed font outlines + marks table (commit)
 │   ├── src/stroke-data.raw.json   # hand-authored strokes, source of truth (commit)
-│   └── src/stroke-data.json       # processed, ready-to-load (commit - generated)
+│   ├── src/stroke-data.json       # processed, ready-to-load (commit - generated)
+│   └── src/*.hi.json              # Hindi's three files: glyph-data.hi / stroke-data.hi.raw / stroke-data.hi
 ├── python/                        # build-time shaper + stroke-processing library (Poetry project)
 │   ├── src/jayasree/
 │   │   ├── cli.py                 # `shape`/`alphabet` CLI (see python/README.md)
+│   │   ├── languages.py           # LANGUAGES registry: name -> chars module + data paths
+│   │   ├── _chars.py / _chars_hi.py   # per-language character inventories (Malayalam / Hindi)
 │   │   ├── strokes.py             # HarfBuzz shaping
 │   │   ├── geometry.py            # corner-aware smoothing
 │   │   ├── centering.py           # gradient-ascent centering
@@ -275,15 +328,20 @@ jayasree/
 │   ├── build_glyph_data.py            # generates js/src/glyph-data.json
 │   ├── process_strokes.py             # generates js/src/stroke-data.json
 │   ├── validate_data.py               # structural validation + content-snapshot tooling
+│   ├── coverage_report.js             # per-cluster direct/composed/fallback report (real or simulated)
 │   ├── stroke-recorder.html/.css/.js  # browser tool for authoring stroke-data.raw.json
 │   └── build_standalone_recorder.py   # bundles the recorder into one offline file
 ├── demo/
-│   ├── index.html / demo.js / demo.css
+│   ├── index.html / demo.js / demo.css   # the Malayalam demo
+│   ├── demo-hi.html / demo-hi.js         # Hindi progress-check demo
 │   ├── logo-preview.html          # standalone preview of the animated wordmark
 │   └── serve.py
 ├── docs/
 │   ├── ARCHITECTURE.md            # canonical pipeline + composition reference
 │   ├── CENTERING_EXPERIMENTS.md   # centering/smoothing/straightening experiments log
+│   ├── LANGUAGE_ONBOARDING_AGENTS.md   # the multi-agent onboarding pipeline (spec + lessons)
+│   ├── languages/<code>/          # per-language profile, font report, worklist (ml, hi)
+│   ├── fonts/stroke-source-survey.md   # survey of fonts with pen-path data
 │   ├── centering-example/         # before/after SVGs referenced from those docs
 │   └── ROADMAP.md                 # planned/not-yet-done work
 ├── tests/index.test.js             # vitest - index.js's composition/segmentation engine
@@ -294,7 +352,10 @@ jayasree/
 ├── pyproject.toml                  # ruff config only (repo root - see file header for why)
 ├── eslint.config.js / vitest.config.js / package.json   # repo-level JS dev tooling
 ├── CONTRIBUTING.md                 # ground rules: code, tests, data integrity, new languages
-├── LICENSE / LICENSE-DATA          # MIT (code) / CC BY 4.0 (stroke data + artwork)
+├── CLAUDE.md                       # operating notes + hard rules for an AI agent in this repo
+├── .claude/agents/                 # the onboarding pipeline's agents + a code reviewer
+├── .claude/skills/onboard-language/   # /onboard-language - runs the agents in order
+├── LICENSE / LICENSE-DATA          # MIT (code) / CC BY-SA 4.0 (stroke data + artwork)
 └── README.md
 ```
 
@@ -309,7 +370,9 @@ Run `make help` for the full list.
 make install       # poetry install (python/) + npm ci (repo root)
 make lint           # ruff (lint + format check) + interrogate + eslint
 make test           # pytest (+ coverage) + vitest (+ coverage)
-make validate-data   # structural check of the 3 committed JSON data files
+make validate-data   # structural check of every language's committed JSON data files
+make coverage-report # per-cluster direct/composed/fallback report (Malayalam by default;
+                     #   see its output for the Hindi invocation)
 make precommit       # every pre-commit hook against all files
 make ci              # everything CI runs, both languages, in one shot
 ```
@@ -336,9 +399,17 @@ about when touching any `js/src/*.json`.
 
 ## Status
 
-Early. ~300 atoms are hand-authored; composition (see
-[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)) extends them to the ~2050
-clusters `glyph-data.json` covers. `glyph-data.json` currently pre-shapes
+Early. Two languages have data:
+
+- **Malayalam** - ~300 atoms hand-authored; composition (see
+  [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)) extends them to the ~2050
+  clusters `glyph-data.json` covers.
+- **Hindi** - all 183 atoms of its reduced worklist are recorded; they cover
+  all 2443 clusters in `glyph-data.hi.json` with no outline fallbacks. What
+  remains is visual cleanup (stroke smoothness, a few known rendering
+  glitches), which is planned as separate work, not part of the data.
+
+`glyph-data.json` currently pre-shapes
 every consonant+vowel-sign and conjunct combination via HarfBuzz rather
 than pruning to only combinations that occur in real Malayalam - fine at
 this prototyping stage, but a planned cleanup once there's a real-word
