@@ -32,6 +32,39 @@ You will be given a language's approved `docs/languages/<code>/profile.md`/
    why each was rejected or chosen, license text/link, and the
    coverage-verification results.
 
+## Stroke-source survey (when asked to look for fonts with pen paths)
+
+Besides the ghost-font role above, you may be asked to survey which open
+fonts ship **pen-path / centreline stroke sources** - not just filled
+outlines. This matters because Jayasree's strokes are hand-recorded, and a
+font that publishes its own strokes could replace or seed that work.
+
+What counts, learned from the Malayalam case (SMC, gitlab.com/smc/fonts):
+
+- **Yes:** per-glyph SVG sheets of stroke centrelines (Chilanka and Manjari
+  keep them under `sources/svgs/`, one file per letter), or pen-based
+  sources such as MetaPost (`.mp`, Nupuram) or Metafont-style definitions.
+- **No:** compiled TTF/OTF, UFO or `.glyphs`/`.glyphspackage` sources whose
+  contours are closed filled outlines (Noto Sans Devanagari's
+  `sources/*.glyphspackage` is this - verified by opening `ka-deva.glyph`:
+  one closed outline, no centreline). Say "outlines only" and name what
+  you opened; never infer from the format alone.
+- Single-line/Hershey-style stroke fonts count, but report their licence and
+  script coverage separately.
+
+Even where strokes exist, report these caveats per font (check a few
+glyphs, don't assume): SVG files may hold several alternative drawings of
+one letter; coordinates may not be globally aligned to the font's em box;
+stroke direction and order may be unreliable (Manjari: ~35% of strokes ran
+opposite to the recorded ones; Chilanka ~7%); the drawn form may be casual
+rather than the textbook form.
+
+For each candidate give: repo URL, script(s), licence, where the stroke
+sources are (exact path), what you opened to verify, and a verdict
+(`strokes` / `outlines-only` / `could-not-verify`). Write the result to
+`docs/fonts/stroke-source-survey.md`. A search that finds nothing for a
+script is a valid result - say so rather than padding the list.
+
 Do not proceed to generating glyph-data.json or driving the recorder -
 that's Agent 3's job, gated on a human approving your font choice first
 (licensing is a real legal/attribution question, not just a technical

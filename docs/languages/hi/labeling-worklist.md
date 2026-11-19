@@ -40,6 +40,24 @@ Malayalam's category names, per the plan's "Don't generalize from
 Malayalam." Every count in this document is reproducible by re-running the
 commands cited alongside it.
 
+> **2026-10-03 recorder-visibility fix**: Group D's 53 true akhand
+> ligatures/half-form exceptions used to be invisible in
+> `tools/stroke-recorder.html`'s default dropdown — `isAtom()` only
+> auto-shows single codepoints and `marks{}`/`contextualForms{}` keys, so
+> these 53 only appeared after being typed, one at a time, into "+ Add
+> custom cluster" (no bulk-add existed). Fixed properly instead of
+> papering over it with a bulk-add button: `tools/build_glyph_data.py`'s
+> `_runtime_quirks()` (its `lang.code == "hi"` block) now also computes and
+> writes a `knownAtoms` list (same mechanical sweep this doc's Group D
+> numbers already came from, reused rather than re-derived by hand), and
+> the public, language-generic `tools/stroke-recorder.js` now treats
+> `knownAtoms` membership as another reason a cluster is an atom by
+> default - same tier as `marks`/`contextualForms`. All 183 atoms now show
+> by default; no manual add/remember-the-list step needed. Re-run
+> `make build-glyph-data PROJECT_LANG=hindi && make build-recorder
+> PROJECT_LANG=hindi` to pick this up in an already-checked-out standalone
+> recorder.
+
 ## Corrections found while running this pass (original, Annapurna SIL — still valid)
 
 Per this pipeline's design principle 3 ("verification is structural, not
