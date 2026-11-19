@@ -26,8 +26,10 @@ body {
   display: none;
 }
 
-/* Live wordmark for languages without a pre-exported SVG: same look as the
-   Malayalam one (purple fill revealed after an ink outline is drawn). */
+/* Live wordmark for languages without a pre-exported SVG: an ink outline is
+   drawn, then the fill is revealed. The fill uses the outline's own ink color
+   (not Malayalam's light purple) so the two read as one solid shape instead
+   of dark lines cutting across a pale fill. */
 #logo-live {
   display: flex;
   justify-content: center;
@@ -44,8 +46,8 @@ body {
 }
 
 #logo-live .ms-ghost path {
-  fill: #a78bfa;
-  fill-opacity: 0.9;
+  fill: var(--ms-ink-color);
+  fill-opacity: 1;
   stroke: none;
 }
 
