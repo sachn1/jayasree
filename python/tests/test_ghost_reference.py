@@ -15,6 +15,7 @@ import pytest
 
 from jayasree.centering import make_dist_field
 from jayasree.ghost_reference import (
+    REF_LENGTH_MATCH_RATIO,
     build_reference_segments,
     find_straight_segments,
     fit_line,
@@ -172,11 +173,13 @@ class TestMatchReference:
         "angle": 0.0,
         "start": np.array([0.0, 0.0]),
         "direction": np.array([1.0, 0.0]),
+        "length": 1000.0,
     }
     VERTICAL_REF: ClassVar = {
         "angle": 90.0,
         "start": np.array([0.0, 0.0]),
         "direction": np.array([0.0, 1.0]),
+        "length": 1000.0,
     }
 
     def test_matches_a_parallel_nearby_run(self) -> None:
@@ -195,6 +198,35 @@ class TestMatchReference:
         """Ensure that a piece far from the reference's line matches nothing."""
         pts = np.array([[x, 1000.0] for x in range(0, 101, 10)])
         match = match_reference(pts, np.array([1.0, 0.0]), [self.HORIZONTAL_REF])
+        assert match is None
+
+    def test_length_ratio_disabled_by_default(self) -> None:
+        """A too-short reference still matches when min_length_ratio isn't passed.
+
+        Byte-for-byte compatibility for every existing caller (including
+        Malayalam's already-committed clusters) - see REF_LENGTH_MATCH_RATIO's
+        docstring for why this check is opt-in, not a new default.
+        """
+        short_ref = {**self.HORIZONTAL_REF, "length": 5.0}
+        pts = np.array([[x, 2.0] for x in range(0, 101, 10)])  # 100fu long
+        assert match_reference(pts, np.array([1.0, 0.0]), [short_ref]) is short_ref
+
+    def test_no_match_when_reference_is_much_shorter_than_piece(self) -> None:
+        """A reference far shorter than the piece can't represent it - reject it.
+
+        Without this, match_reference treats a bounded reference segment as
+        an infinite line (only angle + perpendicular distance are checked),
+        so a long hand-drawn run can rigidly snap onto a much shorter
+        reference edge that merely shares its rough angle - confirmed
+        directly against real data: ञ's own 541fu "bridge" stroke matched a
+        68fu reference this way, collapsing a real curve into a near-
+        straight line.
+        """
+        short_ref = {**self.HORIZONTAL_REF, "length": 5.0}
+        pts = np.array([[x, 2.0] for x in range(0, 101, 10)])  # 100fu long
+        match = match_reference(
+            pts, np.array([1.0, 0.0]), [short_ref], min_length_ratio=REF_LENGTH_MATCH_RATIO
+        )
         assert match is None
 
 

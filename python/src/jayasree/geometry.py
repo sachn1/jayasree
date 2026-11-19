@@ -122,6 +122,32 @@ def turn_angles(way: np.ndarray) -> np.ndarray:
     return angles
 
 
+def find_corner_indices(way: np.ndarray, corner_angle_deg: float = CORNER_ANGLE_DEG) -> list[int]:
+    """Return the interior indices of `way` that count as sharp corners.
+
+    Split out of :func:`split_at_corners` so a caller that needs the
+    *indices* (not just the resulting point-array pieces) can reuse the
+    exact same corner-detection rather than re-deriving it - see
+    :func:`smooth_points`'s `sparse_piece_fallback`.
+
+    Parameters
+    ----------
+    way : np.ndarray
+        Waypoint polyline, shape ``(n, 2)``.
+    corner_angle_deg : float, optional
+        Turning angle above which a waypoint is treated as a corner.
+
+    Returns
+    -------
+    list[int]
+        Indices into `way` of each detected corner, in order.
+    """
+    if len(way) < 3:
+        return []
+    angles = turn_angles(way)
+    return [i for i in range(1, len(way) - 1) if angles[i] > corner_angle_deg]
+
+
 def split_at_corners(
     way: np.ndarray, corner_angle_deg: float = CORNER_ANGLE_DEG
 ) -> list[np.ndarray]:
@@ -147,8 +173,7 @@ def split_at_corners(
     """
     if len(way) < 3:
         return [way]
-    angles = turn_angles(way)
-    corner_idx = [i for i in range(1, len(way) - 1) if angles[i] > corner_angle_deg]
+    corner_idx = find_corner_indices(way, corner_angle_deg)
     if not corner_idx:
         return [way]
     pieces = []
@@ -233,6 +258,7 @@ def smooth_points(
     pts: np.ndarray,
     rdp_epsilon: float = 20.0,
     corner_angle_deg: float = CORNER_ANGLE_DEG,
+    sparse_piece_fallback: bool = False,
 ) -> str | None:
     """Fit smooth local (Catmull-Rom-tangent) cubic beziers through sampled points.
 
@@ -248,6 +274,22 @@ def smooth_points(
         Maximum perpendicular deviation for RDP waypoint simplification.
     corner_angle_deg : float, optional
         Turning angle above which a waypoint is treated as a corner.
+    sparse_piece_fallback : bool, optional
+        Default `False` - every existing caller keeps the exact byte-for-byte
+        output it always had. When `True`: a tight, small curve (e.g. a
+        compact consonant loop) can get RDP-simplified down to a handful of
+        waypoints where *every* consecutive pair then reads as its own
+        "corner" purely from under-sampling, not because the original curve
+        actually had a sharp turn there - `fit_piece`'s own `n < 4` fallback
+        then degenerates each of those pieces into straight `L` segments,
+        turning a smooth hand-drawn loop into a jagged polygon (confirmed
+        directly against a real recorded stroke, not assumed - see
+        `docs/CENTERING_EXPERIMENTS.md`'s "Curve straightening" section).
+        When a piece this sparse is found, this re-fits it from the
+        *original, pre-RDP* point range it spans instead of its own
+        RDP-thinned 2-3 points - same corner locations (this never changes
+        *where* a piece boundary falls, only what it's fit from), real
+        curve data instead of too little to curve through.
 
     Returns
     -------
@@ -257,11 +299,32 @@ def smooth_points(
     if len(pts) < 4:
         return None
 
-    waypts = rdp(pts, rdp_epsilon)
+    if sparse_piece_fallback:
+        rdp_idx = _rdp_indices(pts, rdp_epsilon)
+        waypts = pts[rdp_idx]
+    else:
+        waypts = rdp(pts, rdp_epsilon)
     if len(waypts) < 4:
         waypts = pts
+        sparse_piece_fallback = False  # no RDP index mapping to fall back to
 
     pieces = split_at_corners(waypts, corner_angle_deg)
+
+    if sparse_piece_fallback and len(pieces) > 1:
+        # Map each piece back to the original (pre-RDP) index range it
+        # spans, and re-fit from there whenever the RDP-thinned piece
+        # itself is too sparse to curve through - see this function's own
+        # docstring above for why.
+        corner_idx = find_corner_indices(waypts, corner_angle_deg)
+        bounds = [0, *corner_idx, len(waypts) - 1]
+        densified = []
+        for i, piece in enumerate(pieces):
+            if len(piece) >= 4:
+                densified.append(piece)
+                continue
+            orig_start, orig_end = rdp_idx[bounds[i]], rdp_idx[bounds[i + 1]]
+            densified.append(pts[orig_start : orig_end + 1])
+        pieces = densified
 
     d_parts = [f"M {pieces[0][0, 0]:.1f} {pieces[0][0, 1]:.1f}"]
     for piece in pieces:
