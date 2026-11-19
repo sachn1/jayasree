@@ -25,6 +25,7 @@
     "indic",
     "harfbuzz"
   ],
+  "author": "Sachin Nandakumar",
   "license": "MIT",
   "repository": {
     "type": "git",

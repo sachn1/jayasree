@@ -186,6 +186,24 @@ function svgEl(tag, attrs) {
 }
 
 /**
+ * Cubic ease-in-out: slow start, fast middle, slow end.
+ *
+ * A real pen accelerates into a stroke and decelerates at its end, not a
+ * constant-velocity sweep - {@link traceSub} applies this to its
+ * frame-progress fraction instead of using the raw linear `t`, which reads
+ * as mechanical ("robotic") rather than handwritten. Standard shape
+ * (equivalent to CSS `ease-in-out`); not tunable per-stroke on purpose -
+ * this is a fixed property of how pens move, not a per-language or
+ * per-glyph concern.
+ *
+ * @param {number} t - Linear progress, 0-1.
+ * @returns {number} Eased progress, 0-1.
+ */
+function easeInOut(t) {
+  return t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2;
+}
+
+/**
  * Split a compound SVG `d` string into individual subpath strings.
  *
  * @param {string} d
@@ -512,7 +530,9 @@ function applyMarkStroke(baseStrokes, mark, markStrokes, baseAdvance, markAnchor
   const composed = baseStrokes.map((s) => ({ d: offsetSvgPath(s.d, shift, 0) }));
   const strokes =
     mark.prefix.length > 0
-      ? [...markStrokes.map((s) => ({ d: s.d })), ...composed]
+      ? mark.writeAfterBase
+        ? [...composed, ...markStrokes.map((s) => ({ d: s.d }))]
+        : [...markStrokes.map((s) => ({ d: s.d })), ...composed]
       : [
           ...composed,
           ...markStrokes.map((s) => ({ d: offsetSvgPath(s.d, shift + baseAdvance - markAnchorX, 0) })),
@@ -991,18 +1011,20 @@ export function createStrokeWriter(container, options = {}) {
     let penX = 0;
     const segGroups = [];
     for (const { cluster, entry } of segs) {
+      // Universal chars use their own fixed advance as-is - `tighten` only
+      // compensates for a font's own sidebearing looseness, which doesn't
+      // apply to a hand-picked width that was never font-shaped.
+      const advance = entry.universal
+        ? entry.advanceFraction * meta.unitsPerEm
+        : Math.max(0, entry.advance - tightenUnits);
       segGroups.push({
         cluster,
         components: entry.glyphs.map((g) => ({ d: g.d, x: penX + g.x, y: g.y })),
         groupX: penX,
+        advance,
         universal: !!entry.universal,
       });
-      // Universal chars use their own fixed advance as-is - `tighten` only
-      // compensates for a font's own sidebearing looseness, which doesn't
-      // apply to a hand-picked width that was never font-shaped.
-      penX += entry.universal
-        ? entry.advanceFraction * meta.unitsPerEm
-        : Math.max(0, entry.advance - tightenUnits);
+      penX += advance;
     }
 
     return {
@@ -1013,6 +1035,107 @@ export function createStrokeWriter(container, options = {}) {
       segGroups,
       glyphData: tightenedGlyphData,
     };
+  }
+
+  /** Spans within this distance (font units) of each other are stitched
+   * into one continuous shirorekha run instead of drawn as separate
+   * strokes with a visible micro-gap - adjacent characters' own ink
+   * ranges rarely touch at an exact shared x (kerning/rounding), so
+   * without this a perfectly ordinary letter-to-letter boundary would
+   * incorrectly read as a gap.
+   */
+  const SHIROREKHA_MERGE_TOLERANCE = 12;
+
+  /**
+   * Compute the x-ranges a synthetic word-level shirorekha line should
+   * paint - never a Hindi-specific computation in this function's own
+   * logic, just whatever `glyphData.shirorekha.inkRanges` (if any) says.
+   *
+   * Reuses the font's own real outline instead of approximating: rather
+   * than guessing which letters have a headline gap,
+   * `tools/build_glyph_data.py`'s `_hi_cluster_ink_ranges()` mechanically
+   * rasterizes every *exact composed cluster*'s own glyphs (not just
+   * standalone base characters, so a matra-attached cluster like भा is
+   * correct automatically - no base-character lookup needed here) and
+   * records exactly where it has real ink at headline height, already
+   * positioned in that cluster's own coordinate frame. This function just
+   * looks each group's cluster up directly and stitches adjacent ranges
+   * together across the word. A group whose cluster has no entry (e.g. a
+   * language with no `shirorekha` data at all, or a cluster this build
+   * never covered) falls back to its own full rendered width.
+   *
+   * @param {{ totalAdvance: number, segGroups: object[] }} trace
+   * @param {{ inkRanges?: Record<string, [number, number][]> }} shirorekha
+   * @returns {[number, number][]} Sorted, merged `[x0, x1]` spans to paint.
+   */
+  function shirorekhaSpans(trace, shirorekha) {
+    const real = trace.segGroups.filter((g) => !g.universal);
+    if (!real.length) return [];
+
+    const raw = [];
+    for (const g of real) {
+      const ranges = shirorekha.inkRanges?.[g.cluster];
+      if (ranges?.length) {
+        for (const [x0, x1] of ranges) raw.push([g.groupX + x0, g.groupX + x1]);
+      } else {
+        raw.push([g.groupX, g.groupX + g.advance]);
+      }
+    }
+    raw.sort((a, b) => a[0] - b[0]);
+
+    const spans = [];
+    for (const [x0, x1] of raw) {
+      const last = spans[spans.length - 1];
+      if (last && x0 <= last[1] + SHIROREKHA_MERGE_TOLERANCE) {
+        last[1] = Math.max(last[1], x1);
+      } else {
+        spans.push([x0, x1]);
+      }
+    }
+    return spans;
+  }
+
+  /**
+   * Build the synthetic word-level shirorekha glyph unit, if `glyphData`
+   * declares one - drawn last (appended after every real character's own
+   * unit), per docs/languages/hi/shirorekha-report.md's agreed sequencing.
+   *
+   * @param {{ totalAdvance: number, segGroups: object[] }} trace
+   * @param {{ shirorekha?: object }} traceGlyphData
+   * @param {SVGSVGElement} svg
+   * @param {number} sw - Stroke width (font units), same as every other stroke.
+   * @returns {{ gEl: null, subUnits: object[] } | null}
+   */
+  function buildShirorekhaUnit(trace, traceGlyphData, svg, sw) {
+    const shirorekha = traceGlyphData.shirorekha;
+    if (!shirorekha) return null;
+    const spans = shirorekhaSpans(trace, shirorekha);
+    if (!spans.length) return null;
+
+    const yMid = (shirorekha.y0 + shirorekha.y1) / 2;
+    const subUnits = spans
+      .filter(([x0, x1]) => x1 - x0 > 0)
+      .map(([x0, x1]) => {
+        const el = svgEl("path", {
+          d: `M ${x0} ${yMid} L ${x1} ${yMid}`,
+          class: "ms-stroke",
+          "stroke-width": sw,
+          "stroke-linecap": "round",
+          "stroke-linejoin": "round",
+        });
+        svg.appendChild(el);
+        const len = el.getTotalLength();
+        el.setAttribute("stroke-dasharray", `${len} ${len}`);
+        el.setAttribute("stroke-dashoffset", String(len));
+        return { strokeEl: el, len, tr: { x: 0, y: 0 } };
+      });
+    // isShirorekha: traceGlyph() skips its usual pen-lift pause between
+    // sub-units for this unit specifically - spans here are separated by a
+    // real font-outline gap (e.g. भ/अ/औ's own rounded loop not fusing
+    // flush against the headline bar), not an actual stroke boundary a
+    // real pen would pause at; a visible pause there reads as broken, not
+    // as handwriting (reported directly against औ's own shirorekha).
+    return subUnits.length ? { gEl: null, subUnits, isShirorekha: true } : null;
   }
 
   // ── Stage building ────────────────────────────────────────────────────
@@ -1147,6 +1270,12 @@ export function createStrokeWriter(container, options = {}) {
       return { gEl: null, subUnits };
     });
 
+    // Synthetic word-level shirorekha, if this language's glyphData declares
+    // one - drawn last, after every real character's own unit above (see
+    // buildShirorekhaUnit's docstring for why).
+    const shirorekhaUnit = buildShirorekhaUnit(trace, traceGlyphData, svg, sw);
+    if (shirorekhaUnit) glyphUnits.push(shirorekhaUnit);
+
     return { glyphUnits, stylus, fallbackClusters };
   }
 
@@ -1173,7 +1302,8 @@ export function createStrokeWriter(container, options = {}) {
       const t0 = performance.now();
       function frame(now) {
         if (token !== state.playToken) return resolve();
-        const t = Math.max(0, Math.min(1, (now - t0) / dMs));
+        const linear = Math.max(0, Math.min(1, (now - t0) / dMs));
+        const t = easeInOut(linear);
         strokeEl.setAttribute("stroke-dashoffset", String(len * (1 - t)));
         const pt = strokeEl.getPointAtLength(t * len);
         stylus.setAttribute("cx", String(pt.x + tr.x));
@@ -1192,9 +1322,10 @@ export function createStrokeWriter(container, options = {}) {
    * @param {SVGCircleElement} stylus
    * @param {number} dMs - Total duration for this glyph in milliseconds.
    * @param {number} token
+   * @param {number} [liftMs] - Pause between sub-units (default {@link PEN_LIFT_MS}).
    * @returns {Promise<void>}
    */
-  async function traceGlyph(unit, stylus, dMs, token) {
+  async function traceGlyph(unit, stylus, dMs, token, liftMs = PEN_LIFT_MS) {
     const totalLen = unit.subUnits.reduce((s, u) => s + u.len, 0) || 1;
     for (const sub of unit.subUnits) {
       sub.dMs = Math.max(80, dMs * (sub.len / totalLen));
@@ -1204,7 +1335,7 @@ export function createStrokeWriter(container, options = {}) {
       await traceSub(sub, stylus, token);
       if (i < unit.subUnits.length - 1) {
         stylus.style.opacity = "0";
-        await new Promise((r) => setTimeout(r, PEN_LIFT_MS));
+        if (liftMs > 0) await new Promise((r) => setTimeout(r, liftMs));
       }
     }
     stylus.style.opacity = "0";
@@ -1238,7 +1369,8 @@ export function createStrokeWriter(container, options = {}) {
         unit,
         stylus,
         Math.max(200, (totalLen / (SPEED * speedMul)) * 1000),
-        token
+        token,
+        unit.isShirorekha ? 0 : PEN_LIFT_MS
       );
     }
     if (token === state.playToken) stylus.style.opacity = "0";
