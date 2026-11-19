@@ -8,8 +8,8 @@ A JavaScript library for animating Indic scripts as handwriting - showing
 [Hanzi Writer](https://hanziwriter.org/) but for Malayalam, Devanagari and,
 over time, the other Indic scripts. Malayalam is the original and most
 complete language; Hindi (Devanagari) has all its strokes recorded and is
-being inspected and cleaned up (its demo, `demo/demo-hi.html`, is a
-progress-check page rather than the polished demo).
+being inspected and cleaned up. The demo is one page with a tab per
+language (`demo/#ml`, `demo/#hi`).
 
 **Live site & demo:** <https://sachn1.github.io/jayasree/> -
 deployed from this repo by `.github/workflows/pages.yml` (one-time setup:
@@ -149,7 +149,7 @@ stage's algorithm works the way it does.
 make demo
 ```
 
-Open http://127.0.0.1:8000/demo/ and type the word.
+Open http://127.0.0.1:8000/demo/ , pick a language tab (or go straight to `/demo/#hi`), and type the word.
 
 ### Using a different font
 
@@ -228,7 +228,7 @@ make build-glyph-data FONT=/path/to/MyFont.ttf
 make demo
 ```
 
-Open http://127.0.0.1:8000/demo/ - type any Malayalam word and watch it animate.
+Open http://127.0.0.1:8000/demo/ - pick a language tab, type a word and watch it animate.
 
 ## Using the JS library
 
@@ -332,8 +332,7 @@ jayasree/
 │   ├── stroke-recorder.html/.css/.js  # browser tool for authoring stroke-data.raw.json
 │   └── build_standalone_recorder.py   # bundles the recorder into one offline file
 ├── demo/
-│   ├── index.html / demo.js / demo.css   # the Malayalam demo
-│   ├── demo-hi.html / demo-hi.js         # Hindi progress-check demo
+│   ├── index.html / demo.js / demo.css   # the demo: one page, a tab per language (LANGUAGES table in demo.js)
 │   ├── logo-preview.html          # standalone preview of the animated wordmark
 │   └── serve.py
 ├── docs/
