@@ -1381,7 +1381,7 @@ export function createStrokeWriter(container, options = {}) {
    *
    * Calls `load()` automatically if glyph data has not been loaded yet.
    *
-   * @param {string} text - Malayalam (or any supported script) text.
+   * @param {string} text - Text in a supported script (Malayalam or Hindi so far).
    * @param {{ speed?: number, count?: number }} [playOptions]
    * @param {number} [playOptions.speed=1] - Speed multiplier (>1 = faster).
    * @param {number} [playOptions.count=1] - Number of times to trace `text` in a row,
