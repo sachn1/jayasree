@@ -157,7 +157,7 @@ def fit_cubic(
     err : float
         Largest allowed distance from any point to the curve, in font units.
     depth : int
-        Recursion depth (internal).
+        Current recursion depth; callers leave it at 0.
 
     Returns
     -------

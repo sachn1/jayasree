@@ -287,7 +287,7 @@ def routing_waypoints(
     max_ratio : float
         A stretch is split when its path is more than this many times its chord.
     depth : int
-        Recursion depth (internal).
+        Current recursion depth; callers leave it at 0.
 
     Returns
     -------

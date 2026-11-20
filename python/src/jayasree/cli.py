@@ -43,15 +43,8 @@ def _matra_syllables(lang_name: str) -> list[str]:
 
 def _cmd_shape(args: argparse.Namespace) -> int:
     """Shape one or more words and print a JSON array to stdout."""
-    # Parameters
-    # ----------
-    # args : argparse.Namespace
-    #     Parsed arguments with ``font_path`` and ``words`` attributes.
-    #
-    # Returns
-    # -------
-    # int
-    #     Exit code (0 = success, 1 = a word failed to shape).
+    # args (argparse.Namespace): Parsed arguments with ``font_path`` and ``words`` attributes.
+    # Returns int: Exit code (0 = success, 1 = a word failed to shape).
     results = []
     for word in args.words:
         try:
@@ -67,16 +60,9 @@ def _cmd_shape(args: argparse.Namespace) -> int:
 
 def _cmd_alphabet(args: argparse.Namespace) -> int:
     """Shape a language's full character inventory and print a JSON array."""
-    # Parameters
-    # ----------
-    # args : argparse.Namespace
-    #     Parsed arguments with ``font_path`` and ``lang`` attributes.
-    #
-    # Returns
-    # -------
-    # int
-    #     Exit code (0 = success, 1 = the standalone run failed to shape, or
-    #     `lang` isn't registered).
+    # args (argparse.Namespace): Parsed arguments with ``font_path`` and ``lang`` attributes.
+    # Returns int: Exit code (0 = success, 1 = the standalone run failed to shape, or `lang`
+    #     isn't registered).
     try:
         standalone = _standalone_run(args.lang)
         matra_syllables = _matra_syllables(args.lang)

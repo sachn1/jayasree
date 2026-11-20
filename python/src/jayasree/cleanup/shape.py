@@ -84,7 +84,7 @@ def font_corners(
     turn_deg : float
         Smallest turn, in degrees, that counts as a corner.
     step : float
-        Resampling step along the path, in font units.
+        Arc spacing of the ridge samples, in font units.
 
     Returns
     -------
@@ -189,7 +189,7 @@ def bad_spans(m: np.ndarray, radius: np.ndarray, step: float = 6.0) -> list[tupl
     radius : np.ndarray
         Ink half-width at each ridge point, in font units (length ``n``).
     step : float
-        Resampling step along the path, in font units.
+        Arc spacing of the ridge samples, in font units.
 
     Returns
     -------
@@ -298,7 +298,7 @@ def find_spurs(
     radius : np.ndarray
         Ink half-width at each ridge point, in font units (length ``n``).
     step : float
-        Resampling step along the path, in font units.
+        Arc spacing of the ridge samples, in font units.
 
     Returns
     -------
@@ -333,7 +333,7 @@ def stem_split(
     radius : np.ndarray
         Ink half-width at each ridge point, in font units (length ``n``).
     step : float
-        Resampling step along the path, in font units.
+        Arc spacing of the ridge samples, in font units.
 
     Returns
     -------
@@ -385,7 +385,7 @@ def corner_fillets(
     radius : np.ndarray
         Ink half-width at each ridge point, in font units (length ``n``).
     step : float
-        Resampling step along the path, in font units.
+        Arc spacing of the ridge samples, in font units.
 
     Returns
     -------
@@ -605,7 +605,7 @@ def splice_knots(
     sigma : float
         Smoothing width of the human's path, in font units.
     step : float
-        Resampling step along the path, in font units.
+        Arc spacing of the ridge samples, in font units.
 
     Returns
     -------

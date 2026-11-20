@@ -212,8 +212,10 @@ _HI_SHIROREKHA_Y0 = -622.0
 _HI_SHIROREKHA_Y1 = -551.0
 
 
-def _hi_headline_bar_edges(d: str, y0: float, y1: float, tol: float = 1.0) -> list[float]:
-    """Return x-positions of this glyph's genuine headline-bar edges."""
+def _hi_headline_bar_edges(
+    d: str, y0: float, y1: float, tol: float = 1.0
+) -> list[tuple[float, float]]:
+    """Return the merged ``(start, end)`` x-spans of this glyph's genuine headline bar."""
     # Mechanical replacement for a hand-measured per-letter gap table - but
     # specifically for the font's *flat rectangular bar* feature, not "any
     # ink present at headline height." An earlier version of this function
@@ -239,35 +241,23 @@ def _hi_headline_bar_edges(d: str, y0: float, y1: float, tol: float = 1.0) -> li
     # never produces such a segment, since nothing about its shape is a
     # flat-sided rectangle spanning the full band height.
     #
-    # Parameters
-    # ----------
-    # d : str
-    #     A single glyph's own SVG path (``glyphs[i]["d"]``), in that glyph's
-    #     own local coordinate frame (caller offsets the result, not this
-    #     function - see `_hi_cluster_ink_ranges`).
-    # y0, y1 : float
-    #     The headline band's own y-range (`_HI_SHIROREKHA_Y0`/`_Y1`).
-    # tol : float
-    #     Slack (font units) for "spans the full band" and "is vertical,"
-    #     to absorb float rounding in the font's own coordinates.
-    #
-    # Returns
-    # -------
-    # list[tuple[float, float]]
-    #     Sorted, merged ``(start, end)`` ink spans, already unioned across
-    #     every subpath in the glyph - a glyph can have more than one
-    #     rectangular bar contour (e.g. ऊ's single glyph bakes in both उ's
-    #     own base-shape bar *and* its own length-extension's bar, each a
-    #     separate, overlapping rectangle: [0,563] and [300,800]). Edges are
-    #     paired up *within* each subpath first (even/odd by the standard
-    #     even-odd fill rule, which holds for one simple closed contour),
-    #     not globally across the whole glyph - sorting and pairing every
-    #     subpath's edges together as one flat list is wrong whenever two
-    #     such rectangles overlap, since it reads the union as two separate
-    #     pieces with a bogus gap in the middle instead of one continuous
-    #     span (confirmed directly against ऊ, which otherwise produced a
-    #     spurious hole exactly where the two rectangles overlap). Empty if
-    #     the glyph has no genuine headline bar at all.
+    # d (str): A single glyph's own SVG path (``glyphs[i]["d"]``), in that glyph's own local
+    #     coordinate frame (caller offsets the result, not this function - see
+    #     `_hi_cluster_ink_ranges`).
+    # y0, y1 (float): The headline band's own y-range (`_HI_SHIROREKHA_Y0`/`_Y1`).
+    # tol (float): Slack (font units) for "spans the full band" and "is vertical," to absorb
+    #     float rounding in the font's own coordinates.
+    # Returns list[tuple[float, float]]: Sorted, merged ``(start, end)`` ink spans, already
+    #     unioned across every subpath in the glyph - a glyph can have more than one rectangular
+    #     bar contour (e.g. ऊ's single glyph bakes in both उ's own base-shape bar *and* its own
+    #     length-extension's bar, each a separate, overlapping rectangle: [0,563] and
+    #     [300,800]). Edges are paired up *within* each subpath first (even/odd by the standard
+    #     even-odd fill rule, which holds for one simple closed contour), not globally across
+    #     the whole glyph - sorting and pairing every subpath's edges together as one flat list
+    #     is wrong whenever two such rectangles overlap, since it reads the union as two
+    #     separate pieces with a bogus gap in the middle instead of one continuous span
+    #     (confirmed directly against ऊ, which otherwise produced a spurious hole exactly where
+    #     the two rectangles overlap). Empty if the glyph has no genuine headline bar at all.
     try:
         path = svgpathtools.parse_path(d)
     except Exception:
@@ -361,10 +351,7 @@ def _hi_extract_contextual_forms(
     # never consults) ever see it; real text segmentation is completely
     # unaffected and untouched.
     #
-    # Returns
-    # -------
-    # dict
-    #     ``{"<C1><virama>": {"role": "halfForm" | "reph", "ghost": {...}}}``.
+    # Returns dict: ``{"<C1><virama>": {"role": "halfForm" | "reph", "ghost": {...}}}``.
     virama = getattr(chars, "VIRAMA", None)
     consonants = char_tuple(chars, "CONSONANTS")
     if not virama:
@@ -471,20 +458,12 @@ def _hi_conjunct_mark_clusters(chars: object, shaped: dict, font: str) -> dict:
     # entry (the font merged the mark into the base's glyphs) has no nudge: its ghost is right but
     # its strokes stay generic until someone records it.
     #
-    # Parameters
-    # ----------
-    # chars : object
-    #     The language's character-inventory module (needs ``CONSONANTS`` and ``VIRAMA``).
-    # shaped : dict
-    #     ``{"clusters": ..., "marks": ...}`` as built so far: the conjuncts' own entries and the
-    #     marks table.
-    # font : str
-    #     Path to the ghost font.
-    #
-    # Returns
-    # -------
-    # dict
-    #     ``{cluster: {"glyphs": [...], "advance": N, "markNudge"?: {...}}}`` to add.
+    # chars (object): The language's character-inventory module (needs ``CONSONANTS`` and
+    #     ``VIRAMA``).
+    # shaped (dict): ``{"clusters": ..., "marks": ...}`` as built so far: the conjuncts' own
+    #     entries and the marks table.
+    # font (str): Path to the ghost font.
+    # Returns dict: ``{cluster: {"glyphs": [...], "advance": N, "markNudge"?: {...}}}`` to add.
     virama = getattr(chars, "VIRAMA", None)
     consonants = char_tuple(chars, "CONSONANTS")
     if not virama:
@@ -685,10 +664,7 @@ def _build_input_list(lang: LanguageSpec, chars: object) -> list[str]:
 
 def _shape_all(inputs: list[str], font: str) -> dict:
     """Shape every input cluster and collect results."""
-    # Returns
-    # -------
-    # dict
-    #     ``{"meta": {...}, "clusters": {cluster: {"glyphs": [...], "advance": N}}}``
+    # Returns dict: ``{"meta": {...}, "clusters": {cluster: {"glyphs": [...], "advance": N}}}``
     result: dict = {"meta": None, "clusters": {}}
     ok = skipped = 0
 
@@ -772,10 +748,8 @@ def _build_marks(composable_marks: list[str], font: str) -> dict:
     # "Composition" section for the full derivation and the real bugs found
     # building this for Malayalam.
     #
-    # Returns
-    # -------
-    # dict
-    #     ``{mark: {"shift": N, "prefix": [...], "suffix": [...], "trailingWidth": N}}``
+    # Returns dict: ``{mark: {"shift": N, "prefix": [...], "suffix": [...], "trailingWidth":
+    #     N}}``
     marks: dict = {}
     for m in composable_marks:
         trace = shape_word(m, font)
@@ -828,10 +802,7 @@ def _runtime_quirks(lang: LanguageSpec, chars: object, shaped_clusters: dict) ->
     # if it has any, are a finding from *its* onboarding, added here the
     # same gated way, not inherited.
     #
-    # Returns
-    # -------
-    # dict
-    #     Zero or more of ``{"legacyEncodings": {...}, "splitVowelParts": {...},
+    # Returns dict: Zero or more of ``{"legacyEncodings": {...}, "splitVowelParts": {...},
     #     "contextualForms": {...}, "knownAtoms": [...], "shirorekha": {...}}``.
     quirks: dict = {}
     if lang.code == "ml":

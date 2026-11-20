@@ -291,15 +291,8 @@ def _hi_stem_last(strokes: list[dict]) -> list[dict]:
     # (original order). A "vertical line" is a long, straight, near-vertical stroke. If the atom
     # has none, the strokes come back unchanged.
     #
-    # Parameters
-    # ----------
-    # strokes : list[dict]
-    #     The atom's ``[{"d": ...}, ...]`` strokes in recorded order.
-    #
-    # Returns
-    # -------
-    # list[dict]
-    #     The same strokes, reordered.
+    # strokes (list[dict]): The atom's ``[{"d": ...}, ...]`` strokes in recorded order.
+    # Returns list[dict]: The same strokes, reordered.
     others, verticals, dots = [], [], []
     for stroke in strokes:
         pts = geometry.sample_path(stroke["d"], 80)
@@ -338,20 +331,12 @@ def _hi_derive_strokes(stroke_data: dict, shaped_clusters: dict) -> dict:
     # that already has its own real entry - the caller only uses
     # `dict.setdefault`.
     #
-    # Parameters
-    # ----------
-    # stroke_data : dict
-    #     The hand-authored stroke-data.raw.json content.
-    # shaped_clusters : dict
-    #     glyph-data.hi.json's own `clusters` - this build's real HarfBuzz
-    #     output, consulted only to locate each fused glyph's real dot
-    #     subpath, never to invent geometry the font doesn't actually have.
-    #
-    # Returns
-    # -------
-    # dict
-    #     ``{nukta_consonant: {"strokes": [...]}}`` for whichever of the 5
-    #     have both dependencies recorded.
+    # stroke_data (dict): The hand-authored stroke-data.raw.json content.
+    # shaped_clusters (dict): glyph-data.hi.json's own `clusters` - this build's real HarfBuzz
+    #     output, consulted only to locate each fused glyph's real dot subpath, never to invent
+    #     geometry the font doesn't actually have.
+    # Returns dict: ``{nukta_consonant: {"strokes": [...]}}`` for whichever of the 5 have both
+    #     dependencies recorded.
     mark_entry = stroke_data.get(_HI_NUKTA_MARK)
     if not mark_entry or not mark_entry.get("strokes"):
         return {}
@@ -382,23 +367,14 @@ def _process_cluster_strokes(
     # function so that the Malayalam freeze test (``python/tests/test_malayalam_freeze.py``) runs
     # exactly the code `main()` runs, not a copy that could drift from it.
     #
-    # Parameters
-    # ----------
-    # cluster : str
-    #     The cluster's key in the stroke data.
-    # entry : dict
-    #     Its ``{"strokes": [{"d": ...}, ...]}`` as recorded.
-    # glyph_data : dict
-    #     The language's parsed ``glyph-data.json`` (``clusters`` and, optionally, ``marks``).
-    # args : argparse.Namespace
-    #     Which stages run (``center``, ``smooth``, ``straighten``).
-    # lang_code : str
-    #     The language's code, for the inline per-language gates in :func:`_process_stroke`.
-    #
-    # Returns
-    # -------
-    # list[dict]
-    #     The processed strokes, ``[{"d": ...}, ...]``, in recorded order.
+    # cluster (str): The cluster's key in the stroke data.
+    # entry (dict): Its ``{"strokes": [{"d": ...}, ...]}`` as recorded.
+    # glyph_data (dict): The language's parsed ``glyph-data.json`` (``clusters`` and,
+    #     optionally, ``marks``).
+    # args (argparse.Namespace): Which stages run (``center``, ``smooth``, ``straighten``).
+    # lang_code (str): The language's code, for the inline per-language gates in
+    #     :func:`_process_stroke`.
+    # Returns list[dict]: The processed strokes, ``[{"d": ...}, ...]``, in recorded order.
     cluster_info = glyph_data["clusters"].get(cluster)
 
     # Hindi only: the language is the switch, so Malayalam can never reach this branch.

@@ -83,6 +83,7 @@ def paths_for(code: str) -> DataPaths:
     Returns
     -------
     DataPaths
+        That language's data-file paths under ``js/src/``.
     """
     code = "" if code == _PRIMARY_CODE else code
     suffix = f".{code}" if code else ""
@@ -389,7 +390,7 @@ def hash_strokes(entry: dict) -> str:
     Parameters
     ----------
     entry : dict
-        A single ``stroke-data.raw.json`` value, i.e. ``{"strokes": [...]}}``.
+        A single ``stroke-data.raw.json`` value, i.e. ``{"strokes": [...]}``.
 
     Returns
     -------
@@ -441,18 +442,11 @@ def update_snapshot(raw: dict, snapshot_path: Path = SNAPSHOT) -> None:
 
 def _validate_language(label: str, paths: DataPaths) -> tuple[list[str], dict, dict, dict]:
     """Validate one language's data-file triple."""
-    # Parameters
-    # ----------
-    # label : str
-    #     Human-readable name for error messages (e.g. ``"Malayalam"``).
-    # paths : DataPaths
-    #     This language's ``glyph_data``/``stroke_data_raw``/``stroke_data`` paths.
-    #
-    # Returns
-    # -------
-    # tuple[list[str], dict, dict, dict]
-    #     ``(errors, glyph_data, raw, processed)`` - the three parsed
-    #     structures are returned alongside the errors so `main()` can report
+    # label (str): Human-readable name for error messages (e.g. ``"Malayalam"``).
+    # paths (DataPaths): This language's ``glyph_data``/``stroke_data_raw``/``stroke_data``
+    #     paths.
+    # Returns tuple[list[str], dict, dict, dict]: ``(errors, glyph_data, raw, processed)`` - the
+    #     three parsed structures are returned alongside the errors so `main()` can report
     #     cluster counts without re-reading the files.
     errors: list[str] = []
 
