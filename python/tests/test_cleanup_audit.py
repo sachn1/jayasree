@@ -19,6 +19,18 @@ ARC = "M 0 0 C 0 110 110 220 220 220"
 class TestSample:
     """sample: fast, length-weighted points along a path."""
 
+    @pytest.mark.parametrize("empty", ["", "M 0 0"])
+    def test_a_path_with_no_segments_is_a_value_error(self, empty: str) -> None:
+        """Ensure that an empty or move-only path is a clear ValueError."""
+        with pytest.raises(ValueError, match="no segments"):
+            audit.sample(empty)
+
+    def test_handles_an_arc_segment(self) -> None:
+        """Ensure that an SVG arc segment samples to points on the arc."""
+        pts = audit.sample("M 0 0 A 50 50 0 0 1 100 0", 200)
+        assert np.allclose(pts[0], [0, 0]) and np.allclose(pts[-1], [100, 0], atol=1e-6)
+        assert np.abs(pts[:, 1]).max() == pytest.approx(50.0, abs=1.0)
+
     def test_covers_the_whole_path_end_to_end(self) -> None:
         """Ensure that the first and last points are the path's ends."""
         pts = audit.sample("M 0 0 L 100 0 L 100 100")
@@ -53,13 +65,21 @@ class TestMeasures:
 
     def test_a_wave_flips_curvature_and_an_arc_does_not(self) -> None:
         """Ensure that a wobbly path has many flips and a clean arc has none."""
-        assert audit.curvature_flips(audit.sample(WAVE, 800)) >= 4
+        assert audit.curvature_flips(audit.sample(WAVE, 800)) == 4
         assert audit.curvature_flips(audit.sample(ARC, 400)) == 0
+        assert audit.curvature_flips(audit.sample(STRAIGHT, 400)) == 0
+
+    def test_deviation_also_catches_a_limb_the_cleanup_added(self) -> None:
+        """Ensure that a cleaned path with an extra limb scores high, not just a skipped one."""
+        recorded = audit.sample("M 0 0 L 400 0", 400)
+        cleaned = audit.sample("M 0 0 L 200 0 L 200 100 L 200 0 L 400 0", 400)
+        assert audit.max_deviation(recorded, cleaned) == pytest.approx(100.0, abs=1.0)
+        assert audit.max_deviation(cleaned, recorded) == pytest.approx(100.0, abs=1.0)
 
     def test_deviation_is_the_largest_gap_to_the_cleaned_path(self) -> None:
         """Ensure that a recorded point 20 units off the cleaned path gives 20."""
         cleaned = audit.sample(STRAIGHT, 400)
-        recorded = np.array([[0.0, 0.0], [150.0, 20.0], [300.0, 0.0]])
+        recorded = audit.sample("M 0 0 L 150 20 L 300 0", 400)
         assert audit.max_deviation(recorded, cleaned) == pytest.approx(20.0, abs=1.0)
 
 
@@ -101,6 +121,14 @@ class TestAudit:
         processed = {"a": {"strokes": [{"d": ARC}]}}
         rows = audit.audit_atoms(raw, processed)
         assert rows == [{"atom": "a", "stroke_count_mismatch": [2, 1]}]
+
+    def test_an_unmeasurable_stroke_is_a_row_not_a_crash(self) -> None:
+        """Ensure that one empty stroke is reported and the rest of the audit still runs."""
+        raw = {"a": {"strokes": [{"d": ARC}, {"d": ""}]}, "b": {"strokes": [{"d": ARC}]}}
+        processed = {"a": {"strokes": [{"d": ARC}, {"d": ""}]}, "b": {"strokes": [{"d": ARC}]}}
+        rows = audit.audit_atoms(raw, processed)
+        assert any(r.get("error") and r["stroke"] == 2 for r in rows)
+        assert [r["atom"] for r in rows if "excess" in r] == ["a", "b"]
 
     def test_an_atom_missing_from_the_shipped_data_is_skipped(self) -> None:
         """Ensure that an atom with no shipped strokes produces no row."""
