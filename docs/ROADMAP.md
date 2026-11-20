@@ -89,6 +89,12 @@ Catmull-Rom-tangent fix already has one
 Scoped as a separate PR, not blocking anything else - this is a quality
 tuning pass on already-shipped, already-working smoothing, not a bug fix.
 
+- **Clean Hindi's half-form and reph atoms.** The cleanup needs a glyph outline, and the 39 trigger
+  atoms (क्, भ्, र् ...) have none of their own, so they still get the ordinary centering and
+  smoothing - and they are the wobbliest strokes left (`tools/audit_strokes.py`: up to 45 curvature
+  flips against at most 5 for cleaned atoms), reused inside every conjunct that contains them. Their
+  half-form outlines are in `glyph-data.hi.json`'s `contextualForms`, so the cleanup can be run
+  against those.
 - **Clean Malayalam the same way as Hindi.** Hindi's strokes are rebuilt from the font's own
   geometry (`jayasree.cleanup`, "Cleanup (Hindi)" in `docs/ARCHITECTURE.md`); if only cleaned
   strokes are shipped for Hindi, Malayalam should get the same treatment for consistency. This
