@@ -1,18 +1,17 @@
-"""Clean one recorded stroke: keep the human's topology, take the geometry from the font.
-
-A recorded stroke holds two kinds of information. *Topology* - order, direction, where the corners
-are - only the human can supply. *Geometry* - the exact curve through the ink - the font already
-knows. So, in order of preference:
-
-1. a dot or a straight line is replaced by the exact primitive on the font's ink;
-2. otherwise the stroke follows the ink's ridge between the human's anchors (see
-   :mod:`jayasree.cleanup.ink`), with the human's own path spliced back in where the ridge cannot be
-   trusted (a hand-drawn curl in one thick blob of ink);
-3. the ridge is faired (least bending energy) inside the ink's channel, corners the font really has
-   are kept, corners the human rounded are rounded, straight stretches become exact lines and round
-   ones exact circular arcs;
-4. the result is a handful of cubic Beziers - an approximation, so hand tremor is not carried over.
-"""
+"""Clean one recorded stroke: keep the human's topology, take the geometry from the font."""
+# A recorded stroke holds two kinds of information. *Topology* - order, direction, where the
+# corners are - only the human can supply. *Geometry* - the exact curve through the ink - the
+# font already knows. So, in order of preference:
+#
+# 1. a dot or a straight line is replaced by the exact primitive on the font's ink;
+# 2. otherwise the stroke follows the ink's ridge between the human's anchors (see
+#    :mod:`jayasree.cleanup.ink`), with the human's own path spliced back in where the ridge
+#    cannot be trusted (a hand-drawn curl in one thick blob of ink);
+# 3. the ridge is faired (least bending energy) inside the ink's channel, corners the font
+#    really has are kept, corners the human rounded are rounded, straight stretches become
+#    exact lines and round ones exact circular arcs;
+# 4. the result is a handful of cubic Beziers - an approximation, so hand tremor is not
+#    carried over.
 
 from __future__ import annotations
 
@@ -56,12 +55,10 @@ __all__ = ["clean_stroke", "clean_strokes"]
 def _round_stem_junction(
     m: np.ndarray, radius: np.ndarray, stem: tuple, step: float
 ) -> tuple[np.ndarray, np.ndarray, list[np.ndarray], np.ndarray | None]:
-    """Prepare the head and exact stem lines of a stroke that ends going up then down a stem.
-
-    Returns ``(head, head_radius, stem_points, bridge)``: the head's ridge, its ink radii, the
-    stem's three points ``[start, tip, end]`` and, when the head turns into the stem at an angle,
-    the cubic that rounds that corner (otherwise ``None``).
-    """
+    """Prepare the head and exact stem lines of a stroke that ends going up then down a stem."""
+    # Returns ``(head, head_radius, stem_points, bridge)``: the head's ridge, its ink radii, the
+    # stem's three points ``[start, tip, end]`` and, when the head turns into the stem at an angle,
+    # the cubic that rounds that corner (otherwise ``None``).
     head, (p_junction, p_tip, p_end), on_axis = stem
     m = head.copy()
     # If the head ends by running up alongside the stem from a corner (a crossbar turning up into

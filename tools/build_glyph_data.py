@@ -1,22 +1,5 @@
 #!/usr/bin/env python3
-"""Pre-compute SVG glyph paths for a language's cluster inventory and write glyph-data.json.
-
-Language-parametrized (Phase 0 of docs/LANGUAGE_ONBOARDING_AGENTS.md) via
-`--lang`, defaulting to Malayalam (Hindi is onboarded too).
-Every language's own quirks (Malayalam's subjoined-conjunct marks and split
-compound vowels; Hindi's rakaar/vattu composition, nukta encoding duality,
-and half-form/reph derivation via `contextualForms`) are gated behind
-`lang.code == "<code>"` rather than assumed for every script - a new
-language's equivalent quirks get discovered by that pipeline's Agent 1/2 and
-added as their own gated block, not inherited from an existing language's.
-
-This project does not keep any language's real research out of this public
-file - every onboarded language's quirks live inline here, openly, same as
-Malayalam's. (An earlier revision of this file routed Hindi's quirks through
-a private, env-var-selected extension module; that mechanism has been
-removed - see git history around `data(hi): inline Hindi's build extension`
-if you need the old shape for reference.)
-"""
+"""Pre-compute SVG glyph paths for a language's cluster inventory and write glyph-data.json."""
 
 from __future__ import annotations
 
@@ -38,6 +21,25 @@ from jayasree.languages import (  # noqa: E402
     data_paths,
     get_language,
 )
+
+#: The command-line help (the module docstring stays one line, per CONTRIBUTING).
+_HELP = """Pre-compute SVG glyph paths for a language's cluster inventory and write glyph-data.json.
+
+Language-parametrized (Phase 0 of docs/LANGUAGE_ONBOARDING_AGENTS.md) via
+`--lang`, defaulting to Malayalam (Hindi is onboarded too).
+Every language's own quirks (Malayalam's subjoined-conjunct marks and split
+compound vowels; Hindi's rakaar/vattu composition, nukta encoding duality,
+and half-form/reph derivation via `contextualForms`) are gated behind
+`lang.code == "<code>"` rather than assumed for every script - a new
+language's equivalent quirks get discovered by that pipeline's Agent 1/2 and
+added as their own gated block, not inherited from an existing language's.
+
+This project does not keep any language's real research out of this public
+file - every onboarded language's quirks live inline here, openly, same as
+Malayalam's. (An earlier revision of this file routed Hindi's quirks through
+a private, env-var-selected extension module; that mechanism has been
+removed - see git history around `data(hi): inline Hindi's build extension`
+if you need the old shape for reference.)"""
 
 #: Compound vowel signs with a canonical (or, for ai, font-specific) split
 #: into simpler marks - see js/src/index.js's SPLIT_VOWEL_PARTS. These never
@@ -212,64 +214,52 @@ _HI_SHIROREKHA_Y0 = -622.0
 _HI_SHIROREKHA_Y1 = -551.0
 
 
-def _hi_headline_bar_edges(d: str, y0: float, y1: float, tol: float = 1.0) -> list[float]:
-    """Return x-positions of this glyph's genuine headline-bar edges.
-
-    Mechanical replacement for a hand-measured per-letter gap table - but
-    specifically for the font's *flat rectangular bar* feature, not "any
-    ink present at headline height." An earlier version of this function
-    swept a single horizontal line through the glyph and reported every
-    ink crossing there; that over-detects, because a rounded loop/knot
-    (e.g. भ/अ/आ's own top curve - see docs/languages/hi/
-    README.md's "Shirorekha" section) often
-    also happens to cross the same height without being the headline bar
-    at all - confirmed directly: भ's loop ink at headline-mid-height
-    shifts continuously from [117,244] at the band's top to split into two
-    pieces by the band's bottom, while the genuine bar [402,717] stays
-    bit-for-bit constant across the whole band, because it's drawn as an
-    actual rectangle in the font (an explicit vertical edge at each end,
-    each spanning the *entire* band height).
-
-    Method: this font draws its headline bar as a literal rectangle - a
-    straight vertical line segment at each edge, each one running the full
-    [y0, y1] band height (confirmed against the raw path commands - e.g.
-    "...H402V-622H717V-551...": a vertical line from (402, -551) to
-    (402, -622), exactly the band's own height). This walks every `Line`
-    segment in the path and keeps only ones that are vertical (constant x)
-    and whose y-span covers the *entire* band - a loop/knot's own curve
-    never produces such a segment, since nothing about its shape is a
-    flat-sided rectangle spanning the full band height.
-
-    Parameters
-    ----------
-    d : str
-        A single glyph's own SVG path (``glyphs[i]["d"]``), in that glyph's
-        own local coordinate frame (caller offsets the result, not this
-        function - see `_hi_cluster_ink_ranges`).
-    y0, y1 : float
-        The headline band's own y-range (`_HI_SHIROREKHA_Y0`/`_Y1`).
-    tol : float
-        Slack (font units) for "spans the full band" and "is vertical,"
-        to absorb float rounding in the font's own coordinates.
-
-    Returns
-    -------
-    list[tuple[float, float]]
-        Sorted, merged ``(start, end)`` ink spans, already unioned across
-        every subpath in the glyph - a glyph can have more than one
-        rectangular bar contour (e.g. ऊ's single glyph bakes in both उ's
-        own base-shape bar *and* its own length-extension's bar, each a
-        separate, overlapping rectangle: [0,563] and [300,800]). Edges are
-        paired up *within* each subpath first (even/odd by the standard
-        even-odd fill rule, which holds for one simple closed contour),
-        not globally across the whole glyph - sorting and pairing every
-        subpath's edges together as one flat list is wrong whenever two
-        such rectangles overlap, since it reads the union as two separate
-        pieces with a bogus gap in the middle instead of one continuous
-        span (confirmed directly against ऊ, which otherwise produced a
-        spurious hole exactly where the two rectangles overlap). Empty if
-        the glyph has no genuine headline bar at all.
-    """
+def _hi_headline_bar_edges(
+    d: str, y0: float, y1: float, tol: float = 1.0
+) -> list[tuple[float, float]]:
+    """Return the merged ``(start, end)`` x-spans of this glyph's genuine headline bar."""
+    # Mechanical replacement for a hand-measured per-letter gap table - but
+    # specifically for the font's *flat rectangular bar* feature, not "any
+    # ink present at headline height." An earlier version of this function
+    # swept a single horizontal line through the glyph and reported every
+    # ink crossing there; that over-detects, because a rounded loop/knot
+    # (e.g. भ/अ/आ's own top curve - see docs/languages/hi/
+    # README.md's "Shirorekha" section) often
+    # also happens to cross the same height without being the headline bar
+    # at all - confirmed directly: भ's loop ink at headline-mid-height
+    # shifts continuously from [117,244] at the band's top to split into two
+    # pieces by the band's bottom, while the genuine bar [402,717] stays
+    # bit-for-bit constant across the whole band, because it's drawn as an
+    # actual rectangle in the font (an explicit vertical edge at each end,
+    # each spanning the *entire* band height).
+    #
+    # Method: this font draws its headline bar as a literal rectangle - a
+    # straight vertical line segment at each edge, each one running the full
+    # [y0, y1] band height (confirmed against the raw path commands - e.g.
+    # "...H402V-622H717V-551...": a vertical line from (402, -551) to
+    # (402, -622), exactly the band's own height). This walks every `Line`
+    # segment in the path and keeps only ones that are vertical (constant x)
+    # and whose y-span covers the *entire* band - a loop/knot's own curve
+    # never produces such a segment, since nothing about its shape is a
+    # flat-sided rectangle spanning the full band height.
+    #
+    # d (str): A single glyph's own SVG path (``glyphs[i]["d"]``), in that glyph's own local
+    #     coordinate frame (caller offsets the result, not this function - see
+    #     `_hi_cluster_ink_ranges`).
+    # y0, y1 (float): The headline band's own y-range (`_HI_SHIROREKHA_Y0`/`_Y1`).
+    # tol (float): Slack (font units) for "spans the full band" and "is vertical," to absorb
+    #     float rounding in the font's own coordinates.
+    # Returns list[tuple[float, float]]: Sorted, merged ``(start, end)`` ink spans, already
+    #     unioned across every subpath in the glyph - a glyph can have more than one rectangular
+    #     bar contour (e.g. ऊ's single glyph bakes in both उ's own base-shape bar *and* its own
+    #     length-extension's bar, each a separate, overlapping rectangle: [0,563] and
+    #     [300,800]). Edges are paired up *within* each subpath first (even/odd by the standard
+    #     even-odd fill rule, which holds for one simple closed contour), not globally across
+    #     the whole glyph - sorting and pairing every subpath's edges together as one flat list
+    #     is wrong whenever two such rectangles overlap, since it reads the union as two
+    #     separate pieces with a bogus gap in the middle instead of one continuous span
+    #     (confirmed directly against ऊ, which otherwise produced a spurious hole exactly where
+    #     the two rectangles overlap). Empty if the glyph has no genuine headline bar at all.
     try:
         path = svgpathtools.parse_path(d)
     except Exception:
@@ -307,21 +297,19 @@ def _hi_headline_bar_edges(d: str, y0: float, y1: float, tol: float = 1.0) -> li
 def _hi_cluster_ink_ranges(
     glyphs: list[dict], y0: float, y1: float, cache: dict[str, list[tuple[float, float]]]
 ) -> list[list[float]]:
-    """Union every glyph's own (offset) headline-bar ranges for one cluster.
-
-    `cache` memoizes `_hi_headline_bar_edges` by each glyph's own `d`
-    string - across ~2400 clusters the same handful of glyph shapes (a
-    base consonant, a matra, a virama) repeat constantly, so this turns a
-    build-time cost that would otherwise be "rasterize once per cluster"
-    into "rasterize once per distinct glyph outline," which is what makes
-    computing this per *exact cluster* (not just per standalone base
-    character) cheap enough to do for every cluster unconditionally.
-
-    Ranges are returned already offset into the cluster's own absolute
-    coordinate frame (each glyph's `x`/`y` added in) - js/src/index.js can
-    position them directly against a group's `groupX`, no base-character
-    lookup or advance-scaling needed.
-    """
+    """Union every glyph's own (offset) headline-bar ranges for one cluster."""
+    # `cache` memoizes `_hi_headline_bar_edges` by each glyph's own `d`
+    # string - across ~2400 clusters the same handful of glyph shapes (a
+    # base consonant, a matra, a virama) repeat constantly, so this turns a
+    # build-time cost that would otherwise be "rasterize once per cluster"
+    # into "rasterize once per distinct glyph outline," which is what makes
+    # computing this per *exact cluster* (not just per standalone base
+    # character) cheap enough to do for every cluster unconditionally.
+    #
+    # Ranges are returned already offset into the cluster's own absolute
+    # coordinate frame (each glyph's `x`/`y` added in) - js/src/index.js can
+    # position them directly against a group's `groupX`, no base-character
+    # lookup or advance-scaling needed.
     ranges: list[list[float]] = []
     for g in glyphs:
         d = g["d"]
@@ -336,41 +324,36 @@ def _hi_cluster_ink_ranges(
 def _hi_extract_contextual_forms(
     chars: object, shaped_clusters: dict, extract_ghost: Callable[[dict, dict], dict]
 ) -> dict:
-    """Derive Devanagari's half-form/reph substitute atoms.
-
-    docs/languages/hi/README.md's "headline finding": a virama
-    between two consonants almost never produces its own glyph, so neither
-    existing composition mechanism (mark recipes, per-character fallback)
-    fits half-forms (the *base* consonant substitutes a different shape) or
-    reph (the mark detaches from its own typed position entirely).
-    composition-primitives-report.md verifies the fix: each consonant's
-    half-form, and the reph hook, really is one single reusable glyph
-    shape - but that shape must be pulled out of an already-shaped
-    `<consonant><virama><consonant>` cluster entry (already in
-    `shaped_clusters`), never obtained by shaping the 2-character trigger
-    standalone: that instead produces the *linguistically different*
-    word-final "explicit halant" glyph (confirmed empirically, not assumed
-    - see that report's §3), which is also the glyph real running text
-    ending in that trigger correctly needs, via virama's own pre-existing
-    `marks` entry.
-
-    That's exactly why this returns a *separate* `contextualForms` table
-    rather than adding `<consonant><virama>` entries to `clusters`: a
-    `clusters["<C1><virama>"]` entry would make `resolveSegments`'s
-    direct-match tier pick up real word-final `<C1><virama>` text and
-    render it as the mid-conjunct half-form - silently wrong. Keeping the
-    ghost data out of `clusters` entirely, reachable only via
-    `contextualForms[trigger]["ghost"]`, means only the recorder (for
-    tracing) and `tryComposeContextualForm`/`compose_contextual_form` (via
-    `STROKE_LIBRARY[trigger]` once traced - a namespace `resolveSegments`
-    never consults) ever see it; real text segmentation is completely
-    unaffected and untouched.
-
-    Returns
-    -------
-    dict
-        ``{"<C1><virama>": {"role": "halfForm" | "reph", "ghost": {...}}}``.
-    """
+    """Derive Devanagari's half-form/reph substitute atoms."""
+    # docs/languages/hi/README.md's "headline finding": a virama
+    # between two consonants almost never produces its own glyph, so neither
+    # existing composition mechanism (mark recipes, per-character fallback)
+    # fits half-forms (the *base* consonant substitutes a different shape) or
+    # reph (the mark detaches from its own typed position entirely).
+    # composition-primitives-report.md verifies the fix: each consonant's
+    # half-form, and the reph hook, really is one single reusable glyph
+    # shape - but that shape must be pulled out of an already-shaped
+    # `<consonant><virama><consonant>` cluster entry (already in
+    # `shaped_clusters`), never obtained by shaping the 2-character trigger
+    # standalone: that instead produces the *linguistically different*
+    # word-final "explicit halant" glyph (confirmed empirically, not assumed
+    # - see that report's §3), which is also the glyph real running text
+    # ending in that trigger correctly needs, via virama's own pre-existing
+    # `marks` entry.
+    #
+    # That's exactly why this returns a *separate* `contextualForms` table
+    # rather than adding `<consonant><virama>` entries to `clusters`: a
+    # `clusters["<C1><virama>"]` entry would make `resolveSegments`'s
+    # direct-match tier pick up real word-final `<C1><virama>` text and
+    # render it as the mid-conjunct half-form - silently wrong. Keeping the
+    # ghost data out of `clusters` entirely, reachable only via
+    # `contextualForms[trigger]["ghost"]`, means only the recorder (for
+    # tracing) and `tryComposeContextualForm`/`compose_contextual_form` (via
+    # `STROKE_LIBRARY[trigger]` once traced - a namespace `resolveSegments`
+    # never consults) ever see it; real text segmentation is completely
+    # unaffected and untouched.
+    #
+    # Returns dict: ``{"<C1><virama>": {"role": "halfForm" | "reph", "ghost": {...}}}``.
     virama = getattr(chars, "VIRAMA", None)
     consonants = char_tuple(chars, "CONSONANTS")
     if not virama:
@@ -403,32 +386,30 @@ def _hi_extract_contextual_forms(
 
 
 def _hi_extract_true_ligatures(chars: object, shaped_clusters: dict) -> list[str]:
-    """Return every `<C1><virama><C2>` cluster that needs its own direct trace.
-
-    This is the other half of docs/languages/hi/README.md's
-    Group D (47 true akhand ligatures + 6 half-form exceptions, 53 total) -
-    computed mechanically here, reusing `shaped_clusters` (this build's own
-    HarfBuzz output) rather than hand-copying the doc's prose list, so it
-    never drifts from what the current font actually shapes. Written into
-    glyph-data.hi.json as `knownAtoms` so tools/stroke-recorder.js's generic
-    `isAtom()` shows these by default instead of requiring each one typed
-    into "+ Add custom cluster" from memory.
-
-    Two categories, both genuinely unrecoverable from any other recorded
-    atom (same reasoning as any true ligature - see
-    composition-primitives-report.md):
-
-    - **True single-glyph fusions**: `len(glyphs) == 1`, excluding reph
-      (`c1 == _HI_REPH_CONSONANT`, glyph-reordering, not a fusion) and
-      rakaar (`c2 == _HI_REPH_CONSONANT`, already generic via the `्र` mark
-      from the `lang.code == "hi"` block in `_composable_marks()` below) -
-      those two *also* produce one or two glyphs but already compose
-      without a direct trace.
-    - **Half-form exceptions**: `_HI_HALFFORM_EXCLUDED_PAIRS` - a genuine
-      2-glyph pair, excluded from `_hi_extract_contextual_forms()`'s
-      generic half-form derivation specifically because this pair's shape
-      isn't the consonant's majority half-form.
-    """
+    """Return every `<C1><virama><C2>` cluster that needs its own direct trace."""
+    # This is the other half of docs/languages/hi/README.md's
+    # Group D (47 true akhand ligatures + 6 half-form exceptions, 53 total) -
+    # computed mechanically here, reusing `shaped_clusters` (this build's own
+    # HarfBuzz output) rather than hand-copying the doc's prose list, so it
+    # never drifts from what the current font actually shapes. Written into
+    # glyph-data.hi.json as `knownAtoms` so tools/stroke-recorder.js's generic
+    # `isAtom()` shows these by default instead of requiring each one typed
+    # into "+ Add custom cluster" from memory.
+    #
+    # Two categories, both genuinely unrecoverable from any other recorded
+    # atom (same reasoning as any true ligature - see
+    # composition-primitives-report.md):
+    #
+    # - **True single-glyph fusions**: `len(glyphs) == 1`, excluding reph
+    #   (`c1 == _HI_REPH_CONSONANT`, glyph-reordering, not a fusion) and
+    #   rakaar (`c2 == _HI_REPH_CONSONANT`, already generic via the `्र` mark
+    #   from the `lang.code == "hi"` block in `_composable_marks()` below) -
+    #   those two *also* produce one or two glyphs but already compose
+    #   without a direct trace.
+    # - **Half-form exceptions**: `_HI_HALFFORM_EXCLUDED_PAIRS` - a genuine
+    #   2-glyph pair, excluded from `_hi_extract_contextual_forms()`'s
+    #   generic half-form derivation specifically because this pair's shape
+    #   isn't the consonant's majority half-form.
     virama = getattr(chars, "VIRAMA", None)
     consonants = char_tuple(chars, "CONSONANTS")
     if not virama:
@@ -465,36 +446,26 @@ _HI_MARK_Y_TOLERANCE = 40.0
 
 
 def _hi_conjunct_mark_clusters(chars: object, shaped: dict, font: str) -> dict:
-    """Real shaped entries for conjunct + vowel-sign clusters the generic mark recipe gets wrong.
-
-    Runtime composition builds an unshaped cluster (conjunct + vowel sign) from the conjunct's
-    entry plus the mark's recipe (`js/src/index.js`'s `composeMark`/`applyMarkStroke`). For about
-    40% of these the font does something else (see `_HI_CONJUNCT_MARKS`), so the ghost - and the
-    strokes composed against it - land in the wrong place. This shapes each conjunct + mark for
-    real and keeps only the ones that differ, so every cluster the generic recipe already gets
-    right stays composed at runtime (and the file stays small).
-
-    An entry whose base glyphs are unchanged and whose mark is a single glyph elsewhere also
-    carries ``markNudge: {dx, dy}`` - how far that glyph sits from the generic position - which
-    `tryComposeStroke` applies to the mark's recorded stroke so it follows the ghost. A fused
-    entry (the font merged the mark into the base's glyphs) has no nudge: its ghost is right but
-    its strokes stay generic until someone records it.
-
-    Parameters
-    ----------
-    chars : object
-        The language's character-inventory module (needs ``CONSONANTS`` and ``VIRAMA``).
-    shaped : dict
-        ``{"clusters": ..., "marks": ...}`` as built so far: the conjuncts' own entries and the
-        marks table.
-    font : str
-        Path to the ghost font.
-
-    Returns
-    -------
-    dict
-        ``{cluster: {"glyphs": [...], "advance": N, "markNudge"?: {...}}}`` for the clusters to add.
-    """
+    """Real shaped entries for conjunct + vowel-sign clusters the generic mark recipe gets wrong."""
+    # Runtime composition builds an unshaped cluster (conjunct + vowel sign) from the conjunct's
+    # entry plus the mark's recipe (`js/src/index.js`'s `composeMark`/`applyMarkStroke`). For about
+    # 40% of these the font does something else (see `_HI_CONJUNCT_MARKS`), so the ghost - and the
+    # strokes composed against it - land in the wrong place. This shapes each conjunct + mark for
+    # real and keeps only the ones that differ, so every cluster the generic recipe already gets
+    # right stays composed at runtime (and the file stays small).
+    #
+    # An entry whose base glyphs are unchanged and whose mark is a single glyph elsewhere also
+    # carries ``markNudge: {dx, dy}`` - how far that glyph sits from the generic position - which
+    # `tryComposeStroke` applies to the mark's recorded stroke so it follows the ghost. A fused
+    # entry (the font merged the mark into the base's glyphs) has no nudge: its ghost is right but
+    # its strokes stay generic until someone records it.
+    #
+    # chars (object): The language's character-inventory module (needs ``CONSONANTS`` and
+    #     ``VIRAMA``).
+    # shaped (dict): ``{"clusters": ..., "marks": ...}`` as built so far: the conjuncts' own
+    #     entries and the marks table.
+    # font (str): Path to the ghost font.
+    # Returns dict: ``{cluster: {"glyphs": [...], "advance": N, "markNudge"?: {...}}}`` to add.
     virama = getattr(chars, "VIRAMA", None)
     consonants = char_tuple(chars, "CONSONANTS")
     if not virama:
@@ -630,17 +601,15 @@ def _standalone_inputs(lang: LanguageSpec, chars: object) -> list[str]:
 
 
 def _consonant_matra_inputs(chars: object) -> list[str]:
-    """Consonant + dependent vowel (every syllable), including rare matras.
-
-    Also brute-forces consonant+nukta (e.g. क + ़ = क़), if the language has
-    one - real per-consonant shaping, not just the generic mark recipe, is
-    what actually lets Agent 2 verify whether nukta fuses into a
-    consonant-specific shape (the way some Malayalam matras do) or stays a
-    plain separate mark. Restricted to the main `consonants` set, not
-    `rare_consonants` - nukta exists specifically for sounds Sanskrit
-    doesn't have, so pairing it with Sanskrit-loanword-tier consonants has
-    no real-world basis.
-    """
+    """Consonant + dependent vowel (every syllable), including rare matras."""
+    # Also brute-forces consonant+nukta (e.g. क + ़ = क़), if the language has
+    # one - real per-consonant shaping, not just the generic mark recipe, is
+    # what actually lets Agent 2 verify whether nukta fuses into a
+    # consonant-specific shape (the way some Malayalam matras do) or stays a
+    # plain separate mark. Restricted to the main `consonants` set, not
+    # `rare_consonants` - nukta exists specifically for sounds Sanskrit
+    # doesn't have, so pairing it with Sanskrit-loanword-tier consonants has
+    # no real-world basis.
     consonants = char_tuple(chars, "CONSONANTS")
     rare_consonants = char_tuple(chars, "RARE_CONSONANTS")
     matras = char_tuple(chars, "MATRAS")
@@ -653,14 +622,12 @@ def _consonant_matra_inputs(chars: object) -> list[str]:
 
 
 def _conjunct_inputs(chars: object) -> list[str]:
-    """Conjuncts: consonant + virama + consonant.
-
-    consonant+virama (dead-consonant forms) and conjunct+matra are NOT
-    brute-forced here - that's a combinatorial explosion for little gain.
-    Both compose cleanly at runtime from a base cluster + a mark's
-    prefix/suffix recipe - see `_build_marks()` below and
-    `js/src/index.js`'s `composeCluster()`.
-    """
+    """Conjuncts: consonant + virama + consonant."""
+    # consonant+virama (dead-consonant forms) and conjunct+matra are NOT
+    # brute-forced here - that's a combinatorial explosion for little gain.
+    # Both compose cleanly at runtime from a base cluster + a mark's
+    # prefix/suffix recipe - see `_build_marks()` below and
+    # `js/src/index.js`'s `composeCluster()`.
     virama = getattr(chars, "VIRAMA", None)
     consonants = char_tuple(chars, "CONSONANTS")
     if not virama:
@@ -698,13 +665,8 @@ def _build_input_list(lang: LanguageSpec, chars: object) -> list[str]:
 
 
 def _shape_all(inputs: list[str], font: str) -> dict:
-    """Shape every input cluster and collect results.
-
-    Returns
-    -------
-    dict
-        ``{"meta": {...}, "clusters": {cluster: {"glyphs": [...], "advance": N}}}``
-    """
+    """Shape every input cluster and collect results."""
+    # Returns dict: ``{"meta": {...}, "clusters": {cluster: {"glyphs": [...], "advance": N}}}``
     result: dict = {"meta": None, "clusters": {}}
     ok = skipped = 0
 
@@ -736,16 +698,14 @@ def _shape_all(inputs: list[str], font: str) -> dict:
 
 
 def _composable_marks(lang: LanguageSpec, chars: object) -> list[str]:
-    """Return the marks composable onto an arbitrary base cluster at runtime.
-
-    The generic part (virama, nukta, every matra, anusvara/visarga/
-    candrabindu) applies to any script that has those categories at all.
-    The subjoined-conjunct-tail
-    marks (്യ/്വ/്ല/്ര) are a Malayalam-specific finding - which consonants,
-    if any, form this kind of reduced tail form in a new script is exactly
-    the sort of thing docs/LANGUAGE_ONBOARDING_AGENTS.md's Agent 1/2 exist
-    to determine, not something to assume from Malayalam's list.
-    """
+    """Return the marks composable onto an arbitrary base cluster at runtime."""
+    # The generic part (virama, nukta, every matra, anusvara/visarga/
+    # candrabindu) applies to any script that has those categories at all.
+    # The subjoined-conjunct-tail
+    # marks (്യ/്വ/്ല/്ര) are a Malayalam-specific finding - which consonants,
+    # if any, form this kind of reduced tail form in a new script is exactly
+    # the sort of thing docs/LANGUAGE_ONBOARDING_AGENTS.md's Agent 1/2 exist
+    # to determine, not something to assume from Malayalam's list.
     virama = getattr(chars, "VIRAMA", None)
     marks: list[str] = []
     if virama:
@@ -782,20 +742,16 @@ def _composable_marks(lang: LanguageSpec, chars: object) -> list[str]:
 
 
 def _build_marks(composable_marks: list[str], font: str) -> dict:
-    """Shape each composable mark alone and split it into prefix/suffix parts.
-
-    HarfBuzz auto-inserts a dotted-circle placeholder glyph when a combining
-    mark has no preceding base - its position tells us exactly how the mark
-    attaches to *any* base: glyphs before the placeholder print as a prefix;
-    glyphs after it print as a suffix. See `docs/ARCHITECTURE.md`'s
-    "Composition" section for the full derivation and the real bugs found
-    building this for Malayalam.
-
-    Returns
-    -------
-    dict
-        ``{mark: {"shift": N, "prefix": [...], "suffix": [...], "trailingWidth": N}}``
-    """
+    """Shape each composable mark alone and split it into prefix/suffix parts."""
+    # HarfBuzz auto-inserts a dotted-circle placeholder glyph when a combining
+    # mark has no preceding base - its position tells us exactly how the mark
+    # attaches to *any* base: glyphs before the placeholder print as a prefix;
+    # glyphs after it print as a suffix. See `docs/ARCHITECTURE.md`'s
+    # "Composition" section for the full derivation and the real bugs found
+    # building this for Malayalam.
+    #
+    # Returns dict: ``{mark: {"shift": N, "prefix": [...], "suffix": [...], "trailingWidth":
+    #     N}}``
     marks: dict = {}
     for m in composable_marks:
         trace = shape_word(m, font)
@@ -817,20 +773,18 @@ def _build_marks(composable_marks: list[str], font: str) -> dict:
 
 
 def _extract_ghost(own_glyph: dict, other_glyph: dict) -> dict:
-    """Build a standalone-ghost-shaped entry for one glyph pulled out of an
-    already-shaped 2-glyph cluster entry.
-
-    Re-anchors ``own_glyph`` to x=0, matching the convention every other
-    standalone atom's ghost already follows (see `_shape_all` - a
-    freshly-shaped standalone cluster's first glyph starts at or near 0).
-    ``advance`` is approximated as the horizontal gap to `other_glyph` in
-    the source pair - exposed for a build extension's own contextual-form
-    derivation to reuse (e.g. Devanagari half-form/reph ghosts), so each
-    language doesn't need to reimplement this geometry. Never itself
-    rendered as a real standalone cluster, so its exact advance is only
-    ever used for the recorder's own display layout, not for real
-    composition math.
-    """
+    """Build a standalone-ghost-shaped entry for one glyph of a shaped 2-glyph cluster."""
+    #
+    # Re-anchors ``own_glyph`` to x=0, matching the convention every other
+    # standalone atom's ghost already follows (see `_shape_all` - a
+    # freshly-shaped standalone cluster's first glyph starts at or near 0).
+    # ``advance`` is approximated as the horizontal gap to `other_glyph` in
+    # the source pair - exposed for a build extension's own contextual-form
+    # derivation to reuse (e.g. Devanagari half-form/reph ghosts), so each
+    # language doesn't need to reimplement this geometry. Never itself
+    # rendered as a real standalone cluster, so its exact advance is only
+    # ever used for the recorder's own display layout, not for real
+    # composition math.
     anchor = own_glyph["x"]
     return {
         "glyphs": [{"d": own_glyph["d"], "x": 0.0, "y": own_glyph["y"]}],
@@ -839,24 +793,19 @@ def _extract_ghost(own_glyph: dict, other_glyph: dict) -> dict:
 
 
 def _runtime_quirks(lang: LanguageSpec, chars: object, shaped_clusters: dict) -> dict:
-    """Return the language-specific lookup tables js/src/index.js needs at runtime.
-
-    Written into glyph-data.json as top-level ``legacyEncodings``/
-    ``splitVowelParts``/``contextualForms``/``knownAtoms`` keys, present
-    only for a language that actually has them - a language with none of
-    these gets no extra keys at all, so index.js never has anything
-    script-specific to load, hold in memory, or iterate for that
-    language's session. See `docs/LANGUAGE_ONBOARDING_AGENTS.md`'s "Don't
-    generalize from Malayalam" - a future language's own runtime quirks,
-    if it has any, are a finding from *its* onboarding, added here the
-    same gated way, not inherited.
-
-    Returns
-    -------
-    dict
-        Zero or more of ``{"legacyEncodings": {...}, "splitVowelParts": {...},
-        "contextualForms": {...}, "knownAtoms": [...], "shirorekha": {...}}``.
-    """
+    """Return the language-specific lookup tables js/src/index.js needs at runtime."""
+    # Written into glyph-data.json as top-level ``legacyEncodings``/
+    # ``splitVowelParts``/``contextualForms``/``knownAtoms`` keys, present
+    # only for a language that actually has them - a language with none of
+    # these gets no extra keys at all, so index.js never has anything
+    # script-specific to load, hold in memory, or iterate for that
+    # language's session. See `docs/LANGUAGE_ONBOARDING_AGENTS.md`'s "Don't
+    # generalize from Malayalam" - a future language's own runtime quirks,
+    # if it has any, are a finding from *its* onboarding, added here the
+    # same gated way, not inherited.
+    #
+    # Returns dict: Zero or more of ``{"legacyEncodings": {...}, "splitVowelParts": {...},
+    #     "contextualForms": {...}, "knownAtoms": [...], "shirorekha": {...}}``.
     quirks: dict = {}
     if lang.code == "ml":
         quirks["legacyEncodings"] = _ML_LEGACY_CHILLU
@@ -897,19 +846,17 @@ def _runtime_quirks(lang: LanguageSpec, chars: object, shaped_clusters: dict) ->
 
 
 def _recorder_note(lang: LanguageSpec) -> str | None:
-    """Return the recorder-banner text for `lang`, or None if it needs none.
-
-    Separate from `_runtime_quirks()` on purpose - that function's output
-    feeds js/src/index.js's runtime composer; this one is read only by
-    tools/stroke-recorder.js and has no effect on composition.
-    """
+    """Return the recorder-banner text for `lang`, or None if it needs none."""
+    # Separate from `_runtime_quirks()` on purpose - that function's output
+    # feeds js/src/index.js's runtime composer; this one is read only by
+    # tools/stroke-recorder.js and has no effect on composition.
     if lang.code == "hi":
         return _HI_RECORDER_NOTE
     return None
 
 
 def _parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description=_HELP)
     parser.add_argument(
         "font",
         nargs="?",

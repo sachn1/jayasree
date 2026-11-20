@@ -1,45 +1,37 @@
-"""Registry of supported languages/scripts and their data-file conventions.
-
-Phase 0 of `docs/LANGUAGE_ONBOARDING_AGENTS.md`: the single place that knows
-how to go from a language name to its character-inventory module and its
-committed data-file paths, so `tools/build_glyph_data.py`,
-`tools/validate_data.py`, and `tools/process_strokes.py` don't each
-reimplement (and risk disagreeing on) that mapping.
-
-Adding a language means adding one `LanguageSpec` entry here plus its own
-character-inventory module (e.g. `_chars_tamil.py`) - never editing another
-language's entry or module. See `CONTRIBUTING.md`'s "Adding a new language".
-
-A language module is expected to export whichever of these tuples its
-script actually has - **all are optional except where noted**, since Indic
-scripts differ structurally (Devanagari has no chillu-style bare-consonant
-forms; not every script's compound vowel signs decompose the way
-Malayalam's do; a script may have no "rare/archaic" category at all).
-Nothing in this file, or in the tools that use it, assumes a script has
-every category `_chars.py` (Malayalam's) happens to have:
-
-    INDEPENDENT_VOWELS, RARE_VOWELS, CONSONANTS, RARE_CONSONANTS, CHILLU,
-    NUMERALS, MATRAS, RARE_MATRAS, VIRAMA, ANUSVARA, VISARGA
-
-This list isn't closed - it's exactly Malayalam's own categories, not a
-fixed schema. Hindi's onboarding (`docs/languages/hi/`) already needed
-four more that `tools/build_glyph_data.py` also recognizes if present:
-`CANDRABINDU` (a second nasalization mark, phonemically distinct from
-anusvara), `NUKTA` (a combining loanword-sound diacritic attached to
-consonants, e.g. क + ़ = क़), `NATIVE_PUNCTUATION` (script-owned
-punctuation like Devanagari's danda - distinct from the shared-Latin
-`UNIVERSAL_CHARS` in `index.js`, and gets a real recorded stroke), and
-`RARE_MARKS` (standalone marks that don't fit any other category, e.g.
-Devanagari's avagraha/Om). Expect a future script to introduce further new
-category names the same way; add support for a new one in
-`build_glyph_data.py` when a real profile needs it, not speculatively
-ahead of one.
-
-Only `INDEPENDENT_VOWELS`, `CONSONANTS`, `MATRAS`, and `VIRAMA` are
-load-bearing for a script to be shapeable at all; see `char_tuple()` below
-for how an absent category degrades to "no such characters" rather than an
-error.
-"""
+"""Registry of supported languages/scripts and their data-file conventions."""
+# Phase 0 of `docs/LANGUAGE_ONBOARDING_AGENTS.md`: the single place that knows how to go from a
+# language name to its character-inventory module and its committed data-file paths, so
+# `tools/build_glyph_data.py`, `tools/validate_data.py`, and `tools/process_strokes.py` don't
+# each reimplement (and risk disagreeing on) that mapping.
+#
+# Adding a language means adding one `LanguageSpec` entry here plus its own character-inventory
+# module (e.g. `_chars_tamil.py`) - never editing another language's entry or module. See
+# `CONTRIBUTING.md`'s "Adding a new language".
+#
+# A language module is expected to export whichever of these tuples its script actually has -
+# **all are optional except where noted**, since Indic scripts differ structurally (Devanagari
+# has no chillu-style bare-consonant forms; not every script's compound vowel signs decompose
+# the way Malayalam's do; a script may have no "rare/archaic" category at all). Nothing in this
+# file, or in the tools that use it, assumes a script has every category `_chars.py`
+# (Malayalam's) happens to have:
+#
+#     INDEPENDENT_VOWELS, RARE_VOWELS, CONSONANTS, RARE_CONSONANTS, CHILLU,
+#     NUMERALS, MATRAS, RARE_MATRAS, VIRAMA, ANUSVARA, VISARGA
+#
+# This list isn't closed - it's exactly Malayalam's own categories, not a fixed schema. Hindi's
+# onboarding (`docs/languages/hi/`) already needed four more that `tools/build_glyph_data.py`
+# also recognizes if present: `CANDRABINDU` (a second nasalization mark, phonemically distinct
+# from anusvara), `NUKTA` (a combining loanword-sound diacritic attached to consonants, e.g. क +
+# ़ = क़), `NATIVE_PUNCTUATION` (script-owned punctuation like Devanagari's danda - distinct
+# from the shared-Latin `UNIVERSAL_CHARS` in `index.js`, and gets a real recorded stroke), and
+# `RARE_MARKS` (standalone marks that don't fit any other category, e.g. Devanagari's
+# avagraha/Om). Expect a future script to introduce further new category names the same way; add
+# support for a new one in `build_glyph_data.py` when a real profile needs it, not speculatively
+# ahead of one.
+#
+# Only `INDEPENDENT_VOWELS`, `CONSONANTS`, `MATRAS`, and `VIRAMA` are load-bearing for a script
+# to be shapeable at all; see `char_tuple()` below for how an absent category degrades to "no
+# such characters" rather than an error.
 
 from __future__ import annotations
 
@@ -106,11 +98,23 @@ class LanguageSpec:
     example_custom_cluster: str = ""
 
     def chars(self) -> ModuleType:
-        """Import and return this language's character-inventory module."""
+        """Import and return this language's character-inventory module.
+
+        Returns
+        -------
+        ModuleType
+            The imported module.
+        """
         return import_module(self.chars_module)
 
     def resolved_default_font(self) -> Path | None:
-        """Return `default_font` as an absolute path, or None if unset."""
+        """Return `default_font` as an absolute path, or None if unset.
+
+        Returns
+        -------
+        Path | None
+            The font path, or ``None`` if the language has none.
+        """
         return (ROOT / self.default_font) if self.default_font else None
 
 
@@ -218,6 +222,18 @@ def char_tuple(module: ModuleType, attr: str) -> tuple[str, ...]:
     Lets a language module simply omit any category its script doesn't have
     (e.g. no `CHILLU`) without every caller needing its own
     `getattr(..., ())`.
+
+    Parameters
+    ----------
+    module : ModuleType
+        A language's character-inventory module.
+    attr : str
+        Name of the attribute to read.
+
+    Returns
+    -------
+    tuple[str, ...]
+        The attribute's value, or an empty tuple.
     """
     return getattr(module, attr, ())
 

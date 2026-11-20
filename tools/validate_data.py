@@ -1,5 +1,19 @@
 #!/usr/bin/env python3
-"""Validate the structural integrity of the committed data files.
+"""Validate the structural integrity of the committed data files."""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import re
+import sys
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
+
+#: The command-line help (the module docstring stays one line, per CONTRIBUTING).
+_HELP = """Validate the structural integrity of the committed data files.
 
 Catches accidental corruption (malformed JSON, empty/invalid stroke paths,
 missing required keys) before it's committed - run via pre-commit/CI, or:
@@ -26,19 +40,7 @@ after a deliberate, reviewed change to previously-recorded data:
     python tools/validate_data.py --update-snapshot
 
 Pass ``--lang <code>`` (e.g. ``ta``) to target a different language's
-snapshot; omit it (or pass ``ml``) for Malayalam's unsuffixed files.
-"""
-
-from __future__ import annotations
-
-import argparse
-import hashlib
-import json
-import re
-import sys
-from dataclasses import dataclass
-from pathlib import Path
-from typing import Any
+snapshot; omit it (or pass ``ml``) for Malayalam's unsuffixed files."""
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -83,6 +85,7 @@ def paths_for(code: str) -> DataPaths:
     Returns
     -------
     DataPaths
+        That language's data-file paths under ``js/src/``.
     """
     code = "" if code == _PRIMARY_CODE else code
     suffix = f".{code}" if code else ""
@@ -389,7 +392,7 @@ def hash_strokes(entry: dict) -> str:
     Parameters
     ----------
     entry : dict
-        A single ``stroke-data.raw.json`` value, i.e. ``{"strokes": [...]}}``.
+        A single ``stroke-data.raw.json`` value, i.e. ``{"strokes": [...]}``.
 
     Returns
     -------
@@ -440,22 +443,13 @@ def update_snapshot(raw: dict, snapshot_path: Path = SNAPSHOT) -> None:
 
 
 def _validate_language(label: str, paths: DataPaths) -> tuple[list[str], dict, dict, dict]:
-    """Validate one language's data-file triple.
-
-    Parameters
-    ----------
-    label : str
-        Human-readable name for error messages (e.g. ``"Malayalam"``).
-    paths : DataPaths
-        This language's ``glyph_data``/``stroke_data_raw``/``stroke_data`` paths.
-
-    Returns
-    -------
-    tuple[list[str], dict, dict, dict]
-        ``(errors, glyph_data, raw, processed)`` - the three parsed
-        structures are returned alongside the errors so `main()` can report
-        cluster counts without re-reading the files.
-    """
+    """Validate one language's data-file triple."""
+    # label (str): Human-readable name for error messages (e.g. ``"Malayalam"``).
+    # paths (DataPaths): This language's ``glyph_data``/``stroke_data_raw``/``stroke_data``
+    #     paths.
+    # Returns tuple[list[str], dict, dict, dict]: ``(errors, glyph_data, raw, processed)`` - the
+    #     three parsed structures are returned alongside the errors so `main()` can report
+    #     cluster counts without re-reading the files.
     errors: list[str] = []
 
     def _load(path: Path) -> dict | None:
@@ -497,7 +491,7 @@ def main() -> int:
     int
         Exit code (0 = success, 1 = validation errors found).
     """
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description=_HELP)
     parser.add_argument(
         "--update-snapshot",
         action="store_true",

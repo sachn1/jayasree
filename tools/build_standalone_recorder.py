@@ -1,5 +1,22 @@
 #!/usr/bin/env python3
-"""Bundle stroke-recorder.html + glyph-data.json into a single self-contained file.
+"""Bundle stroke-recorder.html + glyph-data.json into a single self-contained file."""
+
+from __future__ import annotations
+
+import argparse
+import base64
+import hashlib
+import re
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "python" / "src"))
+
+from jayasree.languages import LANGUAGES, data_paths, get_language  # noqa: E402
+
+#: The command-line help (the module docstring stays one line, per CONTRIBUTING).
+_HELP = """Bundle stroke-recorder.html + glyph-data.json into a single self-contained file.
 
 The output can be opened directly in any browser (file://) - no server needed.
 Copy it to your tablet once; it works fully offline.
@@ -22,22 +39,7 @@ Usage (from repo root):
     python tools/build_standalone_recorder.py
     # → tools/stroke-recorder-standalone.html
     python tools/build_standalone_recorder.py --lang hindi
-    # → tools/stroke-recorder-standalone.hi.html
-"""
-
-from __future__ import annotations
-
-import argparse
-import base64
-import hashlib
-import re
-import sys
-from pathlib import Path
-
-ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT / "python" / "src"))
-
-from jayasree.languages import LANGUAGES, data_paths, get_language  # noqa: E402
+    # → tools/stroke-recorder-standalone.hi.html"""
 
 HTML_SRC = ROOT / "tools" / "stroke-recorder.html"
 CSS_SRC = ROOT / "tools" / "stroke-recorder.css"
@@ -49,12 +51,10 @@ _HASH_RE = re.compile(r"<!-- source-hash: ([0-9a-f]+)")
 
 
 def _out_path(lang_name: str) -> Path:
-    """Return the standalone-recorder output path for `--lang lang_name`.
-
-    Unsuffixed for `malayalam` (backward compatible with the existing
-    committed/documented filename); `.{code}`-suffixed for everything else,
-    mirroring `languages.data_paths()`'s own convention.
-    """
+    """Return the standalone-recorder output path for `--lang lang_name`."""
+    # Unsuffixed for `malayalam` (backward compatible with the existing
+    # committed/documented filename); `.{code}`-suffixed for everything else,
+    # mirroring `languages.data_paths()`'s own convention.
     lang = get_language(lang_name)
     is_primary = lang_name == "malayalam"
     suffix = "" if is_primary else f".{lang.code}"
@@ -73,7 +73,13 @@ def _source_hash() -> str:
 
 
 def build(lang_name: str = "malayalam") -> None:
-    """Regenerate the standalone recorder for `--lang lang_name` from current sources."""
+    """Regenerate the standalone recorder for `--lang lang_name` from current sources.
+
+    Parameters
+    ----------
+    lang_name : str
+        Registry key of the language (``jayasree.languages.LANGUAGES``).
+    """
     lang = get_language(lang_name)
     paths = data_paths(lang)
     out = _out_path(lang_name)
@@ -154,7 +160,13 @@ window.addEventListener("DOMContentLoaded", () => {
 
 
 def check(lang_name: str = "malayalam") -> None:
-    """Exit non-zero with a clear message if `--lang lang_name`'s standalone file is stale."""
+    """Exit non-zero with a clear message if `--lang lang_name`'s standalone file is stale.
+
+    Parameters
+    ----------
+    lang_name : str
+        Registry key of the language (``jayasree.languages.LANGUAGES``).
+    """
     out = _out_path(lang_name)
     if not out.exists():
         print(f"STALE: {out.relative_to(ROOT)} does not exist yet.", file=sys.stderr)
@@ -183,7 +195,7 @@ def check(lang_name: str = "malayalam") -> None:
 
 def main() -> None:
     """Parse CLI args and dispatch to `build()` or `check()`."""
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description=_HELP)
     parser.add_argument(
         "--check",
         action="store_true",

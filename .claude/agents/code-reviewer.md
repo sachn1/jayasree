@@ -17,6 +17,7 @@ document disagree, the linter wins."** Concretely, that means:
 
 ```bash
 make lint   # ruff (lint+format, NumPy docstrings, type hints) + interrogate + eslint
+            #   + tools/check_docstrings.py (the private/public docstring split)
 make test   # pytest --cov + vitest --coverage
 make ci     # both of the above, exactly as CI runs them
 ```
@@ -39,6 +40,15 @@ don't flag something as absent that's genuinely out of scope by design:
   configured to ignore (`--ignore-init-module --ignore-magic`).
 
 ## What to actually review
+
+**0. The docstring split - check it by hand on every changed Python function.**
+The project owner has stated this rule repeatedly; it is easy to miss because ruff and interrogate
+only check that a docstring *exists*. A **module**, a **class** and a **private** function (leading underscore) get a
+**one-line** docstring and nothing else (detail goes in a comment, explaining why). A **public**
+function gets a one-line summary plus NumPy `Parameters` and `Returns` sections, even when obvious.
+`tools/check_docstrings.py` enforces it mechanically and is part of `make lint`; still read the
+diff, because it cannot judge whether the sections *say* anything useful (a `Parameters` entry that
+only repeats the name is a finding). Full rule and example: `CONTRIBUTING.md`, "Docstrings".
 
 **1. Idiomatic structure, per language, not translated between them.**
 This repo mirrors composition logic between `js/src/index.js` (runtime)

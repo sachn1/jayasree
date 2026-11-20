@@ -1,23 +1,21 @@
-"""Audit cleaned strokes against the recordings they came from.
-
-A cleanup can introduce a *kink*: a sharper bend than the human ever drew. This module measures
-that for each stroke, so the worst ones can be looked at first instead of every letter. Three
-numbers per stroke:
-
-* **bend**: the sharpest local turn along the path, in degrees (the very ends excluded). The
-  human's path is smoothed first so hand tremor does not count as a bend; the cleaned path is not.
-  ``excess = bend_cleaned - bend_human``: a large positive excess is the signature of a kink the
-  cleanup introduced (a corner the human rounded, a join between a line and a curve).
-* **flips**: how many times the cleaned path's curvature changes sign. A wobbly stroke flips a
-  lot; a clean curve flips as often as its letterform does.
-* **deviation**: the largest distance between the recording and the cleaned path, either way, in
-  font units. Large means the cleanup skipped a loop or limb the human drew, or added one.
-
-These are heuristics for *ranking*, not a verdict: a flagged stroke may be fine and an unflagged
-one ugly. Known limits: a corner the human really drew sharply reads as positive excess (only the
-recording is smoothed), and a stem drawn up then straight back down is a deliberate 180-degree
-reversal, not a kink. The owner's eye on the review list is the gate.
-"""
+"""Audit cleaned strokes against the recordings they came from."""
+# A cleanup can introduce a *kink*: a sharper bend than the human ever drew. This module measures
+# that for each stroke, so the worst ones can be looked at first instead of every letter. Three
+# numbers per stroke:
+#
+# * **bend**: the sharpest local turn along the path, in degrees (the very ends excluded). The
+#   human's path is smoothed first so hand tremor does not count as a bend; the cleaned path is not.
+#   ``excess = bend_cleaned - bend_human``: a large positive excess is the signature of a kink the
+#   cleanup introduced (a corner the human rounded, a join between a line and a curve).
+# * **flips**: how many times the cleaned path's curvature changes sign. A wobbly stroke flips a
+#   lot; a clean curve flips as often as its letterform does.
+# * **deviation**: the largest distance between the recording and the cleaned path, either way, in
+#   font units. Large means the cleanup skipped a loop or limb the human drew, or added one.
+#
+# These are heuristics for *ranking*, not a verdict: a flagged stroke may be fine and an unflagged
+# one ugly. Known limits: a corner the human really drew sharply reads as positive excess (only the
+# recording is smoothed), and a stem drawn up then straight back down is a deliberate 180-degree
+# reversal, not a kink. The owner's eye on the review list is the gate.
 
 from __future__ import annotations
 

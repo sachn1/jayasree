@@ -1,11 +1,9 @@
-"""Shape analysis for stroke cleanup: corners, the fair curve in the ink, knots, stems and circles.
-
-The ridge (the middle of the ink) is the right guide almost everywhere. Where it cannot be trusted
-- it leaves the ink, or both passes of a hand-drawn loop collapse onto one line - the human's own
-path is spliced back in. Corners the font really has are kept; corners the writer rounded are
-rounded. Round stretches become exact circular arcs; a stem drawn up then down becomes two exact
-lines.
-"""
+"""Shape analysis for stroke cleanup: corners, fairing in the ink, knots, stems and circles."""
+# The ridge (the middle of the ink) is the right guide almost everywhere. Where it cannot be
+# trusted (it leaves the ink, or both passes of a hand-drawn loop collapse onto one line) the
+# human's own path is spliced back in. Corners the font really has are kept; corners the writer
+# rounded are rounded. Round stretches become exact circular arcs; a stem drawn up then down
+# becomes two exact lines.
 
 from __future__ import annotations
 
@@ -73,7 +71,24 @@ StemSplit = tuple[
 def font_corners(
     m: np.ndarray, radius: np.ndarray, turn_deg: float = 55.0, step: float = 6.0
 ) -> list[int]:
-    """Return the indices where the ridge itself turns sharply (a real corner, not hand tremor)."""
+    """Return the indices where the ridge itself turns sharply (a real corner, not hand tremor).
+
+    Parameters
+    ----------
+    m : np.ndarray
+        ``(n, 2)`` ridge polyline (the middle of the ink), in font units.
+    radius : np.ndarray
+        Ink half-width at each ridge point, in font units (length ``n``).
+    turn_deg : float
+        Smallest turn, in degrees, that counts as a corner.
+    step : float
+        Arc spacing of the ridge samples, in font units.
+
+    Returns
+    -------
+    list[int]
+        Indices of the ridge's corners.
+    """
     n = len(m)
     found: list[int] = []
     ang = np.zeros(n)
@@ -164,6 +179,20 @@ def bad_spans(m: np.ndarray, radius: np.ndarray, step: float = 6.0) -> list[tupl
     thick blob of ink, both passes of the loop share a single middle line, so the ridge collapses
     the loop into a cusp and cuts across the font's counter (radius ~0). Those spans must not be
     trusted.
+
+    Parameters
+    ----------
+    m : np.ndarray
+        ``(n, 2)`` ridge polyline (the middle of the ink), in font units.
+    radius : np.ndarray
+        Ink half-width at each ridge point, in font units (length ``n``).
+    step : float
+        Arc spacing of the ridge samples, in font units.
+
+    Returns
+    -------
+    list[tuple[int, int]]
+        ``(first, last)`` index pairs of the untrustworthy spans.
     """
     n = len(m)
     k = max(2, int(UTURN_REACH / step))
@@ -184,7 +213,18 @@ def bad_spans(m: np.ndarray, radius: np.ndarray, step: float = 6.0) -> list[tupl
 
 
 def band_width(p: np.ndarray) -> float:
-    """Return the largest distance (font units) of any point of `p` from its own best-fit line."""
+    """Return the largest distance (font units) of any point of `p` from its own best-fit line.
+
+    Parameters
+    ----------
+    p : np.ndarray
+        ``(n, 2)`` points.
+
+    Returns
+    -------
+    float
+        The largest distance, in font units.
+    """
     c = p - p.mean(0)
     _, _, vt = np.linalg.svd(c, full_matrices=False)
     return float(np.abs(c @ vt[1]).max())
@@ -197,6 +237,22 @@ def human_index(m: np.ndarray, pts: np.ndarray, i: int, window: float = 0.2) -> 
     (a spiral's tail crossing its own loop): then the nearest point can be on the other pass and a
     span comes out backwards. So the search is limited to the stretch of the recording where that
     ridge point is expected, found from how far along the ridge it is.
+
+    Parameters
+    ----------
+    m : np.ndarray
+        ``(n, 2)`` ridge polyline (the middle of the ink), in font units.
+    pts : np.ndarray
+        ``(n, 2)`` points of the human's recorded stroke, in font units.
+    i : int
+        Index of the ridge point.
+    window : float
+        Fraction of the recording searched around the expected position.
+
+    Returns
+    -------
+    int
+        Index into `pts` of the matching recorded point.
     """
     expected = round(i / max(1, len(m) - 1) * (len(pts) - 1))
     reach = max(6, int(window * len(pts)))
@@ -210,6 +266,16 @@ def is_spur(span_pts: np.ndarray) -> bool:
     That is a stem drawn up then down. Such a span is much longer than its own chord (it returns to
     where it started) yet stays within hand-wobble of a single line. A curl is wider; a span where
     the ridge merely crossed a counter is not longer than its chord.
+
+    Parameters
+    ----------
+    span_pts : np.ndarray
+        ``(n, 2)`` points of the human's path over a flagged span.
+
+    Returns
+    -------
+    bool
+        Whether the span is an out-and-back along one line.
     """
     span_len = float(np.hypot(*np.diff(span_pts, axis=0).T).sum())
     chord = float(np.linalg.norm(span_pts[-1] - span_pts[0]))
@@ -219,7 +285,24 @@ def is_spur(span_pts: np.ndarray) -> bool:
 def find_spurs(
     m: np.ndarray, pts: np.ndarray, radius: np.ndarray, step: float = 6.0
 ) -> list[tuple[int, int]]:
-    """Return the ridge index ranges where the stroke goes up a stem and back down it."""
+    """Return the ridge index ranges where the stroke goes up a stem and back down it.
+
+    Parameters
+    ----------
+    m : np.ndarray
+        ``(n, 2)`` ridge polyline (the middle of the ink), in font units.
+    pts : np.ndarray
+        ``(n, 2)`` points of the human's recorded stroke, in font units.
+    radius : np.ndarray
+        Ink half-width at each ridge point, in font units (length ``n``).
+    step : float
+        Arc spacing of the ridge samples, in font units.
+
+    Returns
+    -------
+    list[tuple[int, int]]
+        ``(first, last)`` ridge index pairs.
+    """
     out = []
     for lo, hi in bad_spans(m, radius, step):
         j0, j1 = human_index(m, pts, lo), human_index(m, pts, hi)
@@ -238,6 +321,22 @@ def stem_split(
     onto that line - or ``None`` when the stroke has no such stem. The head is the part of the
     ridge before the stem is first reached; the caller rebuilds the stem as two exact straight
     segments.
+
+    Parameters
+    ----------
+    m : np.ndarray
+        ``(n, 2)`` ridge polyline (the middle of the ink), in font units.
+    pts : np.ndarray
+        ``(n, 2)`` points of the human's recorded stroke, in font units.
+    radius : np.ndarray
+        Ink half-width at each ridge point, in font units (length ``n``).
+    step : float
+        Arc spacing of the ridge samples, in font units.
+
+    Returns
+    -------
+    StemSplit | None
+        The split, or ``None`` if the stroke has no such stem.
     """
     spurs = find_spurs(m, pts, radius, step)
     if len(spurs) != 1:
@@ -273,6 +372,19 @@ def corner_fillets(
     larger of what the hand cut and 0.8 of the ink's half-width there (a pen as wide as the stroke
     cannot turn tighter than that), capped at ``FILLET_MAX_FU``.
 
+    Parameters
+    ----------
+    m : np.ndarray
+        ``(n, 2)`` ridge polyline (the middle of the ink), in font units.
+    corners : list[int]
+        Indices of the ridge's sharp corners.
+    pts : np.ndarray
+        ``(n, 2)`` points of the human's recorded stroke, in font units.
+    radius : np.ndarray
+        Ink half-width at each ridge point, in font units (length ``n``).
+    step : float
+        Arc spacing of the ridge samples, in font units.
+
     Returns
     -------
     dict[int, tuple[int, np.ndarray]]
@@ -304,7 +416,18 @@ def corner_fillets(
 
 # -- exact circles for round stretches -----------------------------------------------------------
 def fit_circle(p: np.ndarray) -> tuple[np.ndarray, float, float]:
-    """Return the best-fit circle of `p` (Kasa): ``(centre, radius, max deviation)``."""
+    """Return the best-fit circle of `p` (Kasa): ``(centre, radius, max deviation)``.
+
+    Parameters
+    ----------
+    p : np.ndarray
+        ``(n, 2)`` points on or near a circle.
+
+    Returns
+    -------
+    tuple[np.ndarray, float, float]
+        ``(centre, radius, max deviation)``, distances in font units.
+    """
     a = np.c_[2 * p[:, 0], 2 * p[:, 1], np.ones(len(p))]
     b = (p**2).sum(axis=1)
     cx, cy, k = np.linalg.lstsq(a, b, rcond=None)[0]
@@ -314,11 +437,9 @@ def fit_circle(p: np.ndarray) -> tuple[np.ndarray, float, float]:
 
 
 def _longest_circular_run(q: np.ndarray, lo: int, hi: int) -> CircularRun | None:
-    """Return the longest stretch of ``q[lo:hi]`` that is a circle to within ``CIRCLE_TOL_FU``.
-
-    A stretch must sweep at least ``CIRCLE_MIN_DEG`` and have a radius in ``CIRCLE_RADIUS_FU``.
-    Returns ``None`` if there is none.
-    """
+    """Return the longest stretch of ``q[lo:hi]`` that is a circle to within ``CIRCLE_TOL_FU``."""
+    # A stretch must sweep at least ``CIRCLE_MIN_DEG`` and have a radius in ``CIRCLE_RADIUS_FU``.
+    # Returns ``None`` if there is none.
     best = None
     for i in range(lo, hi - 12, 3):
         j = i + 12
@@ -340,7 +461,18 @@ def _longest_circular_run(q: np.ndarray, lo: int, hi: int) -> CircularRun | None
 
 
 def circular_runs(q: np.ndarray) -> list[CircularRun]:
-    """Return every circular stretch of `q`: the longest first, then the longest of what is left."""
+    """Return every circular stretch of `q`: the longest first, then the longest of what is left.
+
+    Parameters
+    ----------
+    q : np.ndarray
+        ``(n, 2)`` curve to search for round stretches.
+
+    Returns
+    -------
+    list[CircularRun]
+        The circular runs, sorted by position.
+    """
     runs: list[CircularRun] = []
     pending = [(0, len(q))]
     while pending:
@@ -353,7 +485,24 @@ def circular_runs(q: np.ndarray) -> list[CircularRun]:
 
 
 def arc_beziers(centre: np.ndarray, radius: float, angle0: float, sweep: float) -> list[np.ndarray]:
-    """Return an exact circular arc as cubic Beziers (none spanning more than 90 degrees)."""
+    """Return an exact circular arc as cubic Beziers (none spanning more than 90 degrees).
+
+    Parameters
+    ----------
+    centre : np.ndarray
+        Circle centre ``(x, y)``.
+    radius : float
+        Circle radius, in font units.
+    angle0 : float
+        Start angle, in radians.
+    sweep : float
+        Signed angle swept, in radians (negative is clockwise).
+
+    Returns
+    -------
+    list[np.ndarray]
+        Cubics, each a ``(4, 2)`` array of control points.
+    """
     parts = max(1, int(np.ceil(abs(sweep) / (np.pi / 2))))
     step = sweep / parts
     k = 4.0 / 3.0 * np.tan(abs(step) / 4.0)  # handle length, as a fraction of the radius
@@ -376,6 +525,18 @@ def circle_snap_fit(q: np.ndarray, fit_err: float) -> list[np.ndarray] | None:
     fits it the ordinary way). Each snapped stretch is replaced by an exact arc; its ends are
     blended back into the neighbouring curve over ``CIRCLE_BLEND_SAMPLES`` samples so the joins
     stay smooth and tangent-continuous.
+
+    Parameters
+    ----------
+    q : np.ndarray
+        ``(n, 2)`` faired curve to fit.
+    fit_err : float
+        Largest allowed distance from the Bezier fit to the curve, in font units.
+
+    Returns
+    -------
+    list[np.ndarray] | None
+        Cubics covering `q`, or ``None`` if it has no round stretch.
     """
     f = CIRCLE_BLEND_SAMPLES
     snapped = q.copy()
@@ -430,6 +591,24 @@ def splice_knots(
     path (those must not be re-smoothed away). A span whose ends map to the same stretch of the
     recording (the ridge walked out and back along a stem) is left alone - there is no curl of the
     human's to restore.
+
+    Parameters
+    ----------
+    m : np.ndarray
+        ``(n, 2)`` ridge polyline (the middle of the ink), in font units.
+    pts : np.ndarray
+        ``(n, 2)`` points of the human's recorded stroke, in font units.
+    radius : np.ndarray
+        Ink half-width at each ridge point, in font units (length ``n``).
+    sigma : float
+        Smoothing width of the human's path, in font units.
+    step : float
+        Arc spacing of the ridge samples, in font units.
+
+    Returns
+    -------
+    tuple[np.ndarray, list[tuple[int, int]]]
+        The new polyline, and the index ranges in it that hold the human's path.
     """
     spans = bad_spans(m, radius, step)
     if not spans:

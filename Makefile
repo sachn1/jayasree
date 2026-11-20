@@ -55,6 +55,7 @@ lint: lint-py lint-js
 lint-py:
 	cd python && poetry run ruff check .. && poetry run ruff format --check ..
 	cd python && poetry run interrogate --fail-under=90 --ignore-init-module --ignore-magic src ../tools
+	python3 tools/check_docstrings.py
 
 lint-js:
 	npm run lint

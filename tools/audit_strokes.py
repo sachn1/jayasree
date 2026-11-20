@@ -1,15 +1,5 @@
 #!/usr/bin/env python3
-r"""Rank a language's shipped strokes by how likely the cleanup introduced a kink.
-
-Compares ``stroke-data.<code>.raw.json`` (the recordings) with ``stroke-data.<code>.json`` (what
-ships) and prints the strokes whose sharpest bend exceeds the human's by the most - the ones to
-look at first. A ranking, not a verdict; see ``jayasree.cleanup.audit``.
-
-Usage (from the repo root, inside the Poetry environment)::
-
-    cd python && poetry run python ../tools/audit_strokes.py --lang hindi \\
-        [--top 30] [--out rows.json]
-"""
+"""Rank a language's shipped strokes by how likely the cleanup introduced a kink."""
 
 from __future__ import annotations
 
@@ -23,10 +13,15 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "python" / "src"
 from jayasree.cleanup.audit import KINK_EXCESS_DEG, audit_atoms
 from jayasree.languages import data_paths, get_language
 
+_HELP = (
+    "Rank a language's shipped strokes by how much the cleanup bent them beyond the recording. "
+    "A ranking, not a verdict; see jayasree.cleanup.audit."
+)
+
 
 def main() -> None:
     """Audit one language's committed strokes and print the worst."""
-    parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    parser = argparse.ArgumentParser(description=_HELP)
     parser.add_argument("--lang", default="hindi", help="Registry key (default: hindi).")
     parser.add_argument("--top", type=int, default=30, help="How many worst strokes to list.")
     parser.add_argument("--out", type=Path, help="Write every row to this JSON file.")

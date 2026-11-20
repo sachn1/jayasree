@@ -1,13 +1,9 @@
-"""Compose multi-character cluster strokes from individually-authored parts.
-
-Mark composition (consonant+virama, conjunct+matra, subjoined conjunct forms)
-is deliberately not done here - see js/src/index.js's tryComposeStroke() and
-docs/ARCHITECTURE.md's "Composition" section for why. Devanagari's
-half-form/reph "contextual form" composition (see `compose_contextual_form`)
-is its own distinct mechanism, mirroring js/src/index.js's
-`tryComposeContextualForm` - see that function's docstring and
-docs/languages/hi/README.md.
-"""
+"""Compose multi-character cluster strokes from individually-authored parts."""
+# Mark composition (consonant+virama, conjunct+matra, subjoined conjunct forms) is deliberately
+# not done here - see js/src/index.js's tryComposeStroke() and docs/ARCHITECTURE.md's
+# "Composition" section for why. Devanagari's half-form/reph "contextual form" composition (see
+# `compose_contextual_form`) is its own distinct mechanism, mirroring js/src/index.js's
+# `tryComposeContextualForm` - see that function's docstring and docs/languages/hi/README.md.
 
 from __future__ import annotations
 

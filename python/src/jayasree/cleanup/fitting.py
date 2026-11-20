@@ -1,9 +1,7 @@
-"""Curve fitting for stroke cleanup: resampling, pinned smoothing and Schneider cubic Bezier fits.
-
-A recorded stroke is reduced to a few exact cubic Beziers. The fit is an *approximation*
-(least squares), not the interpolation :func:`jayasree.geometry.fit_piece` does, so hand tremor
-between the control points is not carried into the result.
-"""
+"""Curve fitting for stroke cleanup: resampling, pinned smoothing and cubic Bezier fits."""
+# A recorded stroke is reduced to a few exact cubic Beziers. The fit is an *approximation*
+# (least squares), not the interpolation :func:`jayasree.geometry.fit_piece` does, so hand
+# tremor between the control points is not carried into the result.
 
 from __future__ import annotations
 
@@ -15,13 +13,37 @@ _EPS = 1e-9
 
 
 def unit(v: np.ndarray) -> np.ndarray:
-    """Return `v` scaled to length 1 (unchanged if it is effectively zero)."""
+    """Return `v` scaled to length 1 (unchanged if it is effectively zero).
+
+    Parameters
+    ----------
+    v : np.ndarray
+        Vector to normalise.
+
+    Returns
+    -------
+    np.ndarray
+        The unit vector.
+    """
     n = np.linalg.norm(v)
     return v / n if n > _EPS else v
 
 
 def resample(pts: np.ndarray, step: float) -> np.ndarray:
-    """Resample the polyline `pts` at equal arc-length spacing of about `step` (min. 4 points)."""
+    """Resample the polyline `pts` at equal arc-length spacing of about `step` (min. 4 points).
+
+    Parameters
+    ----------
+    pts : np.ndarray
+        ``(n, 2)`` polyline to resample.
+    step : float
+        Resampling step along the path, in font units.
+
+    Returns
+    -------
+    np.ndarray
+        The resampled ``(n, 2)`` polyline.
+    """
     seg = np.hypot(*np.diff(pts, axis=0).T)
     s = np.r_[0, np.cumsum(seg)]
     n = max(4, int(s[-1] / step) + 1)
@@ -30,7 +52,22 @@ def resample(pts: np.ndarray, step: float) -> np.ndarray:
 
 
 def smooth_pinned(pts: np.ndarray, sigma_fu: float, step: float = 4.0) -> np.ndarray:
-    """Gaussian-smooth `pts` along arc length with both ends pinned (odd reflection)."""
+    """Gaussian-smooth `pts` along arc length with both ends pinned (odd reflection).
+
+    Parameters
+    ----------
+    pts : np.ndarray
+        ``(n, 2)`` polyline to smooth.
+    sigma_fu : float
+        Gaussian smoothing width, in font units (0 disables smoothing).
+    step : float
+        Resampling step along the path, in font units.
+
+    Returns
+    -------
+    np.ndarray
+        The smoothed ``(n, 2)`` polyline, ends unchanged.
+    """
     p = resample(pts, step)
     if sigma_fu <= 0 or len(p) < 6:
         return p
@@ -118,7 +155,7 @@ def fit_cubic(
     err : float
         Largest allowed distance from any point to the curve, in font units.
     depth : int
-        Recursion depth (internal).
+        Current recursion depth; callers leave it at 0.
 
     Returns
     -------
@@ -147,7 +184,20 @@ def fit_cubic(
 
 
 def fit_polyline(p: np.ndarray, err: float) -> list[np.ndarray]:
-    """Fit `p` with cubics, taking the end tangents from the polyline itself."""
+    """Fit `p` with cubics, taking the end tangents from the polyline itself.
+
+    Parameters
+    ----------
+    p : np.ndarray
+        ``(n, 2)`` points to fit.
+    err : float
+        Largest allowed distance from any point to the curve, in font units.
+
+    Returns
+    -------
+    list[np.ndarray]
+        Cubics, each a ``(4, 2)`` array of control points.
+    """
     k = min(4, len(p) - 1)
     t1, t2 = unit(p[k] - p[0]), unit(p[-1 - k] - p[-1])
     return fit_cubic(p, t1, t2, err)
@@ -159,7 +209,24 @@ def fit_with_tangents(
     t_start: np.ndarray | None = None,
     t_end: np.ndarray | None = None,
 ) -> list[np.ndarray]:
-    """Fit `p`, optionally with exact unit tangents at either end (for a G1 join to a line)."""
+    """Fit `p`, optionally with exact unit tangents at either end (for a G1 join to a line).
+
+    Parameters
+    ----------
+    p : np.ndarray
+        ``(n, 2)`` points to fit.
+    err : float
+        Largest allowed distance from any point to the curve, in font units.
+    t_start : np.ndarray | None
+        Exact unit tangent at the start (``None`` takes it from the points).
+    t_end : np.ndarray | None
+        Exact unit tangent at the end (``None`` takes it from the points).
+
+    Returns
+    -------
+    list[np.ndarray]
+        Cubics, each a ``(4, 2)`` array of control points.
+    """
     k = min(4, len(p) - 1)
     t1 = unit(t_start) if t_start is not None else unit(p[k] - p[0])
     t2 = unit(t_end) if t_end is not None else unit(p[-1 - k] - p[-1])
@@ -167,12 +234,36 @@ def fit_with_tangents(
 
 
 def line_bezier(a: np.ndarray, b: np.ndarray) -> np.ndarray:
-    """Return the cubic that is exactly the straight segment a -> b."""
+    """Return the cubic that is exactly the straight segment a -> b.
+
+    Parameters
+    ----------
+    a : np.ndarray
+        Start point ``(x, y)``, in font units.
+    b : np.ndarray
+        End point ``(x, y)``, in font units.
+
+    Returns
+    -------
+    np.ndarray
+        The ``(4, 2)`` control points.
+    """
     return np.array([a, a + (b - a) / 3, a + 2 * (b - a) / 3, b])
 
 
 def beziers_to_d(segs_per_piece: list[list[np.ndarray]]) -> str:
-    """Serialise pieces of cubics as one SVG path string (one decimal place)."""
+    """Serialise pieces of cubics as one SVG path string (one decimal place).
+
+    Parameters
+    ----------
+    segs_per_piece : list[list[np.ndarray]]
+        Pieces of cubic Beziers, each a list of ``(4, 2)`` control-point arrays.
+
+    Returns
+    -------
+    str
+        The path's ``d`` attribute.
+    """
     first = segs_per_piece[0][0][0]
     parts = [f"M {first[0]:.1f} {first[1]:.1f}"]
     for segs in segs_per_piece:
