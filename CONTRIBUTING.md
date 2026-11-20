@@ -126,7 +126,7 @@ fixtures, while everything Malayalam-specific lives in
   pass unmodified - if you had to change them, the feature wasn't common.
 - Add a sibling character-inventory module (`_chars_hi.py` is the worked
   example), a `LanguageSpec` entry in `languages.py`'s `LANGUAGES` registry,
-  its own data files (see the README's "Data size & deployment" on
+  its own data files (see `docs/CREATING_HANDWRITING.md`'s "Data size & deployment" on
   per-script splitting), and its own test module mirroring
   `test_chars_malayalam.py` (`test_chars_hi.py`).
 - Recording needs a native speaker/writer of that script - strokes drawn by
