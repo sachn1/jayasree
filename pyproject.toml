@@ -12,7 +12,7 @@
 # version from the commit history and rewrites every file in version_files.
 [tool.commitizen]
 name = "cz_conventional_commits"
-version = "0.5.1"
+version = "0.6.0"
 tag_format = "v$version"
 # Annotated, so `git push --follow-tags` in release-on-merge.yml pushes the tag. cz's default
 # lightweight tags are silently skipped by --follow-tags, which left v0.4.1 unpushed and made
