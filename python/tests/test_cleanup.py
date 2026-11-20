@@ -336,6 +336,33 @@ class TestPipelineWiring:
         cleaned = [{"d": clean_strokes([self.ENTRY["strokes"][0]["d"]], [BAR])[0]}]
         assert self._run("ml") != cleaned
 
+    def test_hindi_half_form_without_a_cluster_entry_is_cleaned_against_its_ghost(self) -> None:
+        """Ensure that a trigger atom known only by `contextualForms` is cleaned, not left raw."""
+        glyph_data = {
+            "clusters": {},
+            "marks": {},
+            "contextualForms": {
+                "A": {"role": "halfForm", "ghost": {"glyphs": [BAR], "advance": 60}}
+            },
+        }
+        args = Namespace(center=True, smooth=True, straighten=True)
+        got = process_strokes._process_cluster_strokes("A", self.ENTRY, glyph_data, args, "hi")
+        expected = clean_strokes([self.ENTRY["strokes"][0]["d"]], [BAR])
+        assert got == [{"d": expected[0]}]
+
+    def test_malayalam_ignores_contextual_form_ghosts(self) -> None:
+        """Ensure that the ghost fallback never applies to a non-Hindi language."""
+        glyph_data = {
+            "clusters": {},
+            "contextualForms": {
+                "A": {"role": "halfForm", "ghost": {"glyphs": [BAR], "advance": 60}}
+            },
+        }
+        args = Namespace(center=True, smooth=True, straighten=True)
+        got = process_strokes._process_cluster_strokes("A", self.ENTRY, glyph_data, args, "ml")
+        cleaned = [{"d": clean_strokes([self.ENTRY["strokes"][0]["d"]], [BAR])[0]}]
+        assert got != cleaned
+
 
 ATOM_BUCKETS = 24
 
@@ -356,7 +383,10 @@ def test_committed_hindi_strokes_are_what_the_cleanup_produces() -> None:
     glyph_data = json.loads((src / "glyph-data.hi.json").read_text(encoding="utf-8"))
     raw = json.loads((src / "stroke-data.hi.raw.json").read_text(encoding="utf-8"))
     committed = json.loads((src / "stroke-data.hi.json").read_text(encoding="utf-8"))
-    sample = [a for a in sorted(raw) if a != "_remarks" and a in glyph_data["clusters"]]
+    # Half-form / reph trigger atoms have no `clusters` entry; they are cleaned against their
+    # `contextualForms` ghost, so they belong in the sample too.
+    known = {**glyph_data["clusters"], **glyph_data.get("contextualForms", {})}
+    sample = [a for a in sorted(raw) if a != "_remarks" and a in known]
     sample = [a for a in sample if _in_sample(a)]
     assert len(sample) >= 4, "the sample is too small to mean anything"
     args = Namespace(center=True, smooth=True, straighten=True)
