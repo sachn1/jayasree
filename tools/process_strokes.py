@@ -30,7 +30,8 @@ Stages (each independently toggleable):
                 doesn't pre-bake a candidate for every base times every
                 mark regardless of whether it's ever traced.
 
-  --cleanup     Hindi only, opt-in (not part of any preset): replace a cluster's
+  --cleanup     Hindi only, on by default for Hindi (--no-cleanup to skip; never
+                part of a preset, never run for Malayalam): replace a cluster's
                 recorded strokes with the font's own geometry - exact dots,
                 lines and circles, a fair curve through the ink - instead of
                 centering/smoothing/straightening them (jayasree.cleanup). A
@@ -119,9 +120,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--expand", action=argparse.BooleanOptionalAction, default=None)
     parser.add_argument(
         "--cleanup",
-        action="store_true",
+        action=argparse.BooleanOptionalAction,
+        default=None,
         help="Hindi only: rebuild strokes from the font's geometry (see jayasree.cleanup). "
-        "Ignored for other languages; not part of any preset.",
+        "On by default for Hindi; ignored for other languages; not part of any preset.",
     )
     parser.add_argument(
         "--lang",
@@ -464,6 +466,8 @@ def main() -> None:
     # tools/build_glyph_data.py, never a configurable default any language
     # could inherit by omission.
     lang_code = get_language(args.lang).code
+    if args.cleanup is None:
+        args.cleanup = lang_code == "hi"
 
     # A language may be able to derive some clusters' strokes from others
     # already hand-traced (e.g. Hindi's nukta consonants - see
