@@ -89,6 +89,13 @@ N_SAMPLES = 120  # arc-length-uniform points sampled per stroke before center/sm
 #: problem is actually resolved and visually verified.
 _CURVE_STRAIGHTEN_ENABLED = False
 
+#: What a cleanup failure on one cluster looks like (degenerate input, a singular fit). Anything
+#: else - a TypeError, a NameError - is a bug and is allowed to stop the run.
+_CLEANUP_ERRORS = (ValueError, KeyError, IndexError, np.linalg.LinAlgError)
+#: Clusters whose cleanup failed and fell back to the ordinary stages, in this run. main() fails
+#: the run if it is not empty, so a regression cannot quietly regenerate a half-cleaned data file.
+_CLEANUP_FAILURES: list[str] = []
+
 _ALL_STAGES: dict[str, bool] = {"center": True, "smooth": True, "straighten": True, "expand": True}
 PRESETS: dict[str, dict[str, bool]] = {
     "malayalam": _ALL_STAGES,  # historical name from this project's first language - kept
@@ -422,9 +429,10 @@ def _process_cluster_strokes(
         raw_ds = [s["d"] for s in entry.get("strokes", [])]
         try:
             return [{"d": d} for d in clean_strokes(raw_ds, ref_glyphs)]
-        except Exception as exc:  # keep the ordinary stages rather than lose the cluster
+        except _CLEANUP_ERRORS as exc:  # fall back, but record it: main() fails the run
+            _CLEANUP_FAILURES.append(cluster)
             print(
-                f"  cleanup failed for {cluster!r} ({type(exc).__name__}); using stages",
+                f"  cleanup failed for {cluster!r} ({type(exc).__name__}: {exc}); using stages",
                 file=sys.stderr,
             )
 
@@ -481,6 +489,7 @@ def main() -> None:
             stroke_data.setdefault(cluster, entry)
 
     out: dict = {}
+    _CLEANUP_FAILURES.clear()
 
     for cluster, entry in stroke_data.items():
         # "_remarks" (tools/stroke-recorder.js's authoring-time notes on why
@@ -495,6 +504,13 @@ def main() -> None:
         if lang_code == "hi" and cluster in _HI_STEM_LAST_ATOMS:
             strokes = _hi_stem_last(strokes)
         out[cluster] = {"strokes": strokes}
+
+    if _CLEANUP_FAILURES:
+        sys.exit(
+            f"cleanup failed for {len(_CLEANUP_FAILURES)} cluster(s): "
+            f"{', '.join(_CLEANUP_FAILURES[:10])} - nothing written. Fix the cause, or pass "
+            "--no-cleanup to regenerate without it."
+        )
 
     if args.expand:
         out, generated, skipped = stroke_compose.compose_all(glyph_data, out)
