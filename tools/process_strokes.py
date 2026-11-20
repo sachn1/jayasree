@@ -30,12 +30,10 @@ Stages (each independently toggleable):
                 doesn't pre-bake a candidate for every base times every
                 mark regardless of whether it's ever traced.
 
-  --cleanup     Hindi only, on by default for Hindi (--no-cleanup to skip; never
-                part of a preset, never run for Malayalam): replace a cluster's
-                recorded strokes with the font's own geometry - exact dots,
-                lines and circles, a fair curve through the ink - instead of
-                centering/smoothing/straightening them (jayasree.cleanup). A
-                cluster with no outline of its own keeps the stages above.
+Hindi's strokes are also cleaned (no flag: the language is the switch; Malayalam never is):
+each cluster's recorded strokes are replaced with the font's own geometry - exact dots, lines and
+circles, a fair curve through the ink - instead of being centered/smoothed/straightened
+(jayasree.cleanup). A cluster with no outline of its own keeps the stages above.
 
 --preset=full (or its historical alias --preset=malayalam) enables all four
 stages - script-agnostic, despite the alias's name; pass explicit
@@ -125,13 +123,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--smooth", action=argparse.BooleanOptionalAction, default=None)
     parser.add_argument("--straighten", action=argparse.BooleanOptionalAction, default=None)
     parser.add_argument("--expand", action=argparse.BooleanOptionalAction, default=None)
-    parser.add_argument(
-        "--cleanup",
-        action=argparse.BooleanOptionalAction,
-        default=None,
-        help="Hindi only: rebuild strokes from the font's geometry (see jayasree.cleanup). "
-        "On by default for Hindi; ignored for other languages; not part of any preset.",
-    )
     parser.add_argument(
         "--lang",
         default="malayalam",
@@ -411,7 +402,7 @@ def _process_cluster_strokes(
     glyph_data : dict
         The language's parsed ``glyph-data.json`` (``clusters`` and, optionally, ``marks``).
     args : argparse.Namespace
-        Which stages run (``center``, ``smooth``, ``straighten``; ``cleanup`` is optional).
+        Which stages run (``center``, ``smooth``, ``straighten``).
     lang_code : str
         The language's code, for the inline per-language gates in :func:`_process_stroke`.
 
@@ -422,9 +413,8 @@ def _process_cluster_strokes(
     """
     cluster_info = glyph_data["clusters"].get(cluster)
 
-    # Opt-in and Hindi-only, read with getattr so a Namespace built from a preset (the Malayalam
-    # freeze test builds one) needs no `cleanup` field. Malayalam can never reach this branch.
-    if getattr(args, "cleanup", False) and lang_code == "hi" and cluster_info is not None:
+    # Hindi only: the language is the switch, so Malayalam can never reach this branch.
+    if lang_code == "hi" and cluster_info is not None:
         ref_glyphs = _reference_glyphs(cluster, cluster_info, glyph_data.get("marks", {}))
         raw_ds = [s["d"] for s in entry.get("strokes", [])]
         try:
@@ -474,8 +464,6 @@ def main() -> None:
     # tools/build_glyph_data.py, never a configurable default any language
     # could inherit by omission.
     lang_code = get_language(args.lang).code
-    if args.cleanup is None:
-        args.cleanup = lang_code == "hi"
 
     # A language may be able to derive some clusters' strokes from others
     # already hand-traced (e.g. Hindi's nukta consonants - see
@@ -508,8 +496,8 @@ def main() -> None:
     if _CLEANUP_FAILURES:
         sys.exit(
             f"cleanup failed for {len(_CLEANUP_FAILURES)} cluster(s): "
-            f"{', '.join(_CLEANUP_FAILURES[:10])} - nothing written. Fix the cause, or pass "
-            "--no-cleanup to regenerate without it."
+            f"{', '.join(_CLEANUP_FAILURES[:10])} - nothing written. Fix the cause (the "
+            "message above each failure says what failed)."
         )
 
     if args.expand:
