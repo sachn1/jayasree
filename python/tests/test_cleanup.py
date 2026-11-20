@@ -26,12 +26,14 @@ from jayasree.cleanup import clean_stroke, clean_strokes  # noqa: E402
 from jayasree.cleanup.fitting import (  # noqa: E402
     beziers_to_d,
     fit_polyline,
+    line_bezier,
     resample,
     smooth_pinned,
     unit,
 )
 from jayasree.cleanup.ink import BLOCKED_COST, make_field_winding, min_cost_path  # noqa: E402
 from jayasree.cleanup.primitives import (  # noqa: E402
+    assemble_with_lines,
     axis_direction,
     classify_stroke,
     exact_line,
@@ -42,10 +44,14 @@ from jayasree.cleanup.primitives import (  # noqa: E402
 from jayasree.cleanup.shape import (  # noqa: E402
     arc_beziers,
     bad_spans,
+    circle_snap_fit,
     circular_runs,
+    corner_fillets,
     fair_in_channel,
     fit_circle,
     font_corners,
+    splice_knots,
+    stem_split,
 )
 
 # A tall vertical bar: x in [0, 60], y in [-400, 0]; its centre line is x = 30.
@@ -287,10 +293,24 @@ class TestCleanStroke:
         assert out[0] != out[1] or raws[0] == raws[1]
 
     @pytest.mark.parametrize("bad", ["", "M 0 0"])
-    def test_a_degenerate_stroke_raises_rather_than_returning_garbage(self, bad: str) -> None:
-        """Ensure that a path with no length is an error the caller can catch."""
-        with pytest.raises(Exception):
+    def test_a_degenerate_stroke_raises_a_value_error(self, bad: str) -> None:
+        """Ensure that a path with no length is a ValueError, which the pipeline falls back on."""
+        with pytest.raises(ValueError, match="zero-size"):
             clean_stroke(bad, make_field_winding([BAR]))
+
+    def test_a_stem_drawn_up_then_down_ends_in_exact_vertical_lines(self) -> None:
+        """Ensure that an out-and-back stem becomes straight lines along the stem's axis."""
+        el = {"d": "M0 0 L330 0 L330 -330 L270 -330 L270 -60 L0 -60 Z", "x": 0, "y": 0}
+        wob = 3.0 * np.sin(np.arange(40) * 1.3)
+        head = [(10 + 7.5 * k, -30.0) for k in range(40)]
+        up = [(300.0 + wob[k] * 0.3, -30.0 - 7.3 * k) for k in range(40)]
+        down = [(300.0 - wob[k] * 0.3, -300.0 + 6.8 * k) for k in range(40)]
+        raw = "M " + " L ".join(f"{x:.1f} {y:.1f}" for x, y in [*head, *up, *down])
+        d, kind = clean_stroke(raw, make_field_winding([el]))
+        pts = geometry.sample_path(d, 400)
+        stem = pts[pts[:, 1] < -200]  # above the rounded corner into the stem
+        assert kind == "curve" and len(stem) > 20
+        assert np.abs(stem[:, 0] - stem[:, 0].mean()).max() < 1.5
 
 
 class TestPipelineWiring:
@@ -353,3 +373,124 @@ def test_committed_hindi_strokes_are_what_the_cleanup_produces() -> None:
         if strokes != committed[atom]["strokes"]:
             stale.append(atom)
     assert stale == [], "committed Hindi strokes are out of date: run make process-strokes"
+
+
+class TestShapeBranches:
+    """Direct tests for shape and primitive paths the end-to-end tests only touch by accident."""
+
+    def test_corner_fillets_round_a_corner_the_human_cut(self) -> None:
+        """Ensure that a sharp ridge corner the recorded path cut gets a bridging cubic."""
+        m = np.vstack(
+            [
+                np.column_stack([np.linspace(0, 120, 21), np.zeros(21)]),
+                np.column_stack([np.full(20, 120.0), np.linspace(6, 120, 20)]),
+            ]
+        )
+        pts = np.array([[0, 0], [60, 0], [100, 5], [110, 10], [117, 17], [120, 60], [120, 120.0]])
+        out = corner_fillets(m, [20], pts, np.full(len(m), 10.0))
+        assert list(out) == [20]
+        trim, bez = out[20]
+        assert trim >= 2 and np.allclose(bez[0], m[20 - trim]) and np.allclose(bez[3], m[20 + trim])
+
+    def test_corner_fillets_leave_a_corner_the_human_kept_sharp(self) -> None:
+        """Ensure that a corner the recorded path reaches exactly is not rounded."""
+        m = np.vstack(
+            [
+                np.column_stack([np.linspace(0, 120, 21), np.zeros(21)]),
+                np.column_stack([np.full(20, 120.0), np.linspace(6, 120, 20)]),
+            ]
+        )
+        sharp = np.array([[0, 0], [60, 0], [120, 0], [120, 60], [120, 120.0]])
+        assert corner_fillets(m, [20], sharp, np.full(len(m), 10.0)) == {}
+
+    def test_splice_knots_restores_the_humans_curl_where_the_ridge_failed(self) -> None:
+        """Ensure that a span with no ink radius is replaced by the human's own bulge."""
+        m = np.column_stack([np.arange(60) * 6.0, np.zeros(60)])
+        radius = np.full(60, 40.0)
+        radius[25:36] = 0.0
+        xs = np.arange(60) * 6.0
+        ys = np.where((xs > 150) & (xs < 210), -50 * np.sin(np.pi * (xs - 150) / 60), 0.0)
+        out, knots = splice_knots(m, np.column_stack([xs, ys]), radius)
+        assert knots and np.abs(out[:, 1]).max() > 25
+
+    def test_circle_snap_fit_makes_arcs_for_a_round_stretch_only(self) -> None:
+        """Ensure that a half circle is fitted with arcs and a straight line is declined."""
+        t = np.linspace(0, np.pi, 90)
+        half = 150 * np.column_stack([np.cos(t), np.sin(t)])
+        segs = circle_snap_fit(half, 2.0)
+        assert segs is not None and len(segs) >= 2
+        assert (
+            circle_snap_fit(np.column_stack([np.linspace(0, 300, 90), np.zeros(90)]), 2.0) is None
+        )
+
+    def test_assemble_with_lines_keeps_the_line_exact_and_joins_the_curve_to_it(self) -> None:
+        """Ensure that a pinned run is emitted as its exact line, with a fitted curve before it."""
+        c = np.column_stack([np.arange(60) * 6.0, np.zeros(60)])
+        c[:20, 1] = -np.linspace(40, 0, 20)
+        a, b = c[20].copy(), c[59].copy()
+        segs = assemble_with_lines(c, 2.0, [(20, 59, a, b)])
+        assert len(segs) >= 2 and np.allclose(segs[-1], line_bezier(a, b))
+        assert np.allclose(segs[0][0], c[0])
+        assert len(assemble_with_lines(c, 2.0, [])) >= 1
+
+    def test_stem_split_finds_a_stem_drawn_up_then_down(self) -> None:
+        """Ensure that a head then an out-and-back stem is split into head and stem points."""
+        head = np.column_stack([np.arange(51) * 6.0, np.zeros(51)])
+        up = np.column_stack([np.full(50, 300.0), -np.arange(1, 51) * 6.0])
+        m = np.vstack([head, up, up[::-1][1:]])
+        rng = np.random.default_rng(5)
+        pts = m[::2] + rng.normal(0, 1.5, m[::2].shape)
+        split = stem_split(m, pts, np.full(len(m), 30.0))
+        assert split is not None
+        _head, (p_junction, p_tip, p_end), proj = split
+        assert abs(p_junction[0] - p_tip[0]) < 1 and abs(p_tip[0] - p_end[0]) < 1
+        assert np.allclose(proj(np.array([310.0, -100.0])), [p_tip[0], -100.0], atol=1.0)
+
+    def test_stem_split_declines_a_plain_curve(self) -> None:
+        """Ensure that a stroke with no out-and-back is not split."""
+        m = np.column_stack([np.arange(80) * 6.0, 40 * np.sin(np.arange(80) / 12)])
+        assert stem_split(m, m[::2], np.full(80, 30.0)) is None
+
+
+class TestFailureHandling:
+    """Explicit errors, and a failed cleanup that is recorded instead of hidden."""
+
+    def test_an_all_blocked_grid_is_a_value_error(self) -> None:
+        """Ensure that there being no traversable cell is a clear ValueError."""
+        with pytest.raises(ValueError, match="blocked"):
+            min_cost_path(np.full((5, 5), BLOCKED_COST), (0, 0), (4, 4))
+
+    def test_a_path_from_a_cell_to_itself_is_that_cell(self) -> None:
+        """Ensure that start == end gives a one-cell path."""
+        assert min_cost_path(np.ones((5, 5)), (2, 2), (2, 2)) == [(2, 2)]
+
+    def test_glyphs_with_no_ink_are_a_value_error(self) -> None:
+        """Ensure that an empty glyph list is a clear ValueError, not a numpy reduction error."""
+        with pytest.raises(ValueError, match="no ink"):
+            make_field_winding([])
+
+    def test_a_failed_cleanup_falls_back_and_is_recorded(
+        self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """Ensure that a cluster whose cleanup raises uses the stages and is listed as a failure."""
+
+        def boom(raw_ds: list[str], glyphs: list[dict]) -> list[str]:
+            raise ValueError("singular")
+
+        monkeypatch.setattr(process_strokes, "clean_strokes", boom)
+        process_strokes._CLEANUP_FAILURES.clear()
+        wiring = TestPipelineWiring()
+        assert wiring._run("hi", True) == wiring._run("hi", False)
+        assert process_strokes._CLEANUP_FAILURES == ["A"]
+        assert "cleanup failed for 'A'" in capsys.readouterr().err
+        process_strokes._CLEANUP_FAILURES.clear()
+
+    def test_a_programming_error_is_not_swallowed(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Ensure that a TypeError, which is a bug and not bad input, still stops the run."""
+
+        def bug(raw_ds: list[str], glyphs: list[dict]) -> list[str]:
+            raise TypeError("a bug")
+
+        monkeypatch.setattr(process_strokes, "clean_strokes", bug)
+        with pytest.raises(TypeError):
+            TestPipelineWiring()._run("hi", True)
