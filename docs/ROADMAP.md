@@ -81,7 +81,7 @@ count.
 needed) with each candidate change, and visually compare a representative
 sample - not just ജ (the one worked example currently in
 `docs/ARCHITECTURE.md`), since a single letter won't surface every corner
-shape Malayalam script produces. `test_geometry.py` should also grow a
+shape the scripts so far (Malayalam, Devanagari) produce. `test_geometry.py` should also grow a
 regression test once a concrete change lands, mirroring how the existing
 Catmull-Rom-tangent fix already has one
 (`test_straight_line_through_a_curved_piece_stays_straight`).
