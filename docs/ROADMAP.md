@@ -160,11 +160,11 @@ per-language *content*, not further plumbing:
 
 - **Git LFS**, once the committed JSON data (currently low hundreds of KB)
   grows into the tens of MB - from a second language, or a much larger
-  font's outlines. See the README's "Data size & deployment" section for
+  font's outlines. See `docs/CREATING_HANDWRITING.md`'s "Data size & deployment" section for
   the full reasoning; not needed yet.
 - **Prune `glyph-data.json`** to only the consonant+vowel-sign/conjunct
   combinations that occur in real Malayalam, instead of pre-shaping every
-  combination HarfBuzz can produce (see README's "Status" section). Needs a
+  combination HarfBuzz can produce (see `docs/DEVELOPMENT.md`'s "Status and known limitations"). Needs a
   real-word corpus to prune against first.
 
 ## Deployment
