@@ -24,7 +24,7 @@ js/src/stroke-data.raw.json   ← hand-authored strokes, exactly as drawn
                                  (commit this - never overwritten by anything)
         │
         ▼
-tools/process_strokes.py --preset=malayalam
+tools/process_strokes.py --preset=full
         │  (center → smooth → straighten → expand)
         ▼
 js/src/stroke-data.json       ← processed + composed (commit this - this is
@@ -93,7 +93,7 @@ this caused when it was missed.
 ## Stage 3 - `process_strokes.py`: processing
 
 Four independently-toggleable stages, applied in order to every raw
-stroke, `--preset=malayalam` enabling all four:
+stroke, `--preset=full` enabling all four (`malayalam` is its historical alias):
 
 1. **Center** - gradient-ascent centering onto the glyph's own ink ridge.
    See `docs/CENTERING_EXPERIMENTS.md`'s centering section.
@@ -138,7 +138,7 @@ bugs this project hit and fixed while building it out.
 
 The stages described above are easiest to understand side by side against
 a real stroke. Below is ജ (ja)'s recorded stroke at each stage of
-`process_strokes.py --preset=malayalam`, overlaid on its Manjari ghost
+`process_strokes.py --preset=full`, overlaid on its Manjari ghost
 outline (light tan): its raw `stroke-data.raw.json` entry, then the same
 points run through `centering.center_points`, `geometry.smooth_points`, and
 `ghost_reference.refine_stroke` in turn, the same four functions

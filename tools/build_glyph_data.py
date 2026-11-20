@@ -824,7 +824,7 @@ def _parse_args() -> argparse.Namespace:
         nargs="?",
         default=None,
         help="Path to a .ttf/.otf font file. Defaults to the language's bundled "
-        "fixture font, if it has one (Malayalam has one; Hindi does not).",
+        "fixture font, if it has one (Malayalam: Manjari; Hindi: Noto Sans Devanagari).",
     )
     parser.add_argument(
         "--lang",

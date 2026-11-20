@@ -88,8 +88,8 @@ class LanguageSpec:
     #: to shape matras/marks in isolation for `cli.py`'s `alphabet` command.
     carrier_consonant: str
     #: Path (repo-root-relative) to a bundled test-fixture font, if any.
-    #: Only Malayalam has one today; every other language must pass
-    #: `--font` explicitly until its own ghost font is chosen (see
+    #: Malayalam and Hindi have one today; a language onboarded later must
+    #: pass `--font` explicitly until its own ghost font is chosen (see
     #: `docs/LANGUAGE_ONBOARDING_AGENTS.md`'s Agent 2).
     default_font: str | None = None
     #: This project's own name ("Jayasree"), spelled in this language's own

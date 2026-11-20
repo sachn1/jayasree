@@ -98,8 +98,9 @@ own. Tested against [Manjari](https://fonts.google.com/specimen/Manjari)
 and [Chilanka](https://fonts.google.com/specimen/Chilanka) (both SIL OFL,
 free) for Malayalam, and [Noto Sans Devanagari](https://fonts.google.com/noto/specimen/Noto+Sans+Devanagari) for Hindi; any font with proper GSUB/GPOS tables for the script should work. No
 GSUB/GPOS support generally means broken conjuncts - check your font choice
-if shaped output looks wrong. The bundled *test* fixture is
-`tests/fixtures/Manjari-Regular.ttf` (SIL OFL - see `tests/fixtures/OFL.txt`).
+if shaped output looks wrong. The bundled *test* fixtures are
+`tests/fixtures/Manjari-Regular.ttf` and `NotoSansDevanagari-Regular.ttf` (both SIL OFL -
+see `tests/fixtures/`).
 
 ## Scope
 
