@@ -1,5 +1,5 @@
 
-# Jayasree ![ജയശ്രീ - animated stroke trace](demo/jayasree.svg)
+# Jayasree ![ജയശ്രീ - animated stroke trace](demo/jayasree.svg) ![जयश्री - animated stroke trace](demo/jayasree.hi.svg)
 
 *Indic-script handwriting, animated stroke by stroke - Malayalam and Hindi so far.*
 

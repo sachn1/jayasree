@@ -132,6 +132,15 @@ fixtures, while everything Malayalam-specific lives in
 - Recording needs a native speaker/writer of that script - strokes drawn by
   someone who doesn't write it daily are worse than no strokes (the outline
   fallback is always correct, just less handwriting-like).
+- Give the language a wordmark of its own: its `LanguageSpec.native_name` is
+  the project's name in that script, and `tools/export_wordmark.py --lang
+  <name> --output demo/jayasree.<code>.svg` exports the animated SVG (one
+  solid color for outline and fill, so a thick font's overlapping inner
+  contours do not show as seams; Malayalam's own SVG was exported by hand and
+  is violet with a dark outline). Pick a color other than the existing ones -
+  Hindi is red - and keep it in step with `--ms-ink-color` for `#logo-live`
+  in `demo/demo.css` (one rule today; a second live language needs its own),
+  the landing page and the README header.
 - Whitespace/punctuation handling (`UNIVERSAL_CHARS` in `js/src/index.js`)
   is already script-agnostic - it's checked before any language-specific
   lookup and never touches per-language data. Nothing to add per language.
