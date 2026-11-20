@@ -6,14 +6,32 @@ Cleanup works from any filled outline, so a new script should never need to touc
 
 from __future__ import annotations
 
+import hashlib
+import json
+import sys
+from argparse import Namespace
+from pathlib import Path
+from typing import ClassVar
+
 import numpy as np
 import pytest
 
-from jayasree import centering, geometry
-from jayasree.cleanup import clean_stroke, clean_strokes
-from jayasree.cleanup.fitting import beziers_to_d, fit_polyline, resample, smooth_pinned, unit
-from jayasree.cleanup.ink import BLOCKED_COST, make_field_winding, min_cost_path
-from jayasree.cleanup.primitives import (
+ROOT = Path(__file__).resolve().parent.parent.parent
+sys.path.insert(0, str(ROOT / "tools"))
+
+import process_strokes  # noqa: E402
+
+from jayasree import centering, geometry  # noqa: E402
+from jayasree.cleanup import clean_stroke, clean_strokes  # noqa: E402
+from jayasree.cleanup.fitting import (  # noqa: E402
+    beziers_to_d,
+    fit_polyline,
+    resample,
+    smooth_pinned,
+    unit,
+)
+from jayasree.cleanup.ink import BLOCKED_COST, make_field_winding, min_cost_path  # noqa: E402
+from jayasree.cleanup.primitives import (  # noqa: E402
     axis_direction,
     classify_stroke,
     exact_line,
@@ -21,7 +39,7 @@ from jayasree.cleanup.primitives import (
     manufacture_line,
     straight_runs,
 )
-from jayasree.cleanup.shape import (
+from jayasree.cleanup.shape import (  # noqa: E402
     arc_beziers,
     bad_spans,
     circular_runs,
@@ -273,3 +291,65 @@ class TestCleanStroke:
         """Ensure that a path with no length is an error the caller can catch."""
         with pytest.raises(Exception):
             clean_stroke(bad, make_field_winding([BAR]))
+
+
+class TestPipelineWiring:
+    """process_strokes: cleanup is Hindi-only, whatever the arguments say."""
+
+    GLYPH_DATA: ClassVar[dict] = {"clusters": {"A": {"glyphs": [BAR], "advance": 60}}, "marks": {}}
+    ENTRY: ClassVar[dict] = {"strokes": [{"d": _wobbly_vertical()}]}
+
+    def _run(self, lang_code: str, cleanup: bool) -> list[dict]:
+        """Process the one synthetic cluster as the given language."""
+        args = Namespace(center=True, smooth=True, straighten=True, cleanup=cleanup)
+        return process_strokes._process_cluster_strokes(
+            "A", self.ENTRY, self.GLYPH_DATA, args, lang_code
+        )
+
+    def test_hindi_with_cleanup_uses_the_cleaned_strokes(self) -> None:
+        """Ensure that Hindi + cleanup returns exactly what clean_strokes produces."""
+        expected = clean_strokes([self.ENTRY["strokes"][0]["d"]], [BAR])
+        assert self._run("hi", True) == [{"d": expected[0]}]
+
+    def test_malayalam_never_cleans_even_when_asked(self) -> None:
+        """Ensure that cleanup=True changes nothing for any language other than Hindi."""
+        assert self._run("ml", True) == self._run("ml", False)
+
+    def test_a_namespace_without_the_field_still_works(self) -> None:
+        """Ensure that preset-built arguments (no cleanup field, as the freeze test uses) work."""
+        args = Namespace(center=True, smooth=True, straighten=True)
+        out = process_strokes._process_cluster_strokes("A", self.ENTRY, self.GLYPH_DATA, args, "ml")
+        assert out == self._run("ml", False)
+
+
+ATOM_BUCKETS = 24
+
+
+def _in_sample(atom: str) -> bool:
+    """Whether `atom` is one of the sampled Hindi atoms (chosen by a hash of its name)."""
+    return int(hashlib.sha1(atom.encode("utf-8")).hexdigest(), 16) % ATOM_BUCKETS == 0
+
+
+def test_committed_hindi_strokes_are_what_the_cleanup_produces() -> None:
+    """Ensure that a sample of Hindi atoms regenerates byte-for-byte to the committed strokes.
+
+    The data is generated (``make process-strokes PROJECT_LANG=hindi``), never hand-edited; this
+    fails if the cleanup code changes without the data being regenerated, or the reverse. The
+    sample is chosen by atom name, so adding atoms elsewhere does not reshuffle it.
+    """
+    src = ROOT / "js" / "src"
+    glyph_data = json.loads((src / "glyph-data.hi.json").read_text(encoding="utf-8"))
+    raw = json.loads((src / "stroke-data.hi.raw.json").read_text(encoding="utf-8"))
+    committed = json.loads((src / "stroke-data.hi.json").read_text(encoding="utf-8"))
+    sample = [a for a in sorted(raw) if a != "_remarks" and a in glyph_data["clusters"]]
+    sample = [a for a in sample if _in_sample(a)]
+    assert len(sample) >= 4, "the sample is too small to mean anything"
+    args = Namespace(center=True, smooth=True, straighten=True, cleanup=True)
+    stale = []
+    for atom in sample:
+        strokes = process_strokes._process_cluster_strokes(atom, raw[atom], glyph_data, args, "hi")
+        if atom in process_strokes._HI_STEM_LAST_ATOMS:
+            strokes = process_strokes._hi_stem_last(strokes)
+        if strokes != committed[atom]["strokes"]:
+            stale.append(atom)
+    assert stale == [], "committed Hindi strokes are out of date: run make process-strokes"
