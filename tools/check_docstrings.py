@@ -2,13 +2,12 @@
 """Check this project's docstring rule, which ruff and interrogate cannot enforce."""
 # The rule (CONTRIBUTING.md, "Docstrings"):
 #
-# * a **module**, a **class** and a **private** function (leading underscore) have a **single-line**
-#   docstring and nothing else - anything longer belongs in a comment, which explains *why*, or in
-#   `docs/`;
-# * a **public** function has a one-line summary, then NumPy ``Parameters`` and ``Returns`` sections
-#   (``Parameters`` only if it takes arguments, ``Returns`` - or ``Yields`` for a generator -
-# only if
-#   it returns a value), even when they feel obvious from the signature.
+# * a **module**, a **class** and a **private** function (leading underscore) have a
+#   **single-line** docstring and nothing else - anything longer belongs in a comment, which
+#   explains *why*, or in `docs/`;
+# * a **public** function has a one-line summary, then NumPy ``Parameters`` and ``Returns``
+#   sections (``Parameters`` only if it takes arguments, ``Returns`` - or ``Yields`` for a
+#   generator - only if it returns a value), even when they feel obvious from the signature.
 #
 # ruff's ``D`` rules catch a *missing* docstring and basic format; interrogate measures
 # coverage. Neither notices a private helper that grew a full Parameters block, or a public

@@ -54,6 +54,14 @@ class TestModulesAndClasses:
         src = 'class A:\n    class B:\n        """Summary.\n\n        More.\n        """\n'
         assert _problems(src) == ["class: docstring must be one line"]
 
+    def test_a_class_defined_inside_a_function_is_also_checked(self) -> None:
+        """Ensure that a class nested in a function is checked (safer than exempting it)."""
+        src = (
+            'def _f() -> None:\n    """F."""\n\n'
+            '    class C:\n        """A.\n\n        B.\n        """\n'
+        )
+        assert _problems(src) == ["class: docstring must be one line"]
+
     def test_a_one_line_class_docstring_passes(self) -> None:
         """Ensure that a one-line class docstring passes."""
         assert _problems('class A:\n    """Summary."""\n') == []
