@@ -3,6 +3,10 @@
 Thanks for wanting to help! There are two very different ways to contribute
 here, and the most valuable one needs no coding at all.
 
+By taking part you agree to the [Code of Conduct](CODE_OF_CONDUCT.md). To report a security problem,
+use the private route in [SECURITY.md](SECURITY.md), not a public issue. Issues and PRs have
+templates; please use the one that fits.
+
 ## Contributing stroke data (no code needed)
 
 The heart of this project is hand-drawn stroke data from people who actually
