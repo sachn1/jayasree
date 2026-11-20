@@ -58,6 +58,8 @@ import re
 import sys
 from pathlib import Path
 
+import numpy as np
+
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "python" / "src"))
 
@@ -266,6 +268,50 @@ def _hi_path_bbox_center(d: str) -> tuple[float, float]:
     return (min(xs) + max(xs)) / 2, (min(ys) + max(ys)) / 2
 
 
+#: Atoms that contain the ख ("kha") shape and were recorded with its vertical line before the
+#: rest of the letter. A letter's vertical line is written last (then the dots, then the
+#: shirorekha), so for these the processing step moves it after the other strokes - the
+#: recording itself is never touched. Hindi-specific.
+_HI_STEM_LAST_ATOMS: tuple[str, ...] = (chr(0x959), "ङ्ख")  # ख़, ङ्ख
+
+#: A stroke shorter than this (font units) is a dot (nukta, anusvara, ङ's dot ...) and stays last.
+_HI_DOT_MAX_LENGTH = 60.0
+
+
+def _hi_stem_last(strokes: list[dict]) -> list[dict]:
+    """Reorder an atom's strokes so its vertical line comes after the other letter strokes.
+
+    Order becomes: every other stroke (original order), then the vertical line(s), then the dots
+    (original order). A "vertical line" is a long, straight, near-vertical stroke. If the atom
+    has none, the strokes come back unchanged.
+
+    Parameters
+    ----------
+    strokes : list[dict]
+        The atom's ``[{"d": ...}, ...]`` strokes in recorded order.
+
+    Returns
+    -------
+    list[dict]
+        The same strokes, reordered.
+    """
+    others, verticals, dots = [], [], []
+    for stroke in strokes:
+        pts = geometry.sample_path(stroke["d"], 80)
+        length = float(np.hypot(*np.diff(pts, axis=0).T).sum())
+        extent = np.ptp(pts, axis=0)
+        centred = pts - pts.mean(axis=0)
+        minor_axis = np.linalg.svd(centred, full_matrices=False)[2][1]
+        wobble = float(np.abs(centred @ minor_axis).max())
+        if length < _HI_DOT_MAX_LENGTH:
+            dots.append(stroke)
+        elif extent[1] > 250 and extent[0] < 0.08 * extent[1] and wobble < 10:
+            verticals.append(stroke)
+        else:
+            others.append(stroke)
+    return [*others, *verticals, *dots] if verticals else strokes
+
+
 def _hi_derive_strokes(stroke_data: dict, shaped_clusters: dict) -> dict:
     """Synthesize Hindi's 5 decomposable nukta consonants' strokes, if derivable.
 
@@ -416,6 +462,8 @@ def main() -> None:
         if cluster == "_remarks":
             continue
         strokes = _process_cluster_strokes(cluster, entry, glyph_data, args, lang_code)
+        if lang_code == "hi" and cluster in _HI_STEM_LAST_ATOMS:
+            strokes = _hi_stem_last(strokes)
         out[cluster] = {"strokes": strokes}
 
     if args.expand:

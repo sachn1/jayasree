@@ -333,6 +333,13 @@ def validate_glyph_data(data: Any) -> list[str]:
                 errors.append(
                     f"{where}.glyphs[{i}]: 'd' does not start with a valid moveto command"
                 )
+        nudge = entry.get("markNudge")
+        if nudge is not None and not (
+            isinstance(nudge, dict)
+            and set(nudge) == {"dx", "dy"}
+            and all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in nudge.values())
+        ):
+            errors.append(f"{where}.markNudge: must be an object with numeric 'dx' and 'dy'")
 
     contextual_forms = data.get("contextualForms")
     if contextual_forms is not None:

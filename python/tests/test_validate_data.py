@@ -102,6 +102,29 @@ class TestValidateGlyphData:
         errors = validate_glyph_data({"meta": {"unitsPerEm": 2048}, "clusters": {}})
         assert errors != []
 
+    @pytest.mark.parametrize("nudge", [{"dx": 3.5, "dy": -4}, {"dx": 0, "dy": 0}])
+    def test_valid_mark_nudge_is_accepted(self, nudge: dict) -> None:
+        """Ensure that a numeric markNudge on a cluster is not flagged."""
+        entry = {"glyphs": [{"d": "M0 0", "x": 0, "y": 0}], "markNudge": nudge}
+        data = {"meta": {"unitsPerEm": 2048}, "clusters": {"A": entry}}
+        assert validate_glyph_data(data) == []
+
+    @pytest.mark.parametrize(
+        "nudge",
+        [
+            {"dx": 1},
+            {"dx": 1, "dy": 2, "dz": 3},
+            {"dx": "1", "dy": 2},
+            {"dx": True, "dy": 2},
+            [1, 2],
+        ],
+    )
+    def test_malformed_mark_nudge_is_an_error(self, nudge: object) -> None:
+        """Ensure that a markNudge that is not exactly numeric dx and dy is rejected."""
+        entry = {"glyphs": [{"d": "M0 0", "x": 0, "y": 0}], "markNudge": nudge}
+        data = {"meta": {"unitsPerEm": 2048}, "clusters": {"A": entry}}
+        assert any("markNudge" in e for e in validate_glyph_data(data))
+
     def test_missing_units_per_em_is_an_error(self) -> None:
         """Ensure that a meta object missing unitsPerEm is rejected."""
         data = {"meta": {}, "clusters": {"A": {"glyphs": [{"d": "M0 0", "x": 0, "y": 0}]}}}

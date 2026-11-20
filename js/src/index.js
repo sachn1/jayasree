@@ -29,6 +29,30 @@ const OUTLINE_SAMPLES = 200;
 /** Pause between consecutive strokes of one glyph (milliseconds). */
 const PEN_LIFT_MS = 120;
 
+/**
+ * A stroke is a dot (a visarga's, an anusvara, a nukta ...) rather than part of a letter when it is both
+ * compact (its bounding box no larger than this fraction of the em) and short. Compactness is what matters:
+ * a dot drawn as a tiny loop is long for its size, while the smallest real letter stroke is several times
+ * wider than the widest dot. The length bound only guards against a thin, long line.
+ */
+const DOT_MAX_EXTENT_FRACTION = 0.036;
+const DOT_MAX_LENGTH_FRACTION = 0.12;
+
+/**
+ * Whether a stroke of this bounding box and path length is a dot, for an em of `unitsPerEm`.
+ * @param {{width: number, height: number}} box - The stroke's bounding box.
+ * @param {number} length - The stroke's path length.
+ * @param {number} unitsPerEm - The font's em, which the thresholds are fractions of.
+ * @returns {boolean} True when the stroke is both compact (larger box side below `DOT_MAX_EXTENT_FRACTION`
+ *   of the em) and short (length below `DOT_MAX_LENGTH_FRACTION` of it).
+ */
+function isDotSized(box, length, unitsPerEm) {
+  return (
+    Math.max(box.width, box.height) < unitsPerEm * DOT_MAX_EXTENT_FRACTION &&
+    length < unitsPerEm * DOT_MAX_LENGTH_FRACTION
+  );
+}
+
 /** Pause between repeats when `play`/`replay` is given `count > 1` (milliseconds). */
 const REPLAY_PAUSE_MS = 500;
 
@@ -355,6 +379,53 @@ function composeMark(base, mark, baseKey, legacyAtomsSet = new Set()) {
 }
 
 /**
+ * Where a cluster has real ink at headline (shirorekha) height, as `[x0, x1]` ranges in the cluster's own
+ * frame, plus its advance - or `null` if that can't be worked out.
+ *
+ * `inkRanges` (glyph-data's `shirorekha.inkRanges`) is computed at build time for every cluster the font
+ * shaped. A cluster built at runtime (a conjunct plus a vowel sign, say श्च + ि) isn't one of those, so its
+ * ranges are assembled the same way {@link composeMark} assembles its glyphs: the base's ranges shifted by the
+ * mark's `shift`, plus the mark's own ranges (a prefix mark sits at the start, a suffix mark after the base).
+ * A *known* cluster with no entry simply has no headline ink (the numerals, a lone vowel sign): that is an
+ * answer ("draw nothing"), not a missing one.
+ *
+ * @param {string} cluster
+ * @param {Record<string, { advance: number }>} clusters
+ * @param {Record<string, { shift: number, prefix: object[], suffix: object[], trailingWidth: number }> | undefined} marks
+ * @param {Record<string, [number, number][]>} inkRanges
+ * @param {number} [depth]
+ * @returns {{ ranges: [number, number][], advance: number } | null}
+ */
+function clusterInkRanges(cluster, clusters, marks, inkRanges, depth = 0) {
+  const known = clusters[cluster];
+  if (known) return { ranges: inkRanges[cluster] ?? [], advance: known.advance };
+  if (depth > 8 || !marks) return null;
+  for (const markLen of [2, 1]) {
+    if (cluster.length <= markLen) continue;
+    const markKey = cluster.slice(-markLen);
+    const mark = marks[markKey];
+    if (!mark) continue;
+    const base = clusterInkRanges(cluster.slice(0, -markLen), clusters, marks, inkRanges, depth + 1);
+    if (!base) continue;
+    // A mark's own ranges are in its standalone frame, where its content glyph was shaped next to a dotted
+    // circle (a prefix mark's content first, a suffix mark's content last). In the composed cluster that
+    // glyph sits at the mark's own `prefix`/`suffix` position instead; the difference is the offset.
+    // A mark with both parts (a split vowel) can't be told apart here, so it is left to the caller.
+    const standalone = clusters[markKey]?.glyphs;
+    if (!standalone?.length || (mark.prefix.length > 0 && mark.suffix.length > 0)) continue;
+    const markOffset = mark.prefix.length > 0
+      ? mark.prefix[0].x - standalone[0].x
+      : mark.shift + base.advance + mark.suffix[0].x - standalone[standalone.length - 1].x;
+    const ranges = [
+      ...base.ranges.map(([a, b]) => [a + mark.shift, b + mark.shift]),
+      ...(inkRanges[markKey] ?? []).map(([a, b]) => [a + markOffset, b + markOffset]),
+    ].sort((r, s) => r[0] - s[0]);
+    return { ranges, advance: mark.shift + base.advance + mark.trailingWidth };
+  }
+  return null;
+}
+
+/**
  * Return a copy of `marks` with every prefix mark's `shift` trimmed by
  * `tightenUnits`, clamped to 0.
  *
@@ -594,6 +665,59 @@ function tryDirectMarkStroke(baseStrokes, baseAdvance, markKey, marks, clusters,
 }
 
 /**
+ * Take every dot-like stroke (per `isDot`) out of its glyph unit and return them as one ordered list:
+ * word order first (the cluster each came from), then top to bottom, then left to right. So a visarga's two dots
+ * come out upper dot, lower dot, and a word with several dotted clusters keeps them in reading order.
+ *
+ * Mutates each unit's `subUnits` (the dots are removed); a shirorekha unit is left alone.
+ *
+ * @param {{ subUnits: object[], isShirorekha?: boolean }[]} glyphUnits
+ * @param {(sub: object) => boolean} isDot - Whether a stroke is a dot.
+ * @param {(sub: object) => { x: number, y: number }} startOf - Where a stroke starts, in the stage's frame.
+ * @returns {object[]} The dot sub-units, in the order they should be drawn.
+ */
+function collectDotUnits(glyphUnits, isDot, startOf) {
+  const dots = [];
+  glyphUnits.forEach((unit, order) => {
+    if (unit.isShirorekha) return;
+    const keep = [];
+    for (const sub of unit.subUnits) {
+      if (isDot(sub)) {
+        const { x, y } = startOf(sub);
+        dots.push({ sub, order, x, y });
+      } else {
+        keep.push(sub);
+      }
+    }
+    unit.subUnits = keep;
+  });
+  dots.sort((a, b) => a.order - b.order || a.y - b.y || a.x - b.x);
+  return dots.map((d) => d.sub);
+}
+
+/**
+ * Move a suffix mark's strokes by a cluster's own `markNudge`, if its glyph-data entry has one.
+ *
+ * A cluster the font shaped for real (rather than one built from the generic base + mark recipe) can seat its
+ * mark glyph somewhere other than the recipe's position - a conjunct + ू, say. The build records how far
+ * (`markNudge: {dx, dy}`) so the mark's recorded stroke can follow its ghost. No entry carries one unless the
+ * build wrote it, so a language that doesn't use this is untouched.
+ *
+ * @param {{d: string}[]} strokes - Base strokes followed by the mark's (a suffix mark's go last).
+ * @param {{ dx: number, dy: number } | undefined} nudge
+ * @param {string} markKey
+ * @param {Record<string, object>} marks
+ * @returns {{d: string}[]}
+ */
+function nudgeMarkStrokes(strokes, nudge, markKey, marks) {
+  const mark = marks?.[markKey];
+  const markCount = STROKE_LIBRARY[markKey]?.strokes?.length ?? 0;
+  if (!nudge || !mark || mark.prefix.length > 0 || mark.suffix.length === 0 || !markCount) return strokes;
+  const first = strokes.length - markCount;
+  return strokes.map((s, i) => (i >= first ? { d: offsetSvgPath(s.d, nudge.dx, nudge.dy) } : s));
+}
+
+/**
  * Try composing a stroke for `cluster` from a shorter base plus a trailing
  * mark - mirrors {@link resolveSegments}'s glyph-level composition, one
  * level up. The base isn't required to already be in {@link STROKE_LIBRARY}
@@ -646,7 +770,7 @@ function tryComposeStroke(cluster, glyphData) {
       : tryDirectMarkStroke(base.strokes, baseGlyphEntry.advance, markKey, marks, clusters, chilluSplit);
 
     if (result) {
-      const entry = { strokes: result.strokes };
+      const entry = { strokes: nudgeMarkStrokes(result.strokes, clusters[cluster]?.markNudge, markKey, marks) };
       STROKE_LIBRARY[cluster] = entry;
       return entry;
     }
@@ -1060,9 +1184,11 @@ export function createStrokeWriter(container, options = {}) {
    * records exactly where it has real ink at headline height, already
    * positioned in that cluster's own coordinate frame. This function just
    * looks each group's cluster up directly and stitches adjacent ranges
-   * together across the word. A group whose cluster has no entry (e.g. a
-   * language with no `shirorekha` data at all, or a cluster this build
-   * never covered) falls back to its own full rendered width.
+   * together across the word. A cluster the build shaped but found no headline
+   * ink in (the numerals, a lone vowel sign) contributes nothing; a cluster
+   * built at runtime (a conjunct plus a vowel sign) gets its ranges assembled
+   * from its parts by {@link clusterInkRanges}. Only a group whose ranges can't
+   * be worked out at all falls back to its own full rendered width.
    *
    * @param {{ totalAdvance: number, segGroups: object[] }} trace
    * @param {{ inkRanges?: Record<string, [number, number][]> }} shirorekha
@@ -1072,11 +1198,12 @@ export function createStrokeWriter(container, options = {}) {
     const real = trace.segGroups.filter((g) => !g.universal);
     if (!real.length) return [];
 
+    const { clusters, marks } = trace.glyphData;
     const raw = [];
     for (const g of real) {
-      const ranges = shirorekha.inkRanges?.[g.cluster];
-      if (ranges?.length) {
-        for (const [x0, x1] of ranges) raw.push([g.groupX + x0, g.groupX + x1]);
+      const found = clusterInkRanges(g.cluster, clusters, marks, shirorekha.inkRanges ?? {});
+      if (found) {
+        for (const [x0, x1] of found.ranges) raw.push([g.groupX + x0, g.groupX + x1]);
       } else {
         raw.push([g.groupX, g.groupX + g.advance]);
       }
@@ -1276,6 +1403,23 @@ export function createStrokeWriter(container, options = {}) {
     const shirorekhaUnit = buildShirorekhaUnit(trace, traceGlyphData, svg, sw);
     if (shirorekhaUnit) glyphUnits.push(shirorekhaUnit);
 
+    // In a script with a headline, dots (visarga, anusvara, nukta ...) are written last of all - after the
+    // headline - one after the other from top to bottom, and are not on the page before their turn.
+    // Gated on the same `shirorekha` data as the headline itself, so a script without one is unchanged.
+    if (traceGlyphData.shirorekha) {
+      const startOf = (sub) => {
+        const p = sub.strokeEl.getPointAtLength(0);
+        return { x: p.x + sub.tr.x, y: p.y + sub.tr.y };
+      };
+      const isDot = (sub) => isDotSized(sub.strokeEl.getBBox(), sub.len, unitsPerEm);
+      const dots = collectDotUnits(glyphUnits, isDot, startOf);
+      for (const dot of dots) {
+        dot.revealOnDraw = true;
+        dot.strokeEl.style.opacity = "0";
+      }
+      if (dots.length) glyphUnits.push({ gEl: null, subUnits: dots, isDots: true });
+    }
+
     return { glyphUnits, stylus, fallbackClusters };
   }
 
@@ -1291,7 +1435,8 @@ export function createStrokeWriter(container, options = {}) {
    */
   function traceSub(unit, stylus, token) {
     return new Promise((resolve) => {
-      const { strokeEl, len, tr, dMs } = unit;
+      const { strokeEl, len, tr, dMs, revealOnDraw } = unit;
+      if (revealOnDraw) strokeEl.style.opacity = "1"; // a dot is hidden until its turn (see buildStage)
       if (len <= 0) return resolve();
 
       const p0 = strokeEl.getPointAtLength(0);
@@ -1466,6 +1611,10 @@ export const _internal = {
   tryComposeContextualForm,
   tryComposeFromCharacters,
   resolveSegments,
+  clusterInkRanges,
+  collectDotUnits,
+  isDotSized,
+  nudgeMarkStrokes,
   normalizeChillus,
   legacyAtoms,
 };
