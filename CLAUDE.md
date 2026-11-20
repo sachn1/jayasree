@@ -58,6 +58,10 @@ reintroduce by "obvious" refactoring.
 - **Whitespace/punctuation never gets a recorded stroke.** They're handled
   entirely outside the script pipeline (`UNIVERSAL_CHARS` in `index.js`);
   `tools/validate_data.py` fails CI if one ever appears as a cluster key.
+- **Docstring split** (enforced by `tools/check_docstrings.py` in `make lint`): a private function
+  (leading underscore) gets a **one-line** docstring only; a public function gets a one-line
+  summary plus NumPy `Parameters` and `Returns` sections, even when obvious. Details and an example
+  in `CONTRIBUTING.md`'s "Docstrings". Check it before calling Python code done.
 - **Commit messages are conventional-commits, enforced by commitizen** (a
   `commit-msg` hook rejects anything else). Version numbers are derived from
   commit history by `make bump` - never hand-edit a version number anywhere
