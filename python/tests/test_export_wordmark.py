@@ -42,10 +42,15 @@ class TestBuildWordmarkSvg:
         root = ET.fromstring(export_wordmark.build_wordmark_svg(_trace()))
         assert root.tag == f"{SVG}svg"
 
-    def test_viewbox_fits_the_ink_plus_a_tenth_of_the_em(self) -> None:
-        """Ensure that the viewBox spans the advance and the ink's height, plus 10% em padding."""
+    def test_viewbox_frames_the_ink_like_the_malayalam_wordmark(self) -> None:
+        """Ensure that the ink fills INK_FILL of the height, centred at INK_CENTRE."""
         root = ET.fromstring(export_wordmark.build_wordmark_svg(_trace()))
-        assert root.get("viewBox") == "-100.0 -120.0 1700.0 220.0"
+        x0, y0, width, height = (float(v) for v in root.get("viewBox").split())
+        ink_top, ink_bottom = -20.0, 0.0  # the trace's tallest glyph
+        assert (x0, width) == (-100.0, 1700.0)
+        assert height == pytest.approx((ink_bottom - ink_top) / export_wordmark.INK_FILL, abs=0.1)
+        centre = ((ink_top + ink_bottom) / 2 - y0) / height
+        assert centre == pytest.approx(export_wordmark.INK_CENTRE, abs=0.001)
 
     def test_empty_glyphs_are_skipped_and_the_rest_are_drawn_in_order(self) -> None:
         """Ensure that each inked glyph gets one fill and one pen path, and a space gets none."""
