@@ -39,8 +39,8 @@ def main() -> None:
     measured = [r for r in rows if "excess" in r]
     flagged = [r for r in measured if r["excess"] > KINK_EXCESS_DEG]
     print(
-        f"{len(measured)} strokes audited; {len(flagged)} with a sharper bend than the recording "
-        f"(> {KINK_EXCESS_DEG:.0f} deg more)."
+        f"{len(measured)} strokes measured; {len(flagged)} have a sharpest bend more than "
+        f"{KINK_EXCESS_DEG:.0f} deg beyond the recording's (candidates to inspect, not verdicts)."
     )
     columns = ("stk", "same", "human", "clean", "excess", "flips", "dev")
     print(f"{'atom':8s} " + " ".join(f"{c:>6s}" for c in columns))
@@ -51,6 +51,8 @@ def main() -> None:
             f"{r['flips']:>6d} {r['max_dev_fu']:>6.0f}"
         )
     for r in rows:
+        if "error" in r:
+            print(f"  note: {r['atom']!r} stroke {r['stroke']} could not be measured: {r['error']}")
         if "stroke_count_mismatch" in r:
             counts = r["stroke_count_mismatch"]
             print(f"  note: {r['atom']!r} has {counts} strokes (recorded, shipped)")

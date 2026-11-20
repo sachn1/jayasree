@@ -10,8 +10,8 @@ numbers per stroke:
   cleanup introduced (a corner the human rounded, a join between a line and a curve).
 * **flips**: how many times the cleaned path's curvature changes sign. A wobbly stroke flips a
   lot; a clean curve flips as often as its letterform does.
-* **deviation**: the largest distance from any recorded point to the cleaned path, in font units.
-  Large means the cleanup skipped a loop or a limb the human drew.
+* **deviation**: the largest distance between the recording and the cleaned path, either way, in
+  font units. Large means the cleanup skipped a loop or limb the human drew, or added one.
 
 These are heuristics for *ranking*, not a verdict: a flagged stroke may be fine and an unflagged
 one ugly. Known limits: a corner the human really drew sharply reads as positive excess (only the
@@ -38,6 +38,8 @@ EDGE_FU = 20.0
 TREMOR_SIGMA_FU = 8.0
 #: A stroke is flagged when its sharpest bend exceeds the human's by more than this many degrees.
 KINK_EXCESS_DEG = 25.0
+#: Resampling step (font units) for counting curvature flips.
+FLIP_SPACING_FU = 6.0
 #: Curvature below this (radians per sample) is noise and does not count toward a flip.
 _NOISE_CURVATURE = 0.03
 
@@ -47,15 +49,22 @@ def sample(d: str, n: int = 600) -> np.ndarray:
 
     Each segment is evaluated in one vectorized step, which is far faster than sampling the whole
     path point by point (``geometry.sample_path`` costs about a second per stroke - too slow to
-    audit hundreds of strokes). The spacing is only roughly even; every measure here resamples
-    to an even spacing itself.
+    audit hundreds of strokes). Any segment type works, arcs included. The spacing is only roughly
+    even; every measure here resamples to an even spacing itself. Separate sub-paths are joined end
+    to end (a stroke is one pen-down path).
+
+    Raises
+    ------
+    ValueError
+        If the path has no segments (empty, or only a move).
     """
     segments = list(svgpathtools.parse_path(d))
+    if not segments:
+        raise ValueError(f"the path has no segments to sample: {d[:40]!r}")
     lengths = np.array([max(seg.length(), 1e-9) for seg in segments])
     counts = np.maximum(3, np.ceil(n * lengths / lengths.sum()).astype(int))
-    parts = [seg.poly()(np.linspace(0.0, 1.0, k)) for seg, k in zip(segments, counts, strict=True)]
-    pts = np.concatenate([np.column_stack([p.real, p.imag]) for p in parts])
-    return pts
+    parts = [seg.point(np.linspace(0.0, 1.0, k)) for seg, k in zip(segments, counts, strict=True)]
+    return np.concatenate([np.column_stack([p.real, p.imag]) for p in parts])
 
 
 def max_bend(points: np.ndarray, smooth_sigma_fu: float = 0.0) -> float:
@@ -93,8 +102,12 @@ def max_bend(points: np.ndarray, smooth_sigma_fu: float = 0.0) -> float:
 
 
 def curvature_flips(points: np.ndarray) -> int:
-    """Return how many times the path through `points` changes the way it curves (no noise)."""
-    p = resample(points, 6.0)
+    """Return how many times the path through `points` changes the way it curves.
+
+    Curvature below the noise threshold is ignored, so a nearly straight stretch does not count as
+    flipping. A path with fewer than two measurable turns has 0 flips.
+    """
+    p = resample(points, FLIP_SPACING_FU)
     tangent = np.diff(p, axis=0)
     angle = np.unwrap(np.arctan2(tangent[:, 1], tangent[:, 0]))
     curvature = np.diff(angle)
@@ -103,8 +116,14 @@ def curvature_flips(points: np.ndarray) -> int:
 
 
 def max_deviation(recorded: np.ndarray, cleaned: np.ndarray) -> float:
-    """Return the largest distance (font units) from any recorded point to the cleaned path."""
-    return float(cKDTree(cleaned).query(recorded)[0].max())
+    """Return the largest distance (font units) between the two paths, in either direction.
+
+    Recorded -> cleaned catches a loop or limb the human drew that the cleanup skipped; cleaned ->
+    recorded catches one the cleanup added (a snap to the wrong part of the ink).
+    """
+    to_cleaned = cKDTree(cleaned).query(recorded)[0].max()
+    to_recorded = cKDTree(recorded).query(cleaned)[0].max()
+    return float(max(to_cleaned, to_recorded))
 
 
 def audit_stroke(raw_d: str, cleaned_d: str) -> dict:
@@ -142,7 +161,8 @@ def audit_atoms(raw: dict, processed: dict) -> list[dict]:
     list[dict]
         One row per stroke: ``atom``, ``stroke`` (1-based), ``unchanged`` (the shipped stroke is
         the recording itself) and the :func:`audit_stroke` numbers. An atom whose stroke count
-        differs between the two files is reported with ``stroke_count_mismatch`` instead.
+        differs between the two files is reported with ``stroke_count_mismatch`` instead, and a
+        stroke that cannot be measured (an empty path) with ``error``.
     """
     rows = []
     for atom, entry in raw.items():
@@ -154,8 +174,10 @@ def audit_atoms(raw: dict, processed: dict) -> list[dict]:
             rows.append({"atom": atom, "stroke_count_mismatch": [len(recorded), len(shipped)]})
             continue
         for index, (raw_d, new_d) in enumerate(zip(recorded, shipped, strict=True), 1):
-            rows.append(
-                {"atom": atom, "stroke": index, "unchanged": raw_d == new_d}
-                | audit_stroke(raw_d, new_d)
-            )
+            try:
+                measures = audit_stroke(raw_d, new_d)
+            except ValueError as exc:  # one unmeasurable stroke must not abort the whole audit
+                rows.append({"atom": atom, "stroke": index, "error": str(exc)})
+                continue
+            rows.append({"atom": atom, "stroke": index, "unchanged": raw_d == new_d} | measures)
     return sorted(rows, key=lambda r: -r.get("excess", float("inf")))
