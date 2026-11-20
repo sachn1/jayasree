@@ -77,4 +77,14 @@ export default [
       globals: { console: "readonly", URL: "readonly" },
     },
   },
+  {
+    // tests/freeze/*.mjs: Node ES modules run directly by `node` (the Malayalam freeze's snapshot
+    // logic and its generator CLI).
+    files: ["tests/freeze/*.mjs"],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: "module",
+      globals: { console: "readonly", process: "readonly" },
+    },
+  },
 ];
