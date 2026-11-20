@@ -319,27 +319,22 @@ class TestPipelineWiring:
     GLYPH_DATA: ClassVar[dict] = {"clusters": {"A": {"glyphs": [BAR], "advance": 60}}, "marks": {}}
     ENTRY: ClassVar[dict] = {"strokes": [{"d": _wobbly_vertical()}]}
 
-    def _run(self, lang_code: str, cleanup: bool) -> list[dict]:
+    def _run(self, lang_code: str) -> list[dict]:
         """Process the one synthetic cluster as the given language."""
-        args = Namespace(center=True, smooth=True, straighten=True, cleanup=cleanup)
+        args = Namespace(center=True, smooth=True, straighten=True)
         return process_strokes._process_cluster_strokes(
             "A", self.ENTRY, self.GLYPH_DATA, args, lang_code
         )
 
-    def test_hindi_with_cleanup_uses_the_cleaned_strokes(self) -> None:
-        """Ensure that Hindi + cleanup returns exactly what clean_strokes produces."""
+    def test_hindi_uses_the_cleaned_strokes(self) -> None:
+        """Ensure that Hindi returns exactly what clean_strokes produces."""
         expected = clean_strokes([self.ENTRY["strokes"][0]["d"]], [BAR])
-        assert self._run("hi", True) == [{"d": expected[0]}]
+        assert self._run("hi") == [{"d": expected[0]}]
 
-    def test_malayalam_never_cleans_even_when_asked(self) -> None:
-        """Ensure that cleanup=True changes nothing for any language other than Hindi."""
-        assert self._run("ml", True) == self._run("ml", False)
-
-    def test_a_namespace_without_the_field_still_works(self) -> None:
-        """Ensure that preset-built arguments (no cleanup field, as the freeze test uses) work."""
-        args = Namespace(center=True, smooth=True, straighten=True)
-        out = process_strokes._process_cluster_strokes("A", self.ENTRY, self.GLYPH_DATA, args, "ml")
-        assert out == self._run("ml", False)
+    def test_malayalam_is_never_cleaned(self) -> None:
+        """Ensure that a non-Hindi language gets the ordinary stages, not the cleanup."""
+        cleaned = [{"d": clean_strokes([self.ENTRY["strokes"][0]["d"]], [BAR])[0]}]
+        assert self._run("ml") != cleaned
 
 
 ATOM_BUCKETS = 24
@@ -364,7 +359,7 @@ def test_committed_hindi_strokes_are_what_the_cleanup_produces() -> None:
     sample = [a for a in sorted(raw) if a != "_remarks" and a in glyph_data["clusters"]]
     sample = [a for a in sample if _in_sample(a)]
     assert len(sample) >= 4, "the sample is too small to mean anything"
-    args = Namespace(center=True, smooth=True, straighten=True, cleanup=True)
+    args = Namespace(center=True, smooth=True, straighten=True)
     stale = []
     for atom in sample:
         strokes = process_strokes._process_cluster_strokes(atom, raw[atom], glyph_data, args, "hi")
@@ -480,7 +475,7 @@ class TestFailureHandling:
         monkeypatch.setattr(process_strokes, "clean_strokes", boom)
         process_strokes._CLEANUP_FAILURES.clear()
         wiring = TestPipelineWiring()
-        assert wiring._run("hi", True) == wiring._run("hi", False)
+        assert wiring._run("hi") == wiring._run("ml")
         assert process_strokes._CLEANUP_FAILURES == ["A"]
         assert "cleanup failed for 'A'" in capsys.readouterr().err
         process_strokes._CLEANUP_FAILURES.clear()
@@ -493,4 +488,4 @@ class TestFailureHandling:
 
         monkeypatch.setattr(process_strokes, "clean_strokes", bug)
         with pytest.raises(TypeError):
-            TestPipelineWiring()._run("hi", True)
+            TestPipelineWiring()._run("hi")
