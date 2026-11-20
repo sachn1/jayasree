@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Report a security vulnerability (private)
+    url: https://github.com/sachn1/jayasree/security/advisories/new
+    about: Please do not open a public issue for a security problem - see SECURITY.md.
+  - name: Contributing stroke data (no code needed)
+    url: https://github.com/sachn1/jayasree/blob/master/CONTRIBUTING.md#contributing-stroke-data-no-code-needed
+    about: Trace missing characters in the stroke recorder - the most valuable way to help, no coding required.
