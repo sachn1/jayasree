@@ -26,8 +26,13 @@ from svgpathtools import parse_path
 from jayasree import StrokeTrace, shape_word
 from jayasree.languages import get_language
 
-#: Padding around the word, as a fraction of the em (the Malayalam wordmark uses the same 10%).
+#: Padding at the sides of the word, as a fraction of the em (the Malayalam wordmark uses 10%).
 PADDING_EM = 0.1
+#: How the ink is framed vertically, measured from the Malayalam wordmark (demo/jayasree.svg) so
+#: that two wordmarks shown at the same height line up: the ink fills this fraction of the image's
+#: height, and its centre sits this far down it (0 = top, 1 = bottom).
+INK_FILL = 0.68
+INK_CENTRE = 0.446
 #: Pen-outline width as a fraction of the em, and the pace of the animation, in seconds.
 PEN_WIDTH_EM = 0.02
 PEN_SECONDS_PER_GLYPH = 0.45
@@ -55,14 +60,15 @@ def build_wordmark_svg(trace: StrokeTrace, color: str = DEFAULT_COLOR) -> str:
     glyphs = [g for g in trace["glyphs"] if g["d"]]
     if not glyphs:
         raise ValueError("the text shaped to no visible glyphs; nothing to draw")
-    # Fit the vertical range to the ink, not to the font's ascent/descent: a word without
-    # descenders would otherwise float above a band of empty space.
+    # Frame the vertical range around the ink, not the font's ascent/descent (a word without
+    # descenders would float above a band of empty space), and in the same proportions as the
+    # Malayalam wordmark so the two sit level, at the same scale, side by side.
     ink = [parse_path(g["d"]).bbox() for g in glyphs]
     top = min(b[2] + g["y"] for b, g in zip(ink, glyphs, strict=True))
     bottom = max(b[3] + g["y"] for b, g in zip(ink, glyphs, strict=True))
-    x0, y0 = -pad, top - pad
+    height = (bottom - top) / INK_FILL
+    x0, y0 = -pad, (top + bottom) / 2 - INK_CENTRE * height
     width = trace["totalAdvance"] + 2 * pad
-    height = bottom - top + 2 * pad
     pen_done = len(glyphs) * PEN_SECONDS_PER_GLYPH
 
     fills = "\n".join(

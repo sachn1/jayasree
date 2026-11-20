@@ -1,6 +1,6 @@
 name: Deploy GitHub Pages
 
-# The whole site is static (see README's "Data size & deployment") - the demo
+# The whole site is static (see docs/CREATING_HANDWRITING.md "Data size & deployment") - the demo
 # fetches glyph-data.json / stroke-data.json at runtime and serve.py's only
 # dynamic endpoint (/api/shape) is unused by the demo UI. So deployment is
 # just: publish a filtered copy of the repo as the Pages artifact.
