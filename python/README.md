@@ -13,7 +13,7 @@ change fonts) and commit the output.
 cd python && poetry install
 ```
 
-Requires Python 3.10+. Dependencies: `fonttools`, `uharfbuzz`, `svgpathtools`,
+Requires Python 3.11+. Dependencies: `fonttools`, `uharfbuzz`, `svgpathtools`,
 `numpy`, `scipy`, `pillow`.
 
 ## Generate glyph-data.json
