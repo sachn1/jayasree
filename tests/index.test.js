@@ -38,6 +38,7 @@ const {
   clusterInkRanges,
   nudgeMarkStrokes,
   collectDotUnits,
+  isDotSized,
 } = _internal;
 
 beforeEach(() => {
@@ -684,6 +685,24 @@ describe("nudgeMarkStrokes / markNudge", () => {
     expect(nudged.strokes[0].d).toBe(plain.strokes[0].d); // the base is not moved
     expect(nudged.strokes[1].d).toBe(offsetSvgPath(plain.strokes[1].d, -90, 175));
     expect(nudged.strokes[2].d).toBe(offsetSvgPath(plain.strokes[2].d, -90, 175));
+  });
+});
+
+describe("isDotSized", () => {
+  const EM = 1000;
+  it("accepts a compact, short stroke (a nukta, an anusvara)", () => {
+    expect(isDotSized({ width: 30, height: 30 }, 90, EM)).toBe(true);
+  });
+  it("rejects a stroke whose bounding box is too large, even if short", () => {
+    expect(isDotSized({ width: 30, height: 40 }, 90, EM)).toBe(false);
+    expect(isDotSized({ width: 40, height: 30 }, 90, EM)).toBe(false);
+  });
+  it("rejects a compact stroke that is too long (a thin line, a big loop)", () => {
+    expect(isDotSized({ width: 30, height: 30 }, 130, EM)).toBe(false);
+  });
+  it("scales with the em", () => {
+    expect(isDotSized({ width: 30, height: 30 }, 90, 500)).toBe(false);
+    expect(isDotSized({ width: 30, height: 30 }, 90, 2048)).toBe(true);
   });
 });
 

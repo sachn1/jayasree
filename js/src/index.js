@@ -38,6 +38,21 @@ const PEN_LIFT_MS = 120;
 const DOT_MAX_EXTENT_FRACTION = 0.036;
 const DOT_MAX_LENGTH_FRACTION = 0.12;
 
+/**
+ * Whether a stroke of this bounding box and path length is a dot, for an em of `unitsPerEm`.
+ * @param {{width: number, height: number}} box - The stroke's bounding box.
+ * @param {number} length - The stroke's path length.
+ * @param {number} unitsPerEm - The font's em, which the thresholds are fractions of.
+ * @returns {boolean} True when the stroke is both compact (larger box side below `DOT_MAX_EXTENT_FRACTION`
+ *   of the em) and short (length below `DOT_MAX_LENGTH_FRACTION` of it).
+ */
+function isDotSized(box, length, unitsPerEm) {
+  return (
+    Math.max(box.width, box.height) < unitsPerEm * DOT_MAX_EXTENT_FRACTION &&
+    length < unitsPerEm * DOT_MAX_LENGTH_FRACTION
+  );
+}
+
 /** Pause between repeats when `play`/`replay` is given `count > 1` (milliseconds). */
 const REPLAY_PAUSE_MS = 500;
 
@@ -1396,13 +1411,7 @@ export function createStrokeWriter(container, options = {}) {
         const p = sub.strokeEl.getPointAtLength(0);
         return { x: p.x + sub.tr.x, y: p.y + sub.tr.y };
       };
-      const isDot = (sub) => {
-        const box = sub.strokeEl.getBBox();
-        return (
-          Math.max(box.width, box.height) < unitsPerEm * DOT_MAX_EXTENT_FRACTION &&
-          sub.len < unitsPerEm * DOT_MAX_LENGTH_FRACTION
-        );
-      };
+      const isDot = (sub) => isDotSized(sub.strokeEl.getBBox(), sub.len, unitsPerEm);
       const dots = collectDotUnits(glyphUnits, isDot, startOf);
       for (const dot of dots) {
         dot.revealOnDraw = true;
@@ -1604,6 +1613,7 @@ export const _internal = {
   resolveSegments,
   clusterInkRanges,
   collectDotUnits,
+  isDotSized,
   nudgeMarkStrokes,
   normalizeChillus,
   legacyAtoms,
