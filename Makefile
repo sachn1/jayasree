@@ -94,10 +94,12 @@ bump:
 # Same as `bump`, but non-interactive (`--yes`) for the automated
 # release-on-PR-merge workflow (.github/workflows/release-on-merge.yml) -
 # see that target's comment above for why this still doesn't go through
-# `poetry run`/`poetry -C`. Exits non-zero (21 if the merged commits don't
+# `poetry run`/`poetry -C`. cz exits non-zero (21 if the merged commits don't
 # include anything release-worthy, e.g. a docs-only PR; 3 if there are no
-# new commits at all) when there's nothing to release - the caller decides
-# whether that's a real failure or just a no-op.
+# new commits at all) when there's nothing to release. Note that make itself
+# always reports a failed recipe as exit 2, hiding those codes - so
+# release-on-merge.yml calls cz directly instead of this target, and this
+# target is only for running the same bump by hand.
 bump-ci:
 	python/.venv/bin/cz bump --yes
 
