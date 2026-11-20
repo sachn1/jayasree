@@ -201,8 +201,18 @@ Run just this test with `npx vitest run tests/malayalam-freeze.test.js`.
 **What it does not cover** (so it is not mistaken for more than it is): the DOM and animation code
 (stroke order and timing, SVG construction, the layout and tightening `buildTrace` applies between
 clusters), the demo pages and the wordmark, the contents of the npm package, and the segmentation of
-text outside the 38 words. Its Python counterpart - re-deriving Malayalam's shaping, marks and stroke
-processing - lands with the language registry. Check the demo by hand before a release.
+text outside the 38 words. Check the demo by hand before a release.
+
+Its **Python counterpart**, `python/tests/test_malayalam_freeze.py`, covers the build-time side: it
+re-shapes about 400 Malayalam clusters with the Manjari font, rebuilds the marks table, and re-runs the
+stroke-processing stages (center, smooth, straighten) on about 20 recorded atoms (roughly 6%),
+requiring the committed data back exactly. The atoms are chosen by a hash of their *name*, so adding
+or removing an atom elsewhere does not change which ones are checked. It calls the very function
+`tools/process_strokes.py`'s `main()` calls for each cluster, with the stages of the real
+`--preset`, so there is no copy of the loop to drift. Run it with
+`cd python && poetry run pytest tests/test_malayalam_freeze.py` (about 20 seconds). What it does not
+re-derive: the `--expand` bake (`stroke_compose.py`), the other keys of `glyph-data.json`, and the
+atoms outside its sample - those are covered by the byte hashes in the JS test.
 
 ## Data integrity & governance
 

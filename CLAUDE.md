@@ -46,6 +46,10 @@ reintroduce by "obvious" refactoring.
 - **Changing an already-recorded cluster requires `make update-snapshot`**
   in the same commit/PR - `python/tests/test_data_snapshot.py` fails
   otherwise, by design. New clusters don't need this.
+- **Malayalam's output is frozen.** `tests/malayalam-freeze.test.js` and
+  `python/tests/test_malayalam_freeze.py` pin what its visitors see; shared code may change,
+  Malayalam's letters/data may not. Never edit `tests/freeze/malayalam-golden.json` or Malayalam's
+  data to make them pass - see `CONTRIBUTING.md`'s "The Malayalam freeze".
 - **A new language must not touch Malayalam's files.** No edits to
   `python/src/jayasree/_chars.py`, `js/src/stroke-data.raw.json`, or
   `python/tests/test_chars_malayalam.py`. If a change to shared/script-agnostic
