@@ -43,7 +43,7 @@ don't flag something as absent that's genuinely out of scope by design:
 
 **0. The docstring split - check it by hand on every changed Python function.**
 The project owner has stated this rule repeatedly; it is easy to miss because ruff and interrogate
-only check that a docstring *exists*. A **private** function (leading underscore) gets a
+only check that a docstring *exists*. A **module**, a **class** and a **private** function (leading underscore) get a
 **one-line** docstring and nothing else (detail goes in a comment, explaining why). A **public**
 function gets a one-line summary plus NumPy `Parameters` and `Returns` sections, even when obvious.
 `tools/check_docstrings.py` enforces it mechanically and is part of `make lint`; still read the

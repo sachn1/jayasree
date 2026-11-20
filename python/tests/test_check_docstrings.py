@@ -36,6 +36,29 @@ def _problems(source: str) -> list[str]:
     return [p for _, _, p in check_docstrings.check_source(source)]
 
 
+class TestModulesAndClasses:
+    """A module and a class get a one-line docstring."""
+
+    def test_a_multi_line_module_docstring_is_a_violation(self) -> None:
+        """Ensure that a module docstring longer than one line is reported."""
+        assert _problems('"""Summary.\n\nMore detail.\n"""\n') == [
+            "module: docstring must be one line"
+        ]
+
+    def test_a_one_line_module_docstring_passes(self) -> None:
+        """Ensure that a one-line module docstring passes."""
+        assert _problems('"""Summary."""\n') == []
+
+    def test_a_multi_line_class_docstring_is_a_violation(self) -> None:
+        """Ensure that a class docstring longer than one line is reported, nested classes too."""
+        src = 'class A:\n    class B:\n        """Summary.\n\n        More.\n        """\n'
+        assert _problems(src) == ["class: docstring must be one line"]
+
+    def test_a_one_line_class_docstring_passes(self) -> None:
+        """Ensure that a one-line class docstring passes."""
+        assert _problems('class A:\n    """Summary."""\n') == []
+
+
 class TestPrivateFunctions:
     """A private function gets a one-line docstring."""
 

@@ -1,21 +1,23 @@
 #!/usr/bin/env python3
-"""Check this project's docstring rule, which ruff and interrogate cannot enforce.
-
-The rule (CONTRIBUTING.md, "Docstrings"):
-
-* a **private** function (leading underscore) has a **single-line** docstring and nothing else -
-  anything longer belongs in a comment, which explains *why*;
-* a **public** function has a one-line summary, then NumPy ``Parameters`` and ``Returns`` sections
-  (``Parameters`` only if it takes arguments, ``Returns`` - or ``Yields`` for a generator - only if
-  it returns a value), even when they feel obvious from the signature.
-
-ruff's ``D`` rules catch a *missing* docstring and basic format; interrogate measures coverage.
-Neither notices a private helper that grew a full Parameters block, or a public function with only
-a one-liner. This does. Dunder methods, nested functions and tests are out of scope.
-
-Usage: ``python3 tools/check_docstrings.py [paths...]`` (default: python/src and tools). Exits 1
-and lists every violation. Stdlib only, so the pre-commit hook can run it with bare ``python3``.
-"""
+"""Check this project's docstring rule, which ruff and interrogate cannot enforce."""
+# The rule (CONTRIBUTING.md, "Docstrings"):
+#
+# * a **module**, a **class** and a **private** function (leading underscore) have a **single-line**
+#   docstring and nothing else - anything longer belongs in a comment, which explains *why*, or in
+#   `docs/`;
+# * a **public** function has a one-line summary, then NumPy ``Parameters`` and ``Returns`` sections
+#   (``Parameters`` only if it takes arguments, ``Returns`` - or ``Yields`` for a generator -
+# only if
+#   it returns a value), even when they feel obvious from the signature.
+#
+# ruff's ``D`` rules catch a *missing* docstring and basic format; interrogate measures
+# coverage. Neither notices a private helper that grew a full Parameters block, or a public
+# function with only a one-liner. This does. Dunder methods, nested functions and tests are out
+# of scope.
+#
+# Usage: ``python3 tools/check_docstrings.py [paths...]`` (default: python/src and tools). Exits
+# 1 and lists every violation. Stdlib only, so the pre-commit hook can run it with bare
+# ``python3``.
 
 from __future__ import annotations
 
@@ -93,7 +95,15 @@ def check_source(source: str) -> list[tuple[int, str, str]]:
         One entry per violation, in source order within each scope.
     """
     problems = []
-    for node in _functions(ast.parse(source).body):
+    tree = ast.parse(source)
+    module_doc = ast.get_docstring(tree)
+    if module_doc is not None and "\n" in module_doc.strip():
+        problems.append((1, "<module>", "module: docstring must be one line"))
+    for cls in (n for n in ast.walk(tree) if isinstance(n, ast.ClassDef)):
+        class_doc = ast.get_docstring(cls)
+        if class_doc is not None and "\n" in class_doc.strip():
+            problems.append((cls.lineno, cls.name, "class: docstring must be one line"))
+    for node in _functions(tree.body):
         name = node.name
         doc = ast.get_docstring(node)
         if doc is None or (name.startswith("__") and name.endswith("__")):

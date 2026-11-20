@@ -69,13 +69,12 @@ make precommit   # every pre-commit hook, as CI runs them
 NumPy style, with this project's split (ruff's `D` rules and interrogate cannot enforce it, so
 `tools/check_docstrings.py` does, in `make lint` and CI):
 
-- **Private functions** (leading underscore): a **single-line** docstring, nothing more. Anything
-  longer is a comment above or inside the function, and explains *why*.
+- **Modules, classes and private functions** (leading underscore): a **single-line** docstring,
+  nothing more. Anything longer is a comment, and explains *why*, or belongs in `docs/`. A command-
+  line tool's `--help` text lives in a `_HELP` constant passed to argparse, not in the docstring.
 - **Public functions**: a one-line summary, then NumPy `Parameters` and `Returns` sections - even
   when they feel obvious from the signature. `Parameters` if it takes arguments, `Returns` if it
   returns a value.
-- Modules and classes: a short summary; a module docstring may say what the module is for and why
-  it is shaped as it is. (This line is advice; the checker does not enforce it.)
 - A generator documents `Yields` instead of `Returns`. Public-named methods of a private class are
   checked as public; functions nested inside another function are private helpers.
 - Python code in `python/src/` and `tools/` is checked; tests (one line, "Ensure that ...") and
