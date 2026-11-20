@@ -35,6 +35,9 @@ const {
   resolveSegments,
   normalizeChillus,
   legacyAtoms,
+  clusterInkRanges,
+  nudgeMarkStrokes,
+  collectDotUnits,
 } = _internal;
 
 beforeEach(() => {
@@ -575,5 +578,160 @@ describe("resolveSegments", () => {
     const segs = resolveSegments(" ,!", {}, {});
     expect(segs.map((s) => s.cluster)).toEqual([" ", ",", "!"]);
     expect(segs.every((s) => s.entry.universal)).toBe(true);
+  });
+});
+
+describe("clusterInkRanges", () => {
+  // Shaped like glyph-data's headline data for a script with a headline (shirorekha). Frames mirror real
+  // shaping: a suffix mark's standalone entry is [dotted circle, content]; a prefix mark's is [content, circle].
+  const clusters = {
+    B: { advance: 700, glyphs: [{ d: "", x: 0, y: 0 }] }, // a letter with a headline bar
+    N: { advance: 500, glyphs: [{ d: "", x: 0, y: 0 }] }, // a numeral: shaped, but no headline ink
+    s: { advance: 800, glyphs: [{ d: "", x: 0, y: 0 }, { d: "", x: 500, y: 0 }] }, // suffix mark, standalone
+    p: { advance: 800, glyphs: [{ d: "", x: 0, y: 0 }, { d: "", x: 250, y: 0 }] }, // prefix mark, standalone
+  };
+  const marks = {
+    s: { shift: 0, prefix: [], suffix: [{ d: "", x: 0, y: 0 }], trailingWidth: 250 },
+    p: { shift: 250, prefix: [{ d: "", x: 0, y: 0 }], suffix: [], trailingWidth: 0 },
+    q: { shift: 0, prefix: [{ d: "", x: 0, y: 0 }], suffix: [{ d: "", x: 0, y: 0 }], trailingWidth: 0 },
+  };
+  const inkRanges = { B: [[0, 710]], s: [[500, 770]], p: [[0, 260]] };
+
+  it("returns a known cluster's own ranges and advance", () => {
+    expect(clusterInkRanges("B", clusters, marks, inkRanges)).toEqual({ ranges: [[0, 710]], advance: 700 });
+  });
+
+  it("treats a known cluster with no entry as having no headline ink, not as unknown", () => {
+    expect(clusterInkRanges("N", clusters, marks, inkRanges)).toEqual({ ranges: [], advance: 500 });
+  });
+
+  it("places a suffix mark's ranges after the base, using its composed position", () => {
+    // standalone content sits at x=500, composed at base.advance + 0 = 700: shifted by +200
+    const got = clusterInkRanges("Bs", clusters, marks, inkRanges);
+    expect(got.ranges).toEqual([
+      [0, 710],
+      [700, 970],
+    ]);
+    expect(got.advance).toBe(700 + 250);
+  });
+
+  it("shifts the base for a prefix mark and keeps the mark at the start", () => {
+    const got = clusterInkRanges("Bp", clusters, marks, inkRanges);
+    expect(got.ranges).toEqual([
+      [0, 260],
+      [250, 960],
+    ]);
+    expect(got.advance).toBe(250 + 700);
+  });
+
+  it("composes a chain of marks from the inside out", () => {
+    const got = clusterInkRanges("Bps", clusters, marks, inkRanges);
+    // (B + p) = advance 950, then s after it: composed content at 950, standalone at 500 -> +450
+    expect(got.ranges.at(-1)).toEqual([950, 1220]);
+  });
+
+  it("gives up (null) on a cluster it cannot decompose, and on a mark with both parts", () => {
+    expect(clusterInkRanges("Zs", clusters, marks, inkRanges)).toBeNull();
+    expect(clusterInkRanges("Bq", { ...clusters, q: clusters.s }, marks, inkRanges)).toBeNull();
+    expect(clusterInkRanges("B", {}, undefined, {})).toBeNull();
+  });
+});
+
+describe("nudgeMarkStrokes / markNudge", () => {
+  const circle = { d: "", x: 0, y: 0 };
+  const clusters = {
+    B: { advance: 700, glyphs: [{ d: "", x: 0, y: 0 }] },
+    s: { advance: 500, glyphs: [circle, { d: "", x: 300, y: 18 }] }, // suffix mark standalone: [circle, content]
+  };
+  const marks = {
+    s: { shift: 0, prefix: [], suffix: [{ d: "", x: 0, y: 18 }], trailingWidth: 0 },
+    p: { shift: 100, prefix: [{ d: "", x: 0, y: 0 }], suffix: [], trailingWidth: 0 },
+  };
+
+  beforeEach(() => {
+    STROKE_LIBRARY.B = { strokes: [{ d: "M 0 0 L 0 10" }] };
+    STROKE_LIBRARY.s = { strokes: [{ d: "M 0 0 L 5 5" }, { d: "M 1 1 L 2 2" }] };
+    STROKE_LIBRARY.p = { strokes: [{ d: "M 0 0 L 3 3" }] };
+  });
+
+  const strokes = [{ d: "M 0 0 L 0 10" }, { d: "M 10 10 L 15 15" }, { d: "M 11 11 L 12 12" }];
+
+  it("returns the strokes untouched when the cluster has no nudge", () => {
+    expect(nudgeMarkStrokes(strokes, undefined, "s", marks)).toBe(strokes);
+  });
+
+  it("moves only a suffix mark's own (trailing) strokes", () => {
+    const got = nudgeMarkStrokes(strokes, { dx: -90, dy: 175 }, "s", marks);
+    expect(got[0]).toBe(strokes[0]);
+    expect(got[1].d).toBe(offsetSvgPath(strokes[1].d, -90, 175));
+    expect(got[2].d).toBe(offsetSvgPath(strokes[2].d, -90, 175));
+  });
+
+  it("leaves a prefix mark alone, and an unknown mark or a mark with no recorded stroke", () => {
+    expect(nudgeMarkStrokes(strokes, { dx: 1, dy: 1 }, "p", marks)).toBe(strokes);
+    expect(nudgeMarkStrokes(strokes, { dx: 1, dy: 1 }, "zz", marks)).toBe(strokes);
+    delete STROKE_LIBRARY.s;
+    expect(nudgeMarkStrokes(strokes, { dx: 1, dy: 1 }, "s", marks)).toBe(strokes);
+  });
+
+  it("tryComposeStroke applies a cluster's markNudge to the mark's strokes only", () => {
+    const plain = tryComposeStroke("Bs", { clusters: { ...clusters, Bs: { advance: 700, glyphs: [] } }, marks });
+    delete STROKE_LIBRARY.Bs;
+    const nudged = tryComposeStroke("Bs", {
+      clusters: { ...clusters, Bs: { advance: 700, glyphs: [], markNudge: { dx: -90, dy: 175 } } },
+      marks,
+    });
+    expect(nudged.strokes[0].d).toBe(plain.strokes[0].d); // the base is not moved
+    expect(nudged.strokes[1].d).toBe(offsetSvgPath(plain.strokes[1].d, -90, 175));
+    expect(nudged.strokes[2].d).toBe(offsetSvgPath(plain.strokes[2].d, -90, 175));
+  });
+});
+
+describe("collectDotUnits", () => {
+  const at = (len, x, y, dot = len < 60) => ({ len, x, y, dot });
+  const isDot = (sub) => sub.dot;
+  const startOf = (sub) => ({ x: sub.x, y: sub.y });
+
+  it("moves dot strokes out of their units and keeps the letter strokes", () => {
+    const letter = at(500, 0, 0);
+    const dot = at(7, 10, 5);
+    const units = [{ subUnits: [letter, dot] }];
+    const dots = collectDotUnits(units, isDot, startOf);
+    expect(dots).toEqual([dot]);
+    expect(units[0].subUnits).toEqual([letter]);
+  });
+
+  it("decides by the predicate, not by length: a long, compact dot (a little loop) still counts", () => {
+    const loop = at(95, 0, 0, true);
+    const line = at(40, 0, 0, false);
+    const units = [{ subUnits: [loop, line] }];
+    expect(collectDotUnits(units, isDot, startOf)).toEqual([loop]);
+    expect(units[0].subUnits).toEqual([line]);
+  });
+
+  it("orders a visarga's dots top to bottom, whatever order they were recorded in", () => {
+    const lower = at(28, 600, 450);
+    const upper = at(7, 600, 140);
+    const dots = collectDotUnits([{ subUnits: [at(400, 0, 0), lower, upper] }], isDot, startOf);
+    expect(dots).toEqual([upper, lower]);
+  });
+
+  it("keeps word order across clusters, then top to bottom within each", () => {
+    const a2 = at(5, 0, 300);
+    const a1 = at(5, 0, 100);
+    const b1 = at(5, 900, 50);
+    const dots = collectDotUnits([{ subUnits: [a2, a1] }, { subUnits: [b1] }], isDot, startOf);
+    expect(dots).toEqual([a1, a2, b1]);
+  });
+
+  it("leaves the shirorekha unit alone", () => {
+    const bar = at(10, 0, 0);
+    const units = [{ subUnits: [bar], isShirorekha: true }, { subUnits: [at(300, 0, 0)] }];
+    expect(collectDotUnits(units, isDot, startOf)).toEqual([]);
+    expect(units[0].subUnits).toEqual([bar]);
+  });
+
+  it("returns nothing when no stroke is a dot", () => {
+    expect(collectDotUnits([{ subUnits: [at(300, 0, 0)] }, { subUnits: [] }], isDot, startOf)).toEqual([]);
   });
 });
