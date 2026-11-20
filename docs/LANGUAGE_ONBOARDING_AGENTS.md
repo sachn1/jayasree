@@ -637,8 +637,8 @@ If clusters fall back, `--verbose` explains each one: a missing atom means
 record it (stage 4); "recipe exists but composition itself failed" means a
 composition bug to fix in shared code - with Malayalam's tests unmodified.
 For Hindi that same command also runs the font-geometry cleanup (`docs/ARCHITECTURE.md`,
-"Cleanup (Hindi)"), so the committed strokes are the cleaned ones. A new language opts in the same
-way, in `process_strokes.py`, only after its own review.
+"Cleanup (Hindi)"), so the committed strokes are the cleaned ones. A new language gets it by being added
+to the language check in `process_strokes.py`, only after its own review.
 Commit the raw and processed strokes together as a one-line `data(<code>)`
 commit. A language's *first* data needs no `make update-snapshot`; a later
 change to an already-recorded cluster does.

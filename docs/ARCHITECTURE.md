@@ -109,8 +109,8 @@ stroke, `--preset=full` enabling all four (`malayalam` is its historical alias):
 
 Centering and smoothing keep the hand's tremor, which shows on a thick font like Noto Sans
 Devanagari (wavy knots and junctions). For Hindi, `process_strokes.py` instead runs
-`jayasree.cleanup` on each atom that has an outline of its own - on by default for Hindi,
-`--no-cleanup` to skip, never run for Malayalam (guarded by the freeze tests). The human supplies
+`jayasree.cleanup` on each atom that has an outline of its own - there is no flag - the language is the
+switch - and it is never run for Malayalam (guarded by the freeze tests). The human supplies
 only what a font cannot: order, direction and where the corners are. The font supplies the curve:
 
 1. A dot or a straight line is replaced by the exact primitive on the font's ink.
