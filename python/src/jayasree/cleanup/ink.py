@@ -51,6 +51,12 @@ def make_field_winding(glyphs: list[dict], isotropic: bool = True) -> centering.
     -------
     centering.DistField
         The field, in the same structure ``centering`` uses.
+
+    Raises
+    ------
+    ValueError
+        If the glyphs have no ink (``centering.make_dist_field`` returns an empty field instead;
+        here the caller is expected to fall back to the ordinary stages).
     """
     polys = []
     for comp in glyphs:
@@ -67,6 +73,8 @@ def make_field_winding(glyphs: list[dict], isotropic: bool = True) -> centering.
             polys.append(
                 [(sub.point(i / n).real + dx, sub.point(i / n).imag + dy) for i in range(n + 1)]
             )
+    if not polys:
+        raise ValueError("the glyphs have no ink to build a distance field from")
     all_pts = np.array([p for poly in polys for p in poly])
     x_min, y_min = all_pts.min(0) - centering.BBOX_PAD
     x_max, y_max = all_pts.max(0) + centering.BBOX_PAD
@@ -140,8 +148,16 @@ def min_cost_path(
     -------
     list[tuple[int, int]]
         ``(row, col)`` cells from `start` to `end`, inclusive.
+
+    Raises
+    ------
+    ValueError
+        If every cell is blocked. `start` and `end` must lie inside the grid (callers snap and
+        clip them first); blocked cells are costly but passable, so a path always exists then.
     """
     free = np.argwhere(cost < BLOCKED_COST)
+    if free.size == 0:
+        raise ValueError("every cell is blocked; there is no path to find")
     corners = np.array([start, end, *free.min(0, keepdims=True), *free.max(0, keepdims=True)])
     r_lo, c_lo = np.maximum(corners.min(0) - 1, 0)
     r_hi, c_hi = corners.max(0) + 2

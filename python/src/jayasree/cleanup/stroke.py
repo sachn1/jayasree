@@ -139,6 +139,12 @@ def clean_stroke(
     tuple[str, str]
         ``(path d, kind)``: `kind` is ``"dot"`` or ``"line"`` (manufactured), ``"curve"`` (a fair
         trace) or ``"stray_tap"`` (a recorded squiggle inside a letter's ink, kept as recorded).
+
+    Raises
+    ------
+    ValueError
+        If the stroke has no length to work with (an empty or single-point path). The caller
+        decides the fallback; unlike the manufacture_* helpers this does not return ``None``.
     """
     pts = geometry.sample_path(raw_d, n_samples)
     kind = classify_stroke(pts)
