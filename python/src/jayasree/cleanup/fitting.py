@@ -1,9 +1,7 @@
-"""Curve fitting for stroke cleanup: resampling, pinned smoothing and Schneider cubic Bezier fits.
-
-A recorded stroke is reduced to a few exact cubic Beziers. The fit is an *approximation*
-(least squares), not the interpolation :func:`jayasree.geometry.fit_piece` does, so hand tremor
-between the control points is not carried into the result.
-"""
+"""Curve fitting for stroke cleanup: resampling, pinned smoothing and cubic Bezier fits."""
+# A recorded stroke is reduced to a few exact cubic Beziers. The fit is an *approximation*
+# (least squares), not the interpolation :func:`jayasree.geometry.fit_piece` does, so hand
+# tremor between the control points is not carried into the result.
 
 from __future__ import annotations
 

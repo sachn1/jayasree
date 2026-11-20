@@ -1,11 +1,10 @@
-"""Shape analysis for stroke cleanup: corners, the fair curve in the ink, knots, stems and circles.
-
-The ridge (the middle of the ink) is the right guide almost everywhere. Where it cannot be trusted
-- it leaves the ink, or both passes of a hand-drawn loop collapse onto one line - the human's own
-path is spliced back in. Corners the font really has are kept; corners the writer rounded are
-rounded. Round stretches become exact circular arcs; a stem drawn up then down becomes two exact
-lines.
-"""
+"""Shape analysis for stroke cleanup: corners, fairing in the ink, knots, stems and circles."""
+# The ridge (the middle of the ink) is the right guide almost everywhere. Where it cannot be
+# trusted
+# - it leaves the ink, or both passes of a hand-drawn loop collapse onto one line - the human's own
+# path is spliced back in. Corners the font really has are kept; corners the writer rounded are
+# rounded. Round stretches become exact circular arcs; a stem drawn up then down becomes two
+# exact lines.
 
 from __future__ import annotations
 

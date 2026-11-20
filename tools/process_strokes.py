@@ -1,5 +1,25 @@
 #!/usr/bin/env python3
-"""Unified stroke-processing pipeline: center, smooth, straighten, expand.
+"""Unified stroke-processing pipeline: center, smooth, straighten, expand."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import re
+import sys
+from pathlib import Path
+
+import numpy as np
+
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "python" / "src"))
+
+from jayasree import centering, geometry, ghost_reference, stroke_compose  # noqa: E402
+from jayasree.cleanup import clean_strokes  # noqa: E402
+from jayasree.languages import data_paths, get_language  # noqa: E402
+
+#: The command-line help (the module docstring stays one line, per CONTRIBUTING).
+_HELP = """Unified stroke-processing pipeline: center, smooth, straighten, expand.
 
 Replaces the earlier separate snap_strokes.py / straighten_lines.py /
 refine_with_ghost.py / center_strokes_v2.py / expand_combinations.py scripts
@@ -52,25 +72,7 @@ overrides a cluster stroke-data.raw.json already genuinely has.
 Usage (from repo root):
     python tools/process_strokes.py --preset=full
     python tools/process_strokes.py --smooth --expand   # no centering/straightening
-    python tools/process_strokes.py --preset=full --lang tamil
-"""
-
-from __future__ import annotations
-
-import argparse
-import json
-import re
-import sys
-from pathlib import Path
-
-import numpy as np
-
-ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT / "python" / "src"))
-
-from jayasree import centering, geometry, ghost_reference, stroke_compose  # noqa: E402
-from jayasree.cleanup import clean_strokes  # noqa: E402
-from jayasree.languages import data_paths, get_language  # noqa: E402
+    python tools/process_strokes.py --preset=full --lang tamil"""
 
 N_SAMPLES = 120  # arc-length-uniform points sampled per stroke before center/smooth
 
@@ -114,7 +116,7 @@ def parse_args() -> argparse.Namespace:
         ``input``/``glyph_data``/``output`` resolved to concrete paths.
     """
     parser = argparse.ArgumentParser(
-        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+        description=_HELP, formatter_class=argparse.RawDescriptionHelpFormatter
     )
     parser.add_argument(
         "--preset", choices=sorted(PRESETS), help="Apply a named default set of stages"

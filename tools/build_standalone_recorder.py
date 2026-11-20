@@ -1,5 +1,22 @@
 #!/usr/bin/env python3
-"""Bundle stroke-recorder.html + glyph-data.json into a single self-contained file.
+"""Bundle stroke-recorder.html + glyph-data.json into a single self-contained file."""
+
+from __future__ import annotations
+
+import argparse
+import base64
+import hashlib
+import re
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "python" / "src"))
+
+from jayasree.languages import LANGUAGES, data_paths, get_language  # noqa: E402
+
+#: The command-line help (the module docstring stays one line, per CONTRIBUTING).
+_HELP = """Bundle stroke-recorder.html + glyph-data.json into a single self-contained file.
 
 The output can be opened directly in any browser (file://) - no server needed.
 Copy it to your tablet once; it works fully offline.
@@ -22,22 +39,7 @@ Usage (from repo root):
     python tools/build_standalone_recorder.py
     # → tools/stroke-recorder-standalone.html
     python tools/build_standalone_recorder.py --lang hindi
-    # → tools/stroke-recorder-standalone.hi.html
-"""
-
-from __future__ import annotations
-
-import argparse
-import base64
-import hashlib
-import re
-import sys
-from pathlib import Path
-
-ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT / "python" / "src"))
-
-from jayasree.languages import LANGUAGES, data_paths, get_language  # noqa: E402
+    # → tools/stroke-recorder-standalone.hi.html"""
 
 HTML_SRC = ROOT / "tools" / "stroke-recorder.html"
 CSS_SRC = ROOT / "tools" / "stroke-recorder.css"
@@ -193,7 +195,7 @@ def check(lang_name: str = "malayalam") -> None:
 
 def main() -> None:
     """Parse CLI args and dispatch to `build()` or `check()`."""
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description=_HELP)
     parser.add_argument(
         "--check",
         action="store_true",

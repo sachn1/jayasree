@@ -1,10 +1,9 @@
-"""The font's ink as a guide: a winding-aware distance field, ridge routing and ridge measurements.
-
-A recorded stroke says *where* a stroke goes (order, direction, corners); the font already knows the
-exact curve through the ink. This module finds that curve: a minimum-cost path through the ink's
-distance field (cost ~ 1 / depth^2, plus a weak pull toward the human's own path inside a corridor),
-which rides the ink's ridge and, being pinned to the human's anchors, cannot jump to another branch.
-"""
+"""The font's ink as a guide: a winding-aware distance field, ridge routing and measurements."""
+# A recorded stroke says *where* a stroke goes (order, direction, corners); the font already
+# knows the exact curve through the ink. This module finds that curve: a minimum-cost path
+# through the ink's distance field (cost ~ 1 / depth^2, plus a weak pull toward the human's own
+# path inside a corridor), which rides the ink's ridge and, being pinned to the human's anchors,
+# cannot jump to another branch.
 
 from __future__ import annotations
 

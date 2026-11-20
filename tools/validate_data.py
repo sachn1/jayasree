@@ -1,5 +1,19 @@
 #!/usr/bin/env python3
-"""Validate the structural integrity of the committed data files.
+"""Validate the structural integrity of the committed data files."""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import re
+import sys
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
+
+#: The command-line help (the module docstring stays one line, per CONTRIBUTING).
+_HELP = """Validate the structural integrity of the committed data files.
 
 Catches accidental corruption (malformed JSON, empty/invalid stroke paths,
 missing required keys) before it's committed - run via pre-commit/CI, or:
@@ -26,19 +40,7 @@ after a deliberate, reviewed change to previously-recorded data:
     python tools/validate_data.py --update-snapshot
 
 Pass ``--lang <code>`` (e.g. ``ta``) to target a different language's
-snapshot; omit it (or pass ``ml``) for Malayalam's unsuffixed files.
-"""
-
-from __future__ import annotations
-
-import argparse
-import hashlib
-import json
-import re
-import sys
-from dataclasses import dataclass
-from pathlib import Path
-from typing import Any
+snapshot; omit it (or pass ``ml``) for Malayalam's unsuffixed files."""
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -489,7 +491,7 @@ def main() -> int:
     int
         Exit code (0 = success, 1 = validation errors found).
     """
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description=_HELP)
     parser.add_argument(
         "--update-snapshot",
         action="store_true",

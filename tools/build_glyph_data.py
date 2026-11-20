@@ -1,22 +1,5 @@
 #!/usr/bin/env python3
-"""Pre-compute SVG glyph paths for a language's cluster inventory and write glyph-data.json.
-
-Language-parametrized (Phase 0 of docs/LANGUAGE_ONBOARDING_AGENTS.md) via
-`--lang`, defaulting to Malayalam (Hindi is onboarded too).
-Every language's own quirks (Malayalam's subjoined-conjunct marks and split
-compound vowels; Hindi's rakaar/vattu composition, nukta encoding duality,
-and half-form/reph derivation via `contextualForms`) are gated behind
-`lang.code == "<code>"` rather than assumed for every script - a new
-language's equivalent quirks get discovered by that pipeline's Agent 1/2 and
-added as their own gated block, not inherited from an existing language's.
-
-This project does not keep any language's real research out of this public
-file - every onboarded language's quirks live inline here, openly, same as
-Malayalam's. (An earlier revision of this file routed Hindi's quirks through
-a private, env-var-selected extension module; that mechanism has been
-removed - see git history around `data(hi): inline Hindi's build extension`
-if you need the old shape for reference.)
-"""
+"""Pre-compute SVG glyph paths for a language's cluster inventory and write glyph-data.json."""
 
 from __future__ import annotations
 
@@ -38,6 +21,25 @@ from jayasree.languages import (  # noqa: E402
     data_paths,
     get_language,
 )
+
+#: The command-line help (the module docstring stays one line, per CONTRIBUTING).
+_HELP = """Pre-compute SVG glyph paths for a language's cluster inventory and write glyph-data.json.
+
+Language-parametrized (Phase 0 of docs/LANGUAGE_ONBOARDING_AGENTS.md) via
+`--lang`, defaulting to Malayalam (Hindi is onboarded too).
+Every language's own quirks (Malayalam's subjoined-conjunct marks and split
+compound vowels; Hindi's rakaar/vattu composition, nukta encoding duality,
+and half-form/reph derivation via `contextualForms`) are gated behind
+`lang.code == "<code>"` rather than assumed for every script - a new
+language's equivalent quirks get discovered by that pipeline's Agent 1/2 and
+added as their own gated block, not inherited from an existing language's.
+
+This project does not keep any language's real research out of this public
+file - every onboarded language's quirks live inline here, openly, same as
+Malayalam's. (An earlier revision of this file routed Hindi's quirks through
+a private, env-var-selected extension module; that mechanism has been
+removed - see git history around `data(hi): inline Hindi's build extension`
+if you need the old shape for reference.)"""
 
 #: Compound vowel signs with a canonical (or, for ai, font-specific) split
 #: into simpler marks - see js/src/index.js's SPLIT_VOWEL_PARTS. These never
@@ -854,7 +856,7 @@ def _recorder_note(lang: LanguageSpec) -> str | None:
 
 
 def _parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description=_HELP)
     parser.add_argument(
         "font",
         nargs="?",

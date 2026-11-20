@@ -1,17 +1,5 @@
 #!/usr/bin/env python3
-r"""Export a language's animated wordmark (the project's name in its script) as an SVG.
-
-The result is in the spirit of the Malayalam wordmark on the landing page (which was exported by
-hand and is not produced by this tool): a pen outline of each
-glyph is drawn first, then the solid shape is revealed from left to right. Outline and fill share
-one colour, so the overlapping inner contours of a thick font do not show as seams.
-
-The word is the language's ``native_name`` (``jayasree.languages``), shaped with its bundled ghost
-font; ``--word`` and ``--font`` override both. Example::
-
-    cd python && poetry run python ../tools/export_wordmark.py --lang hindi \
-        --output ../demo/jayasree.hi.svg
-"""
+"""Export a language's animated wordmark (the project's name in its script) as an SVG."""
 
 from __future__ import annotations
 
@@ -25,6 +13,20 @@ from svgpathtools import parse_path
 
 from jayasree import StrokeTrace, shape_word
 from jayasree.languages import get_language
+
+#: The command-line help (the module docstring stays one line, per CONTRIBUTING).
+_HELP = """Export a language's animated wordmark (the project's name in its script) as an SVG.
+
+The result is in the spirit of the Malayalam wordmark on the landing page (which was exported by
+hand and is not produced by this tool): a pen outline of each
+glyph is drawn first, then the solid shape is revealed from left to right. Outline and fill share
+one colour, so the overlapping inner contours of a thick font do not show as seams.
+
+The word is the language's ``native_name`` (``jayasree.languages``), shaped with its bundled ghost
+font; ``--word`` and ``--font`` override both. Example::
+
+    cd python && poetry run python ../tools/export_wordmark.py --lang hindi \\
+        --output ../demo/jayasree.hi.svg"""
 
 #: Padding at the sides of the word, as a fraction of the em (the Malayalam wordmark uses 10%).
 PADDING_EM = 0.1
@@ -107,7 +109,7 @@ def build_wordmark_svg(trace: StrokeTrace, color: str = DEFAULT_COLOR) -> str:
 
 def main() -> None:
     """Write the wordmark SVG for `--lang` to `--output`."""
-    parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    parser = argparse.ArgumentParser(description=_HELP.split("\n\n")[0])
     parser.add_argument("--lang", default="malayalam", help="Registry key (default: malayalam).")
     parser.add_argument("--word", help="Text to export (default: the language's native name).")
     parser.add_argument(

@@ -1,19 +1,15 @@
-"""Complete Unicode character inventory for Hindi (Devanagari script).
-
-Promoted from `docs/languages/hi/README.md` (Agent 1's structured
-inventory, agent-reviewed and project-owner-approved - see
-`docs/languages/hi/README.md`'s "Resolved" section), per
-`docs/LANGUAGE_ONBOARDING_AGENTS.md`'s Agent 3 step 1. Mirrors `_chars.py`'s
-shape (tuple constants, fine-grained + combined tuples) but is not a copy
-of its category set - Devanagari's actual structure needed three category
-names Malayalam never had (`CANDRABINDU`, `NUKTA`, `NATIVE_PUNCTUATION`,
-already generically supported by `languages.py`/`build_glyph_data.py`) plus
-one more found here (`RARE_MARKS`, for avagraha/Om - see that module's
-docstring for the same "optional, additive, gated" pattern). See
-`docs/LANGUAGE_ONBOARDING_AGENTS.md`'s "Don't generalize from Malayalam" -
-Devanagari has no chillu-equivalent bare-consonant form, so `CHILLU` is
-simply omitted here (falls back to `()` via `char_tuple`).
-"""
+"""Complete Unicode character inventory for Hindi (Devanagari script)."""
+# Promoted from `docs/languages/hi/README.md` (Agent 1's structured inventory, agent-reviewed
+# and project-owner-approved - see `docs/languages/hi/README.md`'s "Resolved" section), per
+# `docs/LANGUAGE_ONBOARDING_AGENTS.md`'s Agent 3 step 1. Mirrors `_chars.py`'s shape (tuple
+# constants, fine-grained + combined tuples) but is not a copy of its category set -
+# Devanagari's actual structure needed three category names Malayalam never had (`CANDRABINDU`,
+# `NUKTA`, `NATIVE_PUNCTUATION`, already generically supported by
+# `languages.py`/`build_glyph_data.py`) plus one more found here (`RARE_MARKS`, for avagraha/Om
+# - see that module's docstring for the same "optional, additive, gated" pattern). See
+# `docs/LANGUAGE_ONBOARDING_AGENTS.md`'s "Don't generalize from Malayalam" - Devanagari has no
+# chillu-equivalent bare-consonant form, so `CHILLU` is simply omitted here (falls back to `()`
+# via `char_tuple`).
 
 from __future__ import annotations
 

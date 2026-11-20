@@ -1,10 +1,8 @@
-"""Geometric primitives for stroke cleanup: dots, exact straight lines and straight runs.
-
-A hand never draws a stem dead straight or two dots identically, but the font does. A recorded
-stroke that is a dot or a line is replaced by the exact primitive, placed on the font's own ink;
-a straight stretch inside a longer stroke becomes an exact line joined smoothly to the curves
-around it.
-"""
+"""Geometric primitives for stroke cleanup: dots, exact straight lines and straight runs."""
+# A hand never draws a stem dead straight or two dots identically, but the font does. A recorded
+# stroke that is a dot or a line is replaced by the exact primitive, placed on the font's own
+# ink; a straight stretch inside a longer stroke becomes an exact line joined smoothly to the
+# curves around it.
 
 from __future__ import annotations
 

@@ -1,18 +1,20 @@
-"""Clean one recorded stroke: keep the human's topology, take the geometry from the font.
-
-A recorded stroke holds two kinds of information. *Topology* - order, direction, where the corners
-are - only the human can supply. *Geometry* - the exact curve through the ink - the font already
-knows. So, in order of preference:
-
-1. a dot or a straight line is replaced by the exact primitive on the font's ink;
-2. otherwise the stroke follows the ink's ridge between the human's anchors (see
-   :mod:`jayasree.cleanup.ink`), with the human's own path spliced back in where the ridge cannot be
-   trusted (a hand-drawn curl in one thick blob of ink);
-3. the ridge is faired (least bending energy) inside the ink's channel, corners the font really has
-   are kept, corners the human rounded are rounded, straight stretches become exact lines and round
-   ones exact circular arcs;
-4. the result is a handful of cubic Beziers - an approximation, so hand tremor is not carried over.
-"""
+"""Clean one recorded stroke: keep the human's topology, take the geometry from the font."""
+# A recorded stroke holds two kinds of information. *Topology* - order, direction, where the
+# corners are - only the human can supply. *Geometry* - the exact curve through the ink - the
+# font already knows. So, in order of preference:
+#
+# 1. a dot or a straight line is replaced by the exact primitive on the font's ink;
+# 2. otherwise the stroke follows the ink's ridge between the human's anchors (see
+#    :mod:`jayasree.cleanup.ink`), with the human's own path spliced back in where the ridge
+# cannot be
+#    trusted (a hand-drawn curl in one thick blob of ink);
+# 3. the ridge is faired (least bending energy) inside the ink's channel, corners the font
+# really has
+#    are kept, corners the human rounded are rounded, straight stretches become exact lines and
+# round
+#    ones exact circular arcs;
+# 4. the result is a handful of cubic Beziers - an approximation, so hand tremor is not carried
+# over.
 
 from __future__ import annotations
 
