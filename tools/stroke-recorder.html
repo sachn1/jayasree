@@ -19,7 +19,7 @@
         Drop <strong>glyph-data.json</strong> here, or click to browse.<br />
         <small>
           Located at <code>js/src/glyph-data.json</code> in this repo - it
-          contains all Malayalam clusters pre-shaped from the font.
+          contains all of the language's clusters pre-shaped from the font.
         </small>
       </p>
       <input type="file" id="file-input" accept=".json" style="display: none" />
@@ -101,7 +101,7 @@
       <h2>stroke-data.raw.json</h2>
       <p class="sub">
         Save this as <code>js/src/stroke-data.raw.json</code> and commit it,
-        then run <code>python tools/process_strokes.py --preset=malayalam</code>
+        then run <code>python tools/process_strokes.py --preset=full</code>
         to regenerate <code>js/src/stroke-data.json</code>, which the demo
         loads automatically via <code>writer.loadStrokes()</code>.
       </p>

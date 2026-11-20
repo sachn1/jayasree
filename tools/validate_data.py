@@ -7,7 +7,7 @@ missing required keys) before it's committed - run via pre-commit/CI, or:
     python tools/validate_data.py
 
 Discovers and validates every language's data-file triple under js/src/
-(Phase 0 of docs/LANGUAGE_ONBOARDING_AGENTS.md) - today, just Malayalam's.
+(Phase 0 of docs/LANGUAGE_ONBOARDING_AGENTS.md) - Malayalam's and Hindi's today.
 
 Deliberately dependency-free (stdlib only, no `jayasree` import): the
 pre-commit hook (.pre-commit-config.yaml's ``validate-data``) runs this via

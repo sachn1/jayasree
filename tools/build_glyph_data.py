@@ -2,7 +2,7 @@
 """Pre-compute SVG glyph paths for a language's cluster inventory and write glyph-data.json.
 
 Language-parametrized (Phase 0 of docs/LANGUAGE_ONBOARDING_AGENTS.md) via
-`--lang`, defaulting to Malayalam - the only language onboarded so far.
+`--lang`, defaulting to Malayalam (Hindi is onboarded too).
 Every language's own quirks (Malayalam's subjoined-conjunct marks and split
 compound vowels; Hindi's rakaar/vattu composition, nukta encoding duality,
 and half-form/reph derivation via `contextualForms`) are gated behind
@@ -824,7 +824,7 @@ def _parse_args() -> argparse.Namespace:
         nargs="?",
         default=None,
         help="Path to a .ttf/.otf font file. Defaults to the language's bundled "
-        "fixture font, if it has one (Malayalam only, today).",
+        "fixture font, if it has one (Malayalam has one; Hindi does not).",
     )
     parser.add_argument(
         "--lang",

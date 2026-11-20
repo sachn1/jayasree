@@ -81,8 +81,8 @@ _CURVE_STRAIGHTEN_ENABLED = False
 
 _ALL_STAGES: dict[str, bool] = {"center": True, "smooth": True, "straighten": True, "expand": True}
 PRESETS: dict[str, dict[str, bool]] = {
-    "malayalam": _ALL_STAGES,  # historical name from this project's first (and, so far,
-    # only) language - kept working for existing docs/scripts; prefer "full" below for
+    "malayalam": _ALL_STAGES,  # historical name from this project's first language - kept
+    # working for existing docs/scripts (and the Malayalam freeze); prefer "full" below for
     # anything new, since these four stages are entirely script-agnostic.
     "full": _ALL_STAGES,
 }
