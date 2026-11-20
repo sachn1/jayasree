@@ -1,4 +1,4 @@
-"""Shape Malayalam text against a font and extract per-glyph SVG path data."""
+"""Shape text (any HarfBuzz-supported script) against a font and extract per-glyph SVG path data."""
 
 from __future__ import annotations
 
@@ -118,7 +118,7 @@ def shape_word(word: str, font_path: str | Path) -> StrokeTrace:
     Parameters
     ----------
     word : str
-        Non-empty Malayalam (or other HarfBuzz-supported) text.
+        Non-empty text in any script the font and HarfBuzz support (Malayalam, Devanagari, ...).
     font_path : str or Path
         Path to a TrueType or OpenType font file.
 

@@ -1,6 +1,6 @@
 # Jayasree (Python)
 
-Build-time tool: shapes Malayalam text against a font using HarfBuzz and
+Build-time tool: shapes Indic-script text (Malayalam and Hindi so far) against a font using HarfBuzz and
 outputs per-glyph SVG path data as JSON. Used to generate
 `js/src/glyph-data.json` - the file the JS animator bundles at runtime.
 
@@ -75,7 +75,7 @@ poetry run python -m jayasree alphabet tests/fixtures/Manjari-Regular.ttf > alph
 
 ## Why shaping matters
 
-Malayalam (like most Brahmic scripts) isn't a 1:1 codepoint-to-glyph
+Malayalam, Devanagari and the other Brahmic scripts aren't a 1:1 codepoint-to-glyph
 mapping - consonant clusters collapse into ligatures, vowel signs can
 reorder visually:
 
@@ -96,17 +96,20 @@ font's cmap directly will get this wrong.
 This package doesn't bundle a font for its own distribution - bring your
 own. Tested against [Manjari](https://fonts.google.com/specimen/Manjari)
 and [Chilanka](https://fonts.google.com/specimen/Chilanka) (both SIL OFL,
-free); any font with proper Malayalam GSUB/GPOS tables should work. No
+free) for Malayalam, and [Noto Sans Devanagari](https://fonts.google.com/noto/specimen/Noto+Sans+Devanagari) for Hindi; any font with proper GSUB/GPOS tables for the script should work. No
 GSUB/GPOS support generally means broken conjuncts - check your font choice
 if shaped output looks wrong. The bundled *test* fixture is
 `tests/fixtures/Manjari-Regular.ttf` (SIL OFL - see `tests/fixtures/OFL.txt`).
 
 ## Scope
 
-Despite the name, nothing here is Malayalam-specific at the code level -
+The shaping code is script-agnostic -
 `shape_word` will happily shape Latin, Devanagari, or anything else
-HarfBuzz and your font support. The name reflects the motivating use case
-(there wasn't an existing stroke-order tool for Malayalam).
+HarfBuzz and your font support. Each language's character inventory and quirks
+live in a registry (`jayasree.languages.LANGUAGES`), with Malayalam and Hindi
+registered so far. The name reflects the motivating use case (there wasn't an
+existing stroke-order tool for Malayalam), which has since grown into a
+multi-script project.
 
 ## License
 
