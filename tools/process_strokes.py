@@ -30,6 +30,11 @@ Stages (each independently toggleable):
                 doesn't pre-bake a candidate for every base times every
                 mark regardless of whether it's ever traced.
 
+Hindi's strokes are also cleaned (no flag: the language is the switch; Malayalam never is):
+each cluster's recorded strokes are replaced with the font's own geometry - exact dots, lines and
+circles, a fair curve through the ink - instead of being centered/smoothed/straightened
+(jayasree.cleanup). A cluster with no outline of its own keeps the stages above.
+
 --preset=full (or its historical alias --preset=malayalam) enables all four
 stages - script-agnostic, despite the alias's name; pass explicit
 --center/--no-center etc. to override any of them.
@@ -64,6 +69,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "python" / "src"))
 
 from jayasree import centering, geometry, ghost_reference, stroke_compose  # noqa: E402
+from jayasree.cleanup import clean_strokes  # noqa: E402
 from jayasree.languages import data_paths, get_language  # noqa: E402
 
 N_SAMPLES = 120  # arc-length-uniform points sampled per stroke before center/smooth
@@ -80,6 +86,13 @@ N_SAMPLES = 120  # arc-length-uniform points sampled per stroke before center/sm
 #: up). Flip to True only once that section's open tangent-continuity
 #: problem is actually resolved and visually verified.
 _CURVE_STRAIGHTEN_ENABLED = False
+
+#: What a cleanup failure on one cluster looks like (degenerate input, a singular fit). Anything
+#: else - a TypeError, a NameError - is a bug and is allowed to stop the run.
+_CLEANUP_ERRORS = (ValueError, KeyError, IndexError, np.linalg.LinAlgError)
+#: Clusters whose cleanup failed and fell back to the ordinary stages, in this run. main() fails
+#: the run if it is not empty, so a regression cannot quietly regenerate a half-cleaned data file.
+_CLEANUP_FAILURES: list[str] = []
 
 _ALL_STAGES: dict[str, bool] = {"center": True, "smooth": True, "straighten": True, "expand": True}
 PRESETS: dict[str, dict[str, bool]] = {
@@ -400,6 +413,19 @@ def _process_cluster_strokes(
     """
     cluster_info = glyph_data["clusters"].get(cluster)
 
+    # Hindi only: the language is the switch, so Malayalam can never reach this branch.
+    if lang_code == "hi" and cluster_info is not None:
+        ref_glyphs = _reference_glyphs(cluster, cluster_info, glyph_data.get("marks", {}))
+        raw_ds = [s["d"] for s in entry.get("strokes", [])]
+        try:
+            return [{"d": d} for d in clean_strokes(raw_ds, ref_glyphs)]
+        except _CLEANUP_ERRORS as exc:  # fall back, but record it: main() fails the run
+            _CLEANUP_FAILURES.append(cluster)
+            print(
+                f"  cleanup failed for {cluster!r} ({type(exc).__name__}: {exc}); using stages",
+                file=sys.stderr,
+            )
+
     field = None
     refs: list[dict] = []
     curve_refs: list[dict] = []
@@ -451,6 +477,7 @@ def main() -> None:
             stroke_data.setdefault(cluster, entry)
 
     out: dict = {}
+    _CLEANUP_FAILURES.clear()
 
     for cluster, entry in stroke_data.items():
         # "_remarks" (tools/stroke-recorder.js's authoring-time notes on why
@@ -465,6 +492,13 @@ def main() -> None:
         if lang_code == "hi" and cluster in _HI_STEM_LAST_ATOMS:
             strokes = _hi_stem_last(strokes)
         out[cluster] = {"strokes": strokes}
+
+    if _CLEANUP_FAILURES:
+        sys.exit(
+            f"cleanup failed for {len(_CLEANUP_FAILURES)} cluster(s): "
+            f"{', '.join(_CLEANUP_FAILURES[:10])} - nothing written. Fix the cause (the "
+            "message above each failure says what failed)."
+        )
 
     if args.expand:
         out, generated, skipped = stroke_compose.compose_all(glyph_data, out)

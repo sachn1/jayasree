@@ -89,6 +89,14 @@ Catmull-Rom-tangent fix already has one
 Scoped as a separate PR, not blocking anything else - this is a quality
 tuning pass on already-shipped, already-working smoothing, not a bug fix.
 
+- **Clean Malayalam the same way as Hindi.** Hindi's strokes are rebuilt from the font's own
+  geometry (`jayasree.cleanup`, "Cleanup (Hindi)" in `docs/ARCHITECTURE.md`); if only cleaned
+  strokes are shipped for Hindi, Malayalam should get the same treatment for consistency. This
+  *changes Malayalam's published output*, so it is deliberately not part of the Hindi work: it needs
+  the owner's approval, a visual review of every letter, and a regenerated freeze golden labelled as
+  an approved change (`CONTRIBUTING.md`, "The Malayalam freeze"). The cleanup was tuned on Noto
+  Sans Devanagari, so Manjari's glyphs need their own check.
+
 ## Learning features
 
 - **"Vanilla form" tooltips for fused/compound clusters** (opt-in, e.g.
