@@ -75,7 +75,9 @@ NumPy style, with this project's split (ruff's `D` rules and interrogate cannot 
   when they feel obvious from the signature. `Parameters` if it takes arguments, `Returns` if it
   returns a value.
 - Modules and classes: a short summary; a module docstring may say what the module is for and why
-  it is shaped as it is.
+  it is shaped as it is. (This line is advice; the checker does not enforce it.)
+- A generator documents `Yields` instead of `Returns`. Public-named methods of a private class are
+  checked as public; functions nested inside another function are private helpers.
 - Python code in `python/src/` and `tools/` is checked; tests (one line, "Ensure that ...") and
   nested helpers are not.
 
