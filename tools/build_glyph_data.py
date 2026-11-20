@@ -449,6 +449,97 @@ def _hi_extract_true_ligatures(chars: object, shaped_clusters: dict) -> list[str
     return ligatures
 
 
+#: Below-attaching vowel signs that the font draws differently on a *conjunct* than the generic
+#: mark recipe assumes. Real shaping of e.g. ड्डू puts a lowered alternate ू glyph
+#: (`uni0942.alt`) inside the ligature's own width; the generic recipe (the lone ू placed after
+#: the base's advance) overlaps the second ड instead. Found by comparing every conjunct+mark
+#: against real HarfBuzz output; the rare vocalic ॄ ॢ ॣ are left to the generic recipe.
+#: Hindi-specific: a new script's equivalent (if any) is a finding of *its* onboarding.
+_HI_CONJUNCT_MARKS = ("ु", "ू", "ृ")  # ु ू ृ
+
+#: Tolerance (font units) for "the real glyph sits where the generic recipe puts it". The mark's
+#: vertical position gets a looser bound: every standalone-shaped mark carries a small, uniform
+#: offset from its dotted-circle frame.
+_HI_MARK_X_TOLERANCE = 12.0
+_HI_MARK_Y_TOLERANCE = 40.0
+
+
+def _hi_conjunct_mark_clusters(chars: object, shaped: dict, font: str) -> dict:
+    """Real shaped entries for conjunct + vowel-sign clusters the generic mark recipe gets wrong.
+
+    Runtime composition builds an unshaped cluster (conjunct + vowel sign) from the conjunct's
+    entry plus the mark's recipe (`js/src/index.js`'s `composeMark`/`applyMarkStroke`). For about
+    40% of these the font does something else (see `_HI_CONJUNCT_MARKS`), so the ghost - and the
+    strokes composed against it - land in the wrong place. This shapes each conjunct + mark for
+    real and keeps only the ones that differ, so every cluster the generic recipe already gets
+    right stays composed at runtime (and the file stays small).
+
+    An entry whose base glyphs are unchanged and whose mark is a single glyph elsewhere also
+    carries ``markNudge: {dx, dy}`` - how far that glyph sits from the generic position - which
+    `tryComposeStroke` applies to the mark's recorded stroke so it follows the ghost. A fused
+    entry (the font merged the mark into the base's glyphs) has no nudge: its ghost is right but
+    its strokes stay generic until someone records it.
+
+    Parameters
+    ----------
+    chars : object
+        The language's character-inventory module (needs ``CONSONANTS`` and ``VIRAMA``).
+    shaped : dict
+        ``{"clusters": ..., "marks": ...}`` as built so far: the conjuncts' own entries and the
+        marks table.
+    font : str
+        Path to the ghost font.
+
+    Returns
+    -------
+    dict
+        ``{cluster: {"glyphs": [...], "advance": N, "markNudge"?: {...}}}`` for the clusters to add.
+    """
+    virama = getattr(chars, "VIRAMA", None)
+    consonants = char_tuple(chars, "CONSONANTS")
+    if not virama:
+        return {}
+    added: dict = {}
+    for mark_key in _HI_CONJUNCT_MARKS:
+        mark = shaped["marks"].get(mark_key)
+        if not mark or mark["prefix"] or len(mark["suffix"]) != 1:
+            continue
+        content = mark["suffix"][0]
+        for first in consonants:
+            for second in consonants:
+                base_key = first + virama + second
+                base = shaped["clusters"].get(base_key)
+                if not base:
+                    continue
+                cluster = base_key + mark_key
+                try:
+                    trace = shape_word(cluster, font)
+                except Exception as exc:
+                    print(f"  skip {cluster!r}: {exc}", file=sys.stderr)
+                    continue
+                glyphs = [{"d": g["d"], "x": g["x"], "y": g["y"]} for g in trace["glyphs"]]
+                generic_x = mark["shift"] + base["advance"] + content["x"]
+                base_unchanged = len(glyphs) == len(base["glyphs"]) + 1 and all(
+                    g["d"] == b["d"] and abs(g["x"] - b["x"]) <= _HI_MARK_X_TOLERANCE
+                    for g, b in zip(glyphs, base["glyphs"], strict=False)
+                )
+                if (
+                    base_unchanged
+                    and glyphs[-1]["d"] == content["d"]
+                    and abs(glyphs[-1]["x"] - generic_x) <= _HI_MARK_X_TOLERANCE
+                    and abs(glyphs[-1]["y"] - content["y"]) <= _HI_MARK_Y_TOLERANCE
+                ):
+                    continue  # the generic recipe already matches the font
+                entry: dict = {"glyphs": glyphs, "advance": trace["totalAdvance"]}
+                if base_unchanged:
+                    entry["markNudge"] = {
+                        "dx": round(glyphs[-1]["x"] - generic_x, 1),
+                        "dy": round(glyphs[-1]["y"] - content["y"], 1),
+                    }
+                added[cluster] = entry
+    return added
+
+
 def _standalone_inputs(lang: LanguageSpec, chars: object) -> list[str]:
     """Single-codepoint clusters: letters, digits, and standalone diacritics."""
     letters = (
@@ -851,6 +942,10 @@ def main() -> None:
     result = _shape_all(inputs, str(font_path))
     result["marks"] = _build_marks(_composable_marks(lang, chars), str(font_path))
     if lang.code == "hi":
+        # Conjunct + vowel-sign clusters the font draws differently from the generic mark recipe
+        # (see `_hi_conjunct_mark_clusters`). Added before `_runtime_quirks` so their headline
+        # ranges are computed too.
+        result["clusters"].update(_hi_conjunct_mark_clusters(chars, result, str(font_path)))
         # Devanagari pedagogical convention: every matra is *written* after
         # its base consonant, even a visually-prefix one like ि (which
         # attaches to the base's left but is still the second stroke drawn,
