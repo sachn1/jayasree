@@ -1,6 +1,6 @@
 # Development
 
-Repo layout, the `make` commands CI runs, and known limitations. Contributor rules (commit
+Repo layout, the `make` commands CI runs, deployment, and known limitations. Contributor rules (commit
 messages, the Malayalam freeze, how to add a language) are in [`CONTRIBUTING.md`](../CONTRIBUTING.md).
 
 ## Repo layout
@@ -23,7 +23,7 @@ jayasree/
 │   │   ├── centering.py           # gradient-ascent centering
 │   │   ├── ghost_reference.py     # ghost-outline-guided straightening
 │   │   └── stroke_compose.py      # multi-glyph + mark stroke composition
-│   └── tests/snapshots/           # committed data-integrity snapshot (see "Data integrity")
+│   └── tests/snapshots/           # committed data-integrity snapshot (see CONTRIBUTING.md "Data integrity & governance")
 ├── tools/
 │   ├── build_glyph_data.py            # generates js/src/glyph-data.json
 │   ├── process_strokes.py             # generates js/src/stroke-data.json
@@ -85,6 +85,12 @@ DOM-dependent parts of `index.js` (the actual SVG animation) aren't covered
 by the JS unit tests - they need real browser SVG geometry APIs that jsdom
 doesn't implement; verify those with the demo (`make demo`) or a
 Playwright-driven check instead.
+
+## Deployment
+
+The live site is deployed from this repo by `.github/workflows/pages.yml` on every push to
+`master` (one-time setup: repo Settings -> Pages -> Source: *GitHub Actions*). It does not wait for
+CI, so a PR must be green before it is merged.
 
 ## Status and known limitations
 

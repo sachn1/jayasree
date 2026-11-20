@@ -1,7 +1,7 @@
 # Creating handwriting from scratch
 
 How to take a font and a writer's pen to a working language: shape the font, record strokes,
-process them, watch them animate. Moved here from the README; the short version is there.
+process them, watch them animate. The README has the short version.
 
 Step by step, starting from nothing but a font file. (If `glyph-data.json`
 and `stroke-data.raw.json` already exist for your font - the common case -

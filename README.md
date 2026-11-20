@@ -13,7 +13,8 @@ A JavaScript library that shows *how* to write a letter or word, not just what i
 scripts. Self-contained: glyph shapes are pre-computed and bundled, so there is no server, no font
 file and no shaping engine at runtime.
 
-**Try it:** <https://sachn1.github.io/jayasree/> (one demo page, a tab per language).
+**Try it:** <https://sachn1.github.io/jayasree/> (one demo page, a tab per language), or run it
+locally with `make install && make demo` and open <http://127.0.0.1:8000/demo/>.
 
 ## Use it
 
@@ -29,6 +30,8 @@ await writer.load();          // fetches glyph-data.json once
 await writer.loadStrokes();   // fetches stroke-data.json (optional)
 await writer.play("നന്ദി");
 ```
+
+The npm package bundles Malayalam's data. Hindi's lives in `js/src/*.hi.json` and is shown in the demo.
 
 All options and examples: [`docs/JS_API.md`](docs/JS_API.md).
 
@@ -51,15 +54,12 @@ composes thousands of clusters from those few hundred atoms. Each language has i
 
 | | |
 |---|---|
-| How the pipeline works, file by file | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) |
+| How the pipeline works, file by file | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) (and the [centering experiments](docs/CENTERING_EXPERIMENTS.md) behind it) |
 | Create strokes for a font, record, process | [`docs/CREATING_HANDWRITING.md`](docs/CREATING_HANDWRITING.md) |
 | Add a new language | [`docs/LANGUAGE_ONBOARDING_AGENTS.md`](docs/LANGUAGE_ONBOARDING_AGENTS.md) |
 | Run it locally, repo layout, `make` commands | [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) |
 | Contribute (commits, data rules, Malayalam freeze) | [`CONTRIBUTING.md`](CONTRIBUTING.md) |
 | What is planned | [`docs/ROADMAP.md`](docs/ROADMAP.md) |
-
-Quick start for contributors: `git clone https://github.com/sachn1/jayasree && cd jayasree &&
-make install && make demo`, then open <http://127.0.0.1:8000/demo/>.
 
 ## License & credit
 
