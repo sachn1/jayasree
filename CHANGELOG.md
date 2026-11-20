@@ -1,3 +1,9 @@
+## v0.4.1 (2026-10-05)
+
+### Fix
+
+- **py**: remove noqa no longer needed under ruff 0.15
+
 ## v0.4.0 (2026-07-23)
 
 ### Feat

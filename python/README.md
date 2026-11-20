@@ -35,8 +35,8 @@ from jayasree import shape_word
 
 trace = shape_word("നന്ദി", "/path/to/Manjari-Regular.ttf")
 
-trace["unitsPerEm"]   # 2048
-trace["glyphs"][0]    # {"glyphName": "n1", "cluster": 0, "d": "M...Z", "x": 0, "y": 0}
+trace["unitsPerEm"]  # 2048
+trace["glyphs"][0]  # {"glyphName": "n1", "cluster": 0, "d": "M...Z", "x": 0, "y": 0}
 ```
 
 `d` is an SVG path string in y-down coordinates (already flipped from the

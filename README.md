@@ -431,32 +431,8 @@ not-yet-done work (multi-language support, Git LFS, deployment, ...).
   (SIL OFL 1.1) by Santhosh Thottingal & Swathanthra Malayalam Computing.
   `glyph-data.hi.json` derives from Noto Sans Devanagari (The Noto Project
   Authors, SIL OFL 1.1) - see `docs/languages/hi/README.md`.
-
-### A fuller acknowledgment
-
-Santhosh Thottingal's work extends well beyond the Manjari typeface itself -
-he's also behind [mlmorph](https://github.com/santhoshtr/mlmorph), the
-Malayalam morphological analyzer this project's own `linguaalayam.org` uses,
-and, closer to this project's actual subject, **mlmash**
-([gitlab.com/smc/mlmash](https://gitlab.com/smc/mlmash), live at
-[learn.smc.org.in](https://learn.smc.org.in)) - an application for learning
-to write Malayalam via animated SVG strokes, built around 2020, predating
-this project by several years. [His own write-up](https://thottingal.in/blog/2020/10/27/learning-to-write-malayalam-svg-animation/)
-describes its technique precisely: mlmash reuses the Manjari/Chilanka
-typefaces' own pre-existing hand-authored stroke-order master SVGs directly,
-animating paths that were already design artifacts of the font itself.
-
-Jayasree's own approach is methodologically different - it hand-traces new
-strokes over Manjari's *rendered* glyph outlines, then centers/straightens
-them algorithmically (gradient ascent on a distance-transform field, see
-`docs/CENTERING_EXPERIMENTS.md`) - not a reuse of the font's own master
-stroke data the way mlmash is. So this isn't a derivative of mlmash, and
-doesn't diminish it. But the overlap in subject matter (animated,
-stroke-by-stroke Malayalam handwriting) is real and worth naming directly,
-not discovered and then left unsaid: mlmash came first, by several years,
-from the same typeface designer whose font this project traces over. More
-generally - in a landscape where codebases and prior art are too vast for
-any one person (or any one AI-assisted search) to exhaustively track down,
-this project tries to name adjacent/prior work explicitly where it's known,
-rather than assume silence means no such work exists. If you know of other
-prior art this should credit, please open an issue.
+- **Prior art** - [mlmash](https://gitlab.com/smc/mlmash) (live at
+  [learn.smc.org.in](https://learn.smc.org.in)) by Santhosh Thottingal came
+  first, by several years, and also animates Malayalam handwriting with SVG
+  strokes. [His write-up](https://thottingal.in/blog/2020/10/27/learning-to-write-malayalam-svg-animation/)
+  explains how it works.

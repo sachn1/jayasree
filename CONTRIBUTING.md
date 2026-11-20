@@ -171,6 +171,39 @@ Hard stops: never skip a human sign-off, never run two languages at once,
 and never hand-edit generated data. The agents themselves are bound by the
 same "must not touch Malayalam" rule as everyone else.
 
+## The Malayalam freeze
+
+Malayalam is the published, human-approved language, so what a Malayalam visitor sees must not change
+as a side effect of work on anything else - another language, a refactor, a new feature. Shared code may
+change freely; Malayalam's *output* may not. `tests/malayalam-freeze.test.js` pins it and runs in
+`make ci`:
+
+- for **every** Malayalam cluster and for 38 real words (including both chillu spellings, split vowels,
+  digits, spaces and punctuation), it re-derives with today's runtime the ghost outline and the strokes
+  that would be drawn, and compares them with `tests/freeze/malayalam-golden.json`, a snapshot taken
+  from production (`origin/master`);
+- it hashes Malayalam's data files (`stroke-data.raw.json`, `stroke-data.json`, `_chars.py`,
+  `test_chars_malayalam.py`, `stroke_data_raw_snapshot.json`, and the `clusters` and `marks` of
+  `glyph-data.json`);
+- it allows only a short, named list of extra fields in Malayalam's glyph data and pins their content,
+  so a new field counts as a change.
+
+A failure names the clusters, words or files that moved. **Do not edit the golden file or Malayalam's
+data to make it pass.** If Malayalam is *meant* to change, do it in its own PR, say so in the
+description, regenerate the golden in that PR (instructions in
+`tests/freeze/generate-malayalam-golden.mjs`), update the pins in `tests/malayalam-freeze.test.js` that
+the change affects (approved extra fields, composition steps) and get the owner's explicit sign-off.
+Gate new behaviour
+on data a language opts into, never on a default Malayalam inherits.
+
+Run just this test with `npx vitest run tests/malayalam-freeze.test.js`.
+
+**What it does not cover** (so it is not mistaken for more than it is): the DOM and animation code
+(stroke order and timing, SVG construction, the layout and tightening `buildTrace` applies between
+clusters), the demo pages and the wordmark, the contents of the npm package, and the segmentation of
+text outside the 38 words. Its Python counterpart - re-deriving Malayalam's shaping, marks and stroke
+processing - lands with the language registry. Check the demo by hand before a release.
+
 ## Data integrity & governance
 
 How this repo keeps its data trustworthy, in layers - worth understanding
