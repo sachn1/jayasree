@@ -336,6 +336,42 @@ composing all 2052 Malayalam clusters with and without it and diffing the
 results. The rationale and the per-font sweep are in
 `docs/languages/hi/README.md`.
 
+### Devanagari: conjunct + vowel sign, headline and dots
+
+Three further Devanagari behaviours sit on top of contextual forms. All are
+gated on data a language opts into (`shirorekha`, `markNudge`), never on a
+default Malayalam inherits - the Malayalam freeze (see `CONTRIBUTING.md`)
+checks that.
+
+**A conjunct + ु / ू / ृ the generic recipe gets wrong.** The mark recipe
+(above) places a vowel sign at a fixed offset from its base. For a Devanagari
+conjunct the font often does something else - it nudges the sign, or fuses it
+into the base glyphs. `build_glyph_data.py`'s `_hi_conjunct_mark_clusters`
+shapes every conjunct + sign for real and writes an entry only where the font
+disagrees with the recipe, so everything the recipe already gets right stays
+composed at runtime and the file stays small. An entry whose base glyphs are
+unchanged carries `markNudge: {dx, dy}` - how far the sign sits from the
+generic spot - and `tryComposeStroke` applies it to the sign's recorded stroke
+(`nudgeMarkStrokes`) so the stroke follows the ghost. A *fused* entry has the
+right ghost but no nudge, so its strokes stay generic until someone records it.
+
+**The headline (shirorekha) of a composed cluster.** Devanagari letters hang
+from a headline that the runtime draws from `shirorekha.inkRanges`. A cluster
+with no entry of its own (composed from a base and a mark) gets its ranges
+assembled from its parts (`clusterInkRanges`), using the offset between the
+standalone and the composed glyph. A known cluster with no ink range - the
+numerals - gets no headline at all, not a full-width fallback line.
+
+**Dots come last.** For a script with a headline, small marks (nukta,
+anusvara, the dots of ऊ, घ ...) are drawn after the letter and the headline,
+one after the other from top to bottom (`collectDotUnits`). A stroke counts as
+a dot when it is smaller than `DOT_MAX_EXTENT_FRACTION` and
+`DOT_MAX_LENGTH_FRACTION` of the em, so this is by size, not a list of
+letters. Separately, `process_strokes.py`'s `_hi_stem_last` reorders the
+recorded strokes of two atoms (ख़ and ङ्ख) so the vertical stem is drawn after
+the rest of the letter; it can be removed once those two are re-recorded in
+that order.
+
 ### Last resort: per-character fallback
 
 If neither direct composition nor mark-chain recursion applies, both engines
