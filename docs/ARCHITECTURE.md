@@ -352,7 +352,8 @@ disagrees with the recipe, so everything the recipe already gets right stays
 composed at runtime and the file stays small. An entry whose base glyphs are
 unchanged carries `markNudge: {dx, dy}` - how far the sign sits from the
 generic spot - and `tryComposeStroke` applies it to the sign's recorded stroke
-(`nudgeMarkStrokes`) so the stroke follows the ghost. A *fused* entry has the
+(`nudgeMarkStrokes`) so the stroke follows the ghost (only for a single-glyph suffix sign; a
+prefix or split vowel sign is never nudged). A *fused* entry has the
 right ghost but no nudge, so its strokes stay generic until someone records it.
 
 **The headline (shirorekha) of a composed cluster.** Devanagari letters hang
@@ -365,12 +366,13 @@ numerals - gets no headline at all, not a full-width fallback line.
 **Dots come last.** For a script with a headline, small marks (nukta,
 anusvara, the dots of ऊ, घ ...) are drawn after the letter and the headline,
 one after the other from top to bottom (`collectDotUnits`). A stroke counts as
-a dot when it is smaller than `DOT_MAX_EXTENT_FRACTION` and
-`DOT_MAX_LENGTH_FRACTION` of the em, so this is by size, not a list of
-letters. Separately, `process_strokes.py`'s `_hi_stem_last` reorders the
+a dot when its bounding box (larger side) is below
+`DOT_MAX_EXTENT_FRACTION` of the em *and* its length is below
+`DOT_MAX_LENGTH_FRACTION` of it (`isDotSized`), so this is by size, not a list
+of letters. Separately, `process_strokes.py`'s `_hi_stem_last` reorders the
 recorded strokes of two atoms (ख़ and ङ्ख) so the vertical stem is drawn after
-the rest of the letter; it can be removed once those two are re-recorded in
-that order.
+the rest of the letter (a "vertical" being a long, straight, near-vertical
+stroke); it can be removed once those two are re-recorded in that order.
 
 ### Last resort: per-character fallback
 
