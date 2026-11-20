@@ -132,6 +132,12 @@ synthetic glyphs and pins a sample of the committed Hindi strokes to what the co
 the data cannot drift from the code. A letter that still looks unclean after cleanup is a case to
 fix in this module, with a test, not to patch in the data.
 
+To see which strokes to look at first, `tools/audit_strokes.py --lang hindi` compares the
+recordings with the shipped strokes and ranks them by the bend the cleanup *introduced* beyond what
+the human drew, plus how often the curve changes direction and how far it strayed from the
+recording (`jayasree.cleanup.audit`; takes seconds). It ranks, it does not judge: a sharp corner
+the human really drew, or a stem deliberately drawn up and back down, also scores high.
+
 The centering/straightening reference for a given cluster is built from
 that cluster's own outline in `glyph-data.json` - for a standalone mark
 whose ghost includes the placeholder circle, `process_strokes.py`
