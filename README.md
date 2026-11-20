@@ -122,7 +122,7 @@ at all. Two options:
 ### 3. Process
 
 ```bash
-make process-strokes                       # Malayalam
+make process-strokes                       # Malayalam (the default)
 make process-strokes PROJECT_LANG=hindi    # any other registered language
 ```
 
@@ -189,11 +189,11 @@ letting it grow unchecked:
   only fetches the actual blobs on checkout.
 - **Split per-script** (`glyph-data.ml.json`/`stroke-data.ml.json`,
   `glyph-data.ta.json`/... for a hypothetical Tamil addition) so a page using
-  one language doesn't fetch another's data. Nothing on the Python or JS
-  side does this yet - `_chars.py`'s character inventory and the two
-  committed JSON files are Malayalam-only today - but the format is
-  already per-cluster keyed data, so splitting it by script is a
-  file-naming/build-tooling change, not a data-model rewrite.
+  one language doesn't fetch another's data. This is how it works now:
+  Malayalam keeps the original unsuffixed files (`_chars.py`,
+  `glyph-data.json`, `stroke-data.json`) and every other language gets
+  `.{code}`-suffixed ones (Hindi: `_chars_hi.py`, `glyph-data.hi.json`,
+  `stroke-data.hi.json`), all registered in `jayasree.languages`.
 
 ## Adding a new language
 
