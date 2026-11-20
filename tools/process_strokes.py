@@ -323,6 +323,54 @@ def _hi_derive_strokes(stroke_data: dict, shaped_clusters: dict) -> dict:
     return derived
 
 
+def _process_cluster_strokes(
+    cluster: str, entry: dict, glyph_data: dict, args: argparse.Namespace, lang_code: str
+) -> list[dict]:
+    """Run one hand-recorded cluster's strokes through the stages `args` enables.
+
+    For a cluster the glyph data knows, the stages are guided by that cluster's own font outline
+    (its distance field, and the straight edges detected on it); for one it does not know, only
+    the stages that need no outline run. This is the per-cluster body of :func:`main`, kept as one
+    function so that the Malayalam freeze test (``python/tests/test_malayalam_freeze.py``) runs
+    exactly the code `main()` runs, not a copy that could drift from it.
+
+    Parameters
+    ----------
+    cluster : str
+        The cluster's key in the stroke data.
+    entry : dict
+        Its ``{"strokes": [{"d": ...}, ...]}`` as recorded.
+    glyph_data : dict
+        The language's parsed ``glyph-data.json`` (``clusters`` and, optionally, ``marks``).
+    args : argparse.Namespace
+        Which stages run (``center``, ``smooth``, ``straighten``).
+    lang_code : str
+        The language's code, for the inline per-language gates in :func:`_process_stroke`.
+
+    Returns
+    -------
+    list[dict]
+        The processed strokes, ``[{"d": ...}, ...]``, in recorded order.
+    """
+    cluster_info = glyph_data["clusters"].get(cluster)
+
+    field = None
+    refs: list[dict] = []
+    curve_refs: list[dict] = []
+    if (args.center or args.straighten) and cluster_info is not None:
+        ref_glyphs = _reference_glyphs(cluster, cluster_info, glyph_data.get("marks", {}))
+        field = centering.make_dist_field(ref_glyphs)
+        if args.straighten:
+            refs = ghost_reference.build_reference_segments(ref_glyphs, field)
+            if _CURVE_STRAIGHTEN_ENABLED:
+                curve_refs = ghost_reference.build_curve_reference_segments(ref_glyphs, field)
+
+    return [
+        {"d": _process_stroke(s["d"], field, refs, args, lang_code, curve_refs)}
+        for s in entry.get("strokes", [])
+    ]
+
+
 def main() -> None:
     """Run the requested stages over `stroke-data.raw.json` and write the output file."""
     args = parse_args()
@@ -338,7 +386,6 @@ def main() -> None:
     stroke_data: dict = json.loads(args.input.read_text(encoding="utf-8"))
     glyph_data: dict = json.loads(args.glyph_data.read_text(encoding="utf-8"))
     clusters = glyph_data["clusters"]
-    marks = glyph_data.get("marks", {})
 
     # Resolved once, reused for every `lang_code == "hi"` gate below - same
     # inline per-language-code gating this project already uses throughout
@@ -357,7 +404,6 @@ def main() -> None:
         for cluster, entry in _hi_derive_strokes(stroke_data, clusters).items():
             stroke_data.setdefault(cluster, entry)
 
-    needs_dist_field = args.center or args.straighten
     out: dict = {}
 
     for cluster, entry in stroke_data.items():
@@ -369,24 +415,8 @@ def main() -> None:
         # data - drop it instead of emitting a bogus "_remarks" cluster.
         if cluster == "_remarks":
             continue
-        cluster_info = clusters.get(cluster)
-
-        field = None
-        refs: list[dict] = []
-        curve_refs: list[dict] = []
-        if needs_dist_field and cluster_info is not None:
-            ref_glyphs = _reference_glyphs(cluster, cluster_info, marks)
-            field = centering.make_dist_field(ref_glyphs)
-            if args.straighten:
-                refs = ghost_reference.build_reference_segments(ref_glyphs, field)
-                if _CURVE_STRAIGHTEN_ENABLED:
-                    curve_refs = ghost_reference.build_curve_reference_segments(ref_glyphs, field)
-
-        new_strokes = [
-            {"d": _process_stroke(s["d"], field, refs, args, lang_code, curve_refs)}
-            for s in entry.get("strokes", [])
-        ]
-        out[cluster] = {"strokes": new_strokes}
+        strokes = _process_cluster_strokes(cluster, entry, glyph_data, args, lang_code)
+        out[cluster] = {"strokes": strokes}
 
     if args.expand:
         out, generated, skipped = stroke_compose.compose_all(glyph_data, out)
