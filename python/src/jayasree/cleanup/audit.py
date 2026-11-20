@@ -53,6 +53,18 @@ def sample(d: str, n: int = 600) -> np.ndarray:
     even; every measure here resamples to an even spacing itself. Separate sub-paths are joined end
     to end (a stroke is one pen-down path).
 
+    Parameters
+    ----------
+    d : str
+        The SVG path to sample.
+    n : int
+        Roughly how many points to return.
+
+    Returns
+    -------
+    np.ndarray
+        ``(m, 2)`` points along the path, in the path's own units.
+
     Raises
     ------
     ValueError
@@ -106,6 +118,16 @@ def curvature_flips(points: np.ndarray) -> int:
 
     Curvature below the noise threshold is ignored, so a nearly straight stretch does not count as
     flipping. A path with fewer than two measurable turns has 0 flips.
+
+    Parameters
+    ----------
+    points : np.ndarray
+        ``(n, 2)`` points along the path.
+
+    Returns
+    -------
+    int
+        The number of sign changes in the path's curvature.
     """
     p = resample(points, FLIP_SPACING_FU)
     tangent = np.diff(p, axis=0)
@@ -120,6 +142,18 @@ def max_deviation(recorded: np.ndarray, cleaned: np.ndarray) -> float:
 
     Recorded -> cleaned catches a loop or limb the human drew that the cleanup skipped; cleaned ->
     recorded catches one the cleanup added (a snap to the wrong part of the ink).
+
+    Parameters
+    ----------
+    recorded : np.ndarray
+        ``(n, 2)`` points sampled along the human's recorded stroke.
+    cleaned : np.ndarray
+        ``(m, 2)`` points sampled along the cleaned stroke.
+
+    Returns
+    -------
+    float
+        The larger of the two directed distances, in font units.
     """
     to_cleaned = cKDTree(cleaned).query(recorded)[0].max()
     to_recorded = cKDTree(recorded).query(cleaned)[0].max()
@@ -128,6 +162,13 @@ def max_deviation(recorded: np.ndarray, cleaned: np.ndarray) -> float:
 
 def audit_stroke(raw_d: str, cleaned_d: str) -> dict:
     """Measure one cleaned stroke against its recording.
+
+    Parameters
+    ----------
+    raw_d : str
+        The recorded stroke's SVG path.
+    cleaned_d : str
+        The cleaned stroke's SVG path.
 
     Returns
     -------
