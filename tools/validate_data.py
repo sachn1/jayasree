@@ -440,22 +440,20 @@ def update_snapshot(raw: dict, snapshot_path: Path = SNAPSHOT) -> None:
 
 
 def _validate_language(label: str, paths: DataPaths) -> tuple[list[str], dict, dict, dict]:
-    """Validate one language's data-file triple.
-
-    Parameters
-    ----------
-    label : str
-        Human-readable name for error messages (e.g. ``"Malayalam"``).
-    paths : DataPaths
-        This language's ``glyph_data``/``stroke_data_raw``/``stroke_data`` paths.
-
-    Returns
-    -------
-    tuple[list[str], dict, dict, dict]
-        ``(errors, glyph_data, raw, processed)`` - the three parsed
-        structures are returned alongside the errors so `main()` can report
-        cluster counts without re-reading the files.
-    """
+    """Validate one language's data-file triple."""
+    # Parameters
+    # ----------
+    # label : str
+    #     Human-readable name for error messages (e.g. ``"Malayalam"``).
+    # paths : DataPaths
+    #     This language's ``glyph_data``/``stroke_data_raw``/``stroke_data`` paths.
+    #
+    # Returns
+    # -------
+    # tuple[list[str], dict, dict, dict]
+    #     ``(errors, glyph_data, raw, processed)`` - the three parsed
+    #     structures are returned alongside the errors so `main()` can report
+    #     cluster counts without re-reading the files.
     errors: list[str] = []
 
     def _load(path: Path) -> dict | None:

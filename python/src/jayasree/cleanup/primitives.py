@@ -36,7 +36,18 @@ ISOLATED_DOT_MAX_EXTENT = 160.0
 
 
 def classify_stroke(pts: np.ndarray) -> str:
-    """Return ``"dot"``, ``"line"`` or ``"curve"`` for a recorded stroke's sampled points."""
+    """Return ``"dot"``, ``"line"`` or ``"curve"`` for a recorded stroke's sampled points.
+
+    Parameters
+    ----------
+    pts : np.ndarray
+        ``(n, 2)`` sampled points of a recorded stroke.
+
+    Returns
+    -------
+    str
+        The stroke's kind.
+    """
     if np.ptp(pts, axis=0).max() < DOT_MAX_EXTENT:
         return "dot"
     length = np.hypot(*np.diff(pts, axis=0).T).sum()
@@ -49,7 +60,20 @@ def classify_stroke(pts: np.ndarray) -> str:
 
 
 def axis_direction(v: np.ndarray, snap_deg: float = AXIS_SNAP_DEG) -> np.ndarray | None:
-    """Return the exact axis direction ``(+-1, 0)`` / ``(0, +-1)`` if `v` is within `snap_deg`."""
+    """Return the exact axis direction ``(+-1, 0)`` / ``(0, +-1)`` if `v` is within `snap_deg`.
+
+    Parameters
+    ----------
+    v : np.ndarray
+        Direction vector ``(dx, dy)``.
+    snap_deg : float
+        How close to an axis (degrees) a direction must be to snap onto it.
+
+    Returns
+    -------
+    np.ndarray | None
+        The axis direction, or ``None`` if `v` is not close to an axis.
+    """
     ang = np.degrees(np.arctan2(v[1], v[0]))
     if min(abs(ang), 180 - abs(ang)) < snap_deg:
         return np.array([np.sign(v[0]) or 1.0, 0.0])
@@ -61,7 +85,22 @@ def axis_direction(v: np.ndarray, snap_deg: float = AXIS_SNAP_DEG) -> np.ndarray
 def exact_line(
     a: np.ndarray, b: np.ndarray, snap_deg: float = AXIS_SNAP_DEG
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Return a -> b as an exactly straight segment (pivoted onto an axis if it is close)."""
+    """Return a -> b as an exactly straight segment (pivoted onto an axis if it is close).
+
+    Parameters
+    ----------
+    a : np.ndarray
+        Start point ``(x, y)``, in font units.
+    b : np.ndarray
+        End point ``(x, y)``, in font units.
+    snap_deg : float
+        How close to an axis (degrees) a direction must be to snap onto it.
+
+    Returns
+    -------
+    tuple[np.ndarray, np.ndarray]
+        The two end points of the straightened segment.
+    """
     d = axis_direction(b - a, snap_deg)
     if d is None:
         return a.copy(), b.copy()
@@ -76,6 +115,20 @@ def manufacture_dot(
 
     Returns ``None`` if the spot is not an isolated blob: a tiny recorded stroke inside a letter's
     own ink is a stray pen tap, not a dot, and is left for review, not drawn as a spurious spot.
+
+    Parameters
+    ----------
+    pts : np.ndarray
+        ``(n, 2)`` points of the recorded squiggle.
+    field : centering.DistField
+        The cluster's winding-aware distance field.
+    search_fu : float
+        How far to look for the nearest ink blob, in font units.
+
+    Returns
+    -------
+    str | None
+        An SVG path ``d`` for the dot, or ``None`` if the spot is not an isolated blob.
     """
     r, c = snap_to_ridge(field, pts.mean(0), search_fu)
     comp, _ = label(field.dist > 0)
@@ -94,7 +147,22 @@ def manufacture_dot(
 def manufacture_line(
     pts: np.ndarray, field: centering.DistField, corridor_fu: float = 50.0
 ) -> str | None:
-    """Return an exact straight line along the font's own stem centre, or ``None`` if not valid."""
+    """Return an exact straight line along the font's own stem centre, or ``None`` if not valid.
+
+    Parameters
+    ----------
+    pts : np.ndarray
+        ``(n, 2)`` points of the recorded stroke.
+    field : centering.DistField
+        The cluster's winding-aware distance field.
+    corridor_fu : float
+        Half-width of the corridor around the human's path, in font units.
+
+    Returns
+    -------
+    str | None
+        An SVG path ``d`` for the line, or ``None`` if it cannot be validated.
+    """
     m = ridge_polyline(pts, field, 18.0, corridor_fu, 6.0)
     if len(m) < 6:
         return None
@@ -124,7 +192,22 @@ def manufacture_line(
 def straight_runs(
     c: np.ndarray, tol: float = RUN_TOL, min_len: float = RUN_MIN_LEN
 ) -> list[tuple[int, int]]:
-    """Return the maximal index runs (i, j) of the curve `c` that stay within `tol` of the chord."""
+    """Return the maximal index runs (i, j) of the curve `c` that stay within `tol` of the chord.
+
+    Parameters
+    ----------
+    c : np.ndarray
+        ``(n, 2)`` curve to search.
+    tol : float
+        Largest deviation of a stretch from its chord, in font units.
+    min_len : float
+        Shortest run worth returning, in font units.
+
+    Returns
+    -------
+    list[tuple[int, int]]
+        ``(i, j)`` index pairs, in order.
+    """
     n, runs, i = len(c), [], 0
     while i < n - 2:
         best = None
@@ -166,6 +249,20 @@ def plan_lines(
     Each is ``(i, j, a, b)``: the ridge index range and the line's end points. Straightness is
     judged on the ridge, never on the fitted curve: a minimum-bending curve is locally straight
     between its bends even on a curved letter, so runs found on it are artefacts.
+
+    Parameters
+    ----------
+    ridge : np.ndarray
+        ``(n, 2)`` ridge polyline (the font's own centre line), in font units.
+    radius : np.ndarray
+        Ink half-width at each ridge point, in font units (length ``n``).
+    field : centering.DistField
+        The cluster's winding-aware distance field.
+
+    Returns
+    -------
+    list[tuple[int, int, np.ndarray, np.ndarray]]
+        One ``(i, j, a, b)`` per run.
     """
     lines = []
     for i, j in straight_runs(ridge):
@@ -179,7 +276,20 @@ def plan_lines(
 def line_pins(
     ridge: np.ndarray, lines: list[tuple[int, int, np.ndarray, np.ndarray]]
 ) -> dict[int, np.ndarray]:
-    """Return the target point along each exact line, per ridge index, for the fairing step."""
+    """Return the target point along each exact line, per ridge index, for the fairing step.
+
+    Parameters
+    ----------
+    ridge : np.ndarray
+        ``(n, 2)`` ridge polyline (the font's own centre line), in font units.
+    lines : list[tuple[int, int, np.ndarray, np.ndarray]]
+        Exact lines as ``(i, j, a, b)``: the ridge index range and the line's end points.
+
+    Returns
+    -------
+    dict[int, np.ndarray]
+        ``{ridge index: target point}``.
+    """
     pins = {}
     for i, j, a, b in lines:
         for k in range(i, j + 1):
@@ -190,7 +300,22 @@ def line_pins(
 def assemble_with_lines(
     c: np.ndarray, fit_err: float, lines: list[tuple[int, int, np.ndarray, np.ndarray]]
 ) -> list[np.ndarray]:
-    """Return Bezier segments for `c` (pinned to the lines): exact lines, G1 curves between."""
+    """Return Bezier segments for `c` (pinned to the lines): exact lines, G1 curves between.
+
+    Parameters
+    ----------
+    c : np.ndarray
+        ``(n, 2)`` faired curve, already pinned to the lines.
+    fit_err : float
+        Largest allowed distance from the Bezier fit to the curve, in font units.
+    lines : list[tuple[int, int, np.ndarray, np.ndarray]]
+        Exact lines as ``(i, j, a, b)``: the ridge index range and the line's end points.
+
+    Returns
+    -------
+    list[np.ndarray]
+        Cubics covering `c`, in order.
+    """
     if not lines:
         return fit_polyline(c, fit_err)
     segs, cursor = [], 0

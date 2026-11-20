@@ -106,11 +106,23 @@ class LanguageSpec:
     example_custom_cluster: str = ""
 
     def chars(self) -> ModuleType:
-        """Import and return this language's character-inventory module."""
+        """Import and return this language's character-inventory module.
+
+        Returns
+        -------
+        ModuleType
+            The imported module.
+        """
         return import_module(self.chars_module)
 
     def resolved_default_font(self) -> Path | None:
-        """Return `default_font` as an absolute path, or None if unset."""
+        """Return `default_font` as an absolute path, or None if unset.
+
+        Returns
+        -------
+        Path | None
+            The font path, or ``None`` if the language has none.
+        """
         return (ROOT / self.default_font) if self.default_font else None
 
 
@@ -218,6 +230,18 @@ def char_tuple(module: ModuleType, attr: str) -> tuple[str, ...]:
     Lets a language module simply omit any category its script doesn't have
     (e.g. no `CHILLU`) without every caller needing its own
     `getattr(..., ())`.
+
+    Parameters
+    ----------
+    module : ModuleType
+        A language's character-inventory module.
+    attr : str
+        Name of the attribute to read.
+
+    Returns
+    -------
+    tuple[str, ...]
+        The attribute's value, or an empty tuple.
     """
     return getattr(module, attr, ())
 

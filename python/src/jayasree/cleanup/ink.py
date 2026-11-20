@@ -102,7 +102,20 @@ def make_field_winding(glyphs: list[dict], isotropic: bool = True) -> centering.
 
 
 def anchors_for(pts: np.ndarray, rdp_eps: float = _RDP_EPS) -> list[int]:
-    """Return the indices into `pts` of the start, every genuine corner, and the end."""
+    """Return the indices into `pts` of the start, every genuine corner, and the end.
+
+    Parameters
+    ----------
+    pts : np.ndarray
+        ``(n, 2)`` points of the human's recorded stroke, in font units.
+    rdp_eps : float
+        Tolerance, in font units, of the simplification that finds the human's corners.
+
+    Returns
+    -------
+    list[int]
+        Indices into `pts`, in order.
+    """
     idx = geometry._rdp_indices(pts, rdp_eps)
     way = pts[idx]
     corners = geometry.find_corner_indices(way) if len(way) >= 3 else []
@@ -110,7 +123,22 @@ def anchors_for(pts: np.ndarray, rdp_eps: float = _RDP_EPS) -> list[int]:
 
 
 def snap_to_ridge(field: centering.DistField, p: np.ndarray, radius_fu: float) -> tuple[int, int]:
-    """Return the pixel of the deepest ink within `radius_fu` of font-unit point `p`."""
+    """Return the pixel of the deepest ink within `radius_fu` of font-unit point `p`.
+
+    Parameters
+    ----------
+    field : centering.DistField
+        The cluster's winding-aware distance field.
+    p : np.ndarray
+        Point ``(x, y)`` in font units.
+    radius_fu : float
+        How far to look for the deepest ink, in font units.
+
+    Returns
+    -------
+    tuple[int, int]
+        ``(row, col)`` of the snapped pixel.
+    """
     raster = centering.RASTER_SIZE
     r0, c0 = centering.fu_to_px(field, *p)
     rad = max(2, int(radius_fu / (max(field.w, field.h) / raster)))
@@ -247,6 +275,24 @@ def routing_waypoints(
     A min-cost path between two anchors takes the shortest way, so if the human drew a loop that
     returns near its start, the loop would be skipped. Splitting at the point farthest from the
     chord forces the route through it. These are routing hints only - they never become corners.
+
+    Parameters
+    ----------
+    pts : np.ndarray
+        ``(n, 2)`` points of the human's recorded stroke, in font units.
+    lo : int
+        Index of the first point of the stretch.
+    hi : int
+        Index of the last point of the stretch.
+    max_ratio : float
+        A stretch is split when its path is more than this many times its chord.
+    depth : int
+        Recursion depth (internal).
+
+    Returns
+    -------
+    list[int]
+        Indices into `pts` that the route must pass through.
     """
     seg = pts[lo : hi + 1]
     length = np.hypot(*np.diff(seg, axis=0).T).sum()
@@ -273,7 +319,26 @@ def ridge_polyline(
     corridor_fu: float,
     step: float,
 ) -> np.ndarray:
-    """Return the min-cost ridge path of a whole human stroke, as ``(n, 2)`` font units."""
+    """Return the min-cost ridge path of a whole human stroke, as ``(n, 2)`` font units.
+
+    Parameters
+    ----------
+    pts : np.ndarray
+        ``(n, 2)`` points of the human's recorded stroke, in font units.
+    field : centering.DistField
+        The cluster's winding-aware distance field.
+    snap_fu : float
+        How far an anchor may snap to the ridge, in font units.
+    corridor_fu : float
+        Half-width of the corridor around the human's path, in font units.
+    step : float
+        Resampling step along the path, in font units.
+
+    Returns
+    -------
+    np.ndarray
+        The smoothed ridge path, in font units.
+    """
     a_idx = anchors_for(pts)  # start, end and the human's corners - routing hints ONLY
     human_px = [centering.fu_to_px(field, *p) for p in pts]
     marks = sorted(set(a_idx))
@@ -306,7 +371,18 @@ def ridge_polyline(
 
 
 def tangents(m: np.ndarray) -> np.ndarray:
-    """Return the unit tangent at each point of the polyline `m`."""
+    """Return the unit tangent at each point of the polyline `m`.
+
+    Parameters
+    ----------
+    m : np.ndarray
+        ``(n, 2)`` polyline.
+
+    Returns
+    -------
+    np.ndarray
+        ``(n, 2)`` unit tangents.
+    """
     t = np.gradient(m, axis=0)
     n = np.linalg.norm(t, axis=1, keepdims=True)
     return t / np.maximum(n, 1e-9)
@@ -320,7 +396,20 @@ def _depth_at(field: centering.DistField, x: float, y: float) -> float:
 
 
 def radius_fu(field: centering.DistField, m: np.ndarray) -> np.ndarray:
-    """Return the local half-width of the ink at each point of `m`, in font units."""
+    """Return the local half-width of the ink at each point of `m`, in font units.
+
+    Parameters
+    ----------
+    field : centering.DistField
+        The cluster's winding-aware distance field.
+    m : np.ndarray
+        ``(n, 2)`` ridge polyline (the middle of the ink), in font units.
+
+    Returns
+    -------
+    np.ndarray
+        ``(n,)`` half-widths, in font units.
+    """
     scale = field.w / centering.RASTER_SIZE
     return np.array([_depth_at(field, x, y) * scale for x, y in m])
 
@@ -333,7 +422,28 @@ def inside_ink(
     frac: float = 0.3,
     n: int = 30,
 ) -> bool:
-    """Return True if the segment a -> b stays deeper than ``frac * radius`` inside the ink."""
+    """Return True if the segment a -> b stays deeper than ``frac * radius`` inside the ink.
+
+    Parameters
+    ----------
+    field : centering.DistField
+        The cluster's winding-aware distance field.
+    a : np.ndarray
+        Start point ``(x, y)``, in font units.
+    b : np.ndarray
+        End point ``(x, y)``, in font units.
+    radius : float
+        Ink half-width of the stretch, in font units.
+    frac : float
+        Fraction of `radius` the segment must stay deeper than.
+    n : int
+        Number of points checked along the segment.
+
+    Returns
+    -------
+    bool
+        Whether the whole segment stays inside the ink.
+    """
     scale = field.w / centering.RASTER_SIZE
     need = frac * radius / scale
     for t in np.linspace(0, 1, n):

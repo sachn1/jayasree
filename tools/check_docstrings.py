@@ -41,7 +41,18 @@ def _takes_arguments(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
 
 
 def check_source(source: str) -> list[tuple[int, str, str]]:
-    """Return ``(line, function name, problem)`` for each docstring-rule violation in `source`."""
+    """Return ``(line, function name, problem)`` for each docstring-rule violation in `source`.
+
+    Parameters
+    ----------
+    source : str
+        Python source text to check.
+
+    Returns
+    -------
+    list[tuple[int, str, str]]
+        One ``(line, function name, problem)`` per violation.
+    """
     problems = []
     tree = ast.parse(source)
     # Only module-level functions and methods of module-level classes: nested helpers are private.
@@ -67,13 +78,21 @@ def check_source(source: str) -> list[tuple[int, str, str]]:
 
 
 def main() -> int:
-    """Check the given paths (or the defaults) and return the process exit code."""
+    """Check the given paths (or the defaults) and return the process exit code.
+
+    Returns
+    -------
+    int
+        0 if there are no violations, else 1.
+    """
     paths = [Path(a) for a in sys.argv[1:]] or DEFAULT_PATHS
     files = sorted(f for p in paths for f in ([p] if p.is_file() else p.rglob("*.py")))
     total = 0
     for f in files:
         for line, name, problem in check_source(f.read_text(encoding="utf-8")):
-            print(f"{f.relative_to(ROOT) if f.is_relative_to(ROOT) else f}:{line}: {name}: {problem}")
+            print(
+                f"{f.relative_to(ROOT) if f.is_relative_to(ROOT) else f}:{line}: {name}: {problem}"
+            )
             total += 1
     if total:
         print(f"\n{total} docstring-rule violation(s) - see CONTRIBUTING.md, 'Docstrings'.")

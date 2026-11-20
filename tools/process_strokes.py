@@ -161,25 +161,23 @@ def parse_args() -> argparse.Namespace:
 
 
 def _reference_glyphs(cluster: str, cluster_info: dict, marks: dict) -> list[dict]:
-    """Return the glyphs to use as the centering/straightening reference for `cluster`.
-
-    A mark's own standalone entry includes HarfBuzz's dotted-circle
-    placeholder (see tools/build_glyph_data.py's ``_standalone_inputs()``)
-    alongside its real content glyph - the human only traced the content, so
-    the placeholder must be excluded here, or it corrupts the distance field
-    with a second, spurious "ink" blob the gradient ascent can wander into
-    (shows up as wiggle right where the content starts, next to where the
-    circle would have been). ``marks`` already knows, per mark, whether
-    content is glyphs[0] (prefix marks, which render before the circle) or
-    glyphs[-1] (suffix marks, circle first) - see ``_build_marks()``'s
-    docstring in build_glyph_data.py.
-
-    Gated on glyph count + a `marks` entry rather than `len(cluster) == 1`:
-    ്ര is a 2-codepoint mark (VIRAMA + "ര") with this exact same
-    circle+content shape once it's in `_standalone_inputs()` - a
-    single-codepoint-only check would silently skip the exclusion for it
-    and corrupt its reference field the same way.
-    """
+    """Return the glyphs to use as the centering/straightening reference for `cluster`."""
+    # A mark's own standalone entry includes HarfBuzz's dotted-circle
+    # placeholder (see tools/build_glyph_data.py's ``_standalone_inputs()``)
+    # alongside its real content glyph - the human only traced the content, so
+    # the placeholder must be excluded here, or it corrupts the distance field
+    # with a second, spurious "ink" blob the gradient ascent can wander into
+    # (shows up as wiggle right where the content starts, next to where the
+    # circle would have been). ``marks`` already knows, per mark, whether
+    # content is glyphs[0] (prefix marks, which render before the circle) or
+    # glyphs[-1] (suffix marks, circle first) - see ``_build_marks()``'s
+    # docstring in build_glyph_data.py.
+    #
+    # Gated on glyph count + a `marks` entry rather than `len(cluster) == 1`:
+    # ്ര is a 2-codepoint mark (VIRAMA + "ര") with this exact same
+    # circle+content shape once it's in `_standalone_inputs()` - a
+    # single-codepoint-only check would silently skip the exclusion for it
+    # and corrupt its reference field the same way.
     glyphs = cluster_info["glyphs"]
     if len(glyphs) != 2:
         return glyphs
@@ -197,14 +195,12 @@ def _process_stroke(
     lang_code: str,
     curve_refs: list[dict] | None = None,
 ) -> str:
-    """Run one stroke through the center/smooth/straighten stages, in that order.
-
-    `lang_code` gates Hindi-only fixes directly in code (`lang_code == "hi"`),
-    the same way every other per-language quirk in this project is gated
-    (see tools/build_glyph_data.py) - never a configurable default any
-    language could inherit by omission. Malayalam's own path through this
-    function never evaluates to anything but the plain, original behavior.
-    """
+    """Run one stroke through the center/smooth/straighten stages, in that order."""
+    # `lang_code` gates Hindi-only fixes directly in code (`lang_code == "hi"`),
+    # the same way every other per-language quirk in this project is gated
+    # (see tools/build_glyph_data.py) - never a configurable default any
+    # language could inherit by omission. Malayalam's own path through this
+    # function never evaluates to anything but the plain, original behavior.
     if args.center or args.smooth:
         pts = geometry.sample_path(d, N_SAMPLES)
         if len(pts) >= 4:
@@ -269,13 +265,11 @@ _HI_COORD_RE = re.compile(r"-?\d+\.?\d*")
 
 
 def _hi_path_bbox_center(d: str) -> tuple[float, float]:
-    """Rough bounding-box center of every x/y coordinate pair in `d`.
-
-    Deliberately crude (treats curve control points the same as
-    endpoints) - good enough for this function's one use: locating a
-    small, near-circular dot's position well enough to compute a
-    translation offset, not a general SVG bbox calculator.
-    """
+    """Rough bounding-box center of every x/y coordinate pair in `d`."""
+    # Deliberately crude (treats curve control points the same as
+    # endpoints) - good enough for this function's one use: locating a
+    # small, near-circular dot's position well enough to compute a
+    # translation offset, not a general SVG bbox calculator.
     nums = [float(n) for n in _HI_COORD_RE.findall(d)]
     xs, ys = nums[0::2], nums[1::2]
     return (min(xs) + max(xs)) / 2, (min(ys) + max(ys)) / 2
@@ -292,22 +286,20 @@ _HI_DOT_MAX_LENGTH = 60.0
 
 
 def _hi_stem_last(strokes: list[dict]) -> list[dict]:
-    """Reorder an atom's strokes so its vertical line comes after the other letter strokes.
-
-    Order becomes: every other stroke (original order), then the vertical line(s), then the dots
-    (original order). A "vertical line" is a long, straight, near-vertical stroke. If the atom
-    has none, the strokes come back unchanged.
-
-    Parameters
-    ----------
-    strokes : list[dict]
-        The atom's ``[{"d": ...}, ...]`` strokes in recorded order.
-
-    Returns
-    -------
-    list[dict]
-        The same strokes, reordered.
-    """
+    """Reorder an atom's strokes so its vertical line comes after the other letter strokes."""
+    # Order becomes: every other stroke (original order), then the vertical line(s), then the dots
+    # (original order). A "vertical line" is a long, straight, near-vertical stroke. If the atom
+    # has none, the strokes come back unchanged.
+    #
+    # Parameters
+    # ----------
+    # strokes : list[dict]
+    #     The atom's ``[{"d": ...}, ...]`` strokes in recorded order.
+    #
+    # Returns
+    # -------
+    # list[dict]
+    #     The same strokes, reordered.
     others, verticals, dots = [], [], []
     for stroke in strokes:
         pts = geometry.sample_path(stroke["d"], 80)
@@ -326,42 +318,40 @@ def _hi_stem_last(strokes: list[dict]) -> list[dict]:
 
 
 def _hi_derive_strokes(stroke_data: dict, shaped_clusters: dict) -> dict:
-    """Synthesize Hindi's 5 decomposable nukta consonants' strokes, if derivable.
-
-    Reuses two already-recorded things verbatim, never asking for a second
-    human trace:
-
-    1. The plain base consonant's own recorded strokes, as-is - its outline
-       is byte-identical inside the fused nukta glyph (see
-       `_HI_DECOMPOSABLE_NUKTA_BASE` above), so no translation is needed for
-       this part; same coordinate frame already.
-    2. The nukta mark's (़, U+093C) own recorded stroke(s) - Hindi's Group B
-       synthetic atom (docs/languages/hi/README.md) - translated from
-       wherever it was drawn to the exact position this specific nukta
-       consonant's real shaped outline puts its dot (`shaped_clusters[nukta_
-       char]`'s last SVG subpath), using `stroke_compose.offset_svg_path`
-       (the same helper reph/half-form composition already uses).
-
-    Only fires once *both* dependencies (the base consonant, the nukta
-    mark) have real recorded strokes, and never overrides a nukta consonant
-    that already has its own real entry - the caller only uses
-    `dict.setdefault`.
-
-    Parameters
-    ----------
-    stroke_data : dict
-        The hand-authored stroke-data.raw.json content.
-    shaped_clusters : dict
-        glyph-data.hi.json's own `clusters` - this build's real HarfBuzz
-        output, consulted only to locate each fused glyph's real dot
-        subpath, never to invent geometry the font doesn't actually have.
-
-    Returns
-    -------
-    dict
-        ``{nukta_consonant: {"strokes": [...]}}`` for whichever of the 5
-        have both dependencies recorded.
-    """
+    """Synthesize Hindi's 5 decomposable nukta consonants' strokes, if derivable."""
+    # Reuses two already-recorded things verbatim, never asking for a second
+    # human trace:
+    #
+    # 1. The plain base consonant's own recorded strokes, as-is - its outline
+    #    is byte-identical inside the fused nukta glyph (see
+    #    `_HI_DECOMPOSABLE_NUKTA_BASE` above), so no translation is needed for
+    #    this part; same coordinate frame already.
+    # 2. The nukta mark's (़, U+093C) own recorded stroke(s) - Hindi's Group B
+    #    synthetic atom (docs/languages/hi/README.md) - translated from
+    #    wherever it was drawn to the exact position this specific nukta
+    #    consonant's real shaped outline puts its dot (`shaped_clusters[nukta_
+    #    char]`'s last SVG subpath), using `stroke_compose.offset_svg_path`
+    #    (the same helper reph/half-form composition already uses).
+    #
+    # Only fires once *both* dependencies (the base consonant, the nukta
+    # mark) have real recorded strokes, and never overrides a nukta consonant
+    # that already has its own real entry - the caller only uses
+    # `dict.setdefault`.
+    #
+    # Parameters
+    # ----------
+    # stroke_data : dict
+    #     The hand-authored stroke-data.raw.json content.
+    # shaped_clusters : dict
+    #     glyph-data.hi.json's own `clusters` - this build's real HarfBuzz
+    #     output, consulted only to locate each fused glyph's real dot
+    #     subpath, never to invent geometry the font doesn't actually have.
+    #
+    # Returns
+    # -------
+    # dict
+    #     ``{nukta_consonant: {"strokes": [...]}}`` for whichever of the 5
+    #     have both dependencies recorded.
     mark_entry = stroke_data.get(_HI_NUKTA_MARK)
     if not mark_entry or not mark_entry.get("strokes"):
         return {}
@@ -385,32 +375,30 @@ def _hi_derive_strokes(stroke_data: dict, shaped_clusters: dict) -> dict:
 def _process_cluster_strokes(
     cluster: str, entry: dict, glyph_data: dict, args: argparse.Namespace, lang_code: str
 ) -> list[dict]:
-    """Run one hand-recorded cluster's strokes through the stages `args` enables.
-
-    For a cluster the glyph data knows, the stages are guided by that cluster's own font outline
-    (its distance field, and the straight edges detected on it); for one it does not know, only
-    the stages that need no outline run. This is the per-cluster body of :func:`main`, kept as one
-    function so that the Malayalam freeze test (``python/tests/test_malayalam_freeze.py``) runs
-    exactly the code `main()` runs, not a copy that could drift from it.
-
-    Parameters
-    ----------
-    cluster : str
-        The cluster's key in the stroke data.
-    entry : dict
-        Its ``{"strokes": [{"d": ...}, ...]}`` as recorded.
-    glyph_data : dict
-        The language's parsed ``glyph-data.json`` (``clusters`` and, optionally, ``marks``).
-    args : argparse.Namespace
-        Which stages run (``center``, ``smooth``, ``straighten``).
-    lang_code : str
-        The language's code, for the inline per-language gates in :func:`_process_stroke`.
-
-    Returns
-    -------
-    list[dict]
-        The processed strokes, ``[{"d": ...}, ...]``, in recorded order.
-    """
+    """Run one hand-recorded cluster's strokes through the stages `args` enables."""
+    # For a cluster the glyph data knows, the stages are guided by that cluster's own font outline
+    # (its distance field, and the straight edges detected on it); for one it does not know, only
+    # the stages that need no outline run. This is the per-cluster body of :func:`main`, kept as one
+    # function so that the Malayalam freeze test (``python/tests/test_malayalam_freeze.py``) runs
+    # exactly the code `main()` runs, not a copy that could drift from it.
+    #
+    # Parameters
+    # ----------
+    # cluster : str
+    #     The cluster's key in the stroke data.
+    # entry : dict
+    #     Its ``{"strokes": [{"d": ...}, ...]}`` as recorded.
+    # glyph_data : dict
+    #     The language's parsed ``glyph-data.json`` (``clusters`` and, optionally, ``marks``).
+    # args : argparse.Namespace
+    #     Which stages run (``center``, ``smooth``, ``straighten``).
+    # lang_code : str
+    #     The language's code, for the inline per-language gates in :func:`_process_stroke`.
+    #
+    # Returns
+    # -------
+    # list[dict]
+    #     The processed strokes, ``[{"d": ...}, ...]``, in recorded order.
     cluster_info = glyph_data["clusters"].get(cluster)
 
     # Hindi only: the language is the switch, so Malayalam can never reach this branch.

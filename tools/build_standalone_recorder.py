@@ -49,12 +49,10 @@ _HASH_RE = re.compile(r"<!-- source-hash: ([0-9a-f]+)")
 
 
 def _out_path(lang_name: str) -> Path:
-    """Return the standalone-recorder output path for `--lang lang_name`.
-
-    Unsuffixed for `malayalam` (backward compatible with the existing
-    committed/documented filename); `.{code}`-suffixed for everything else,
-    mirroring `languages.data_paths()`'s own convention.
-    """
+    """Return the standalone-recorder output path for `--lang lang_name`."""
+    # Unsuffixed for `malayalam` (backward compatible with the existing
+    # committed/documented filename); `.{code}`-suffixed for everything else,
+    # mirroring `languages.data_paths()`'s own convention.
     lang = get_language(lang_name)
     is_primary = lang_name == "malayalam"
     suffix = "" if is_primary else f".{lang.code}"
@@ -73,7 +71,13 @@ def _source_hash() -> str:
 
 
 def build(lang_name: str = "malayalam") -> None:
-    """Regenerate the standalone recorder for `--lang lang_name` from current sources."""
+    """Regenerate the standalone recorder for `--lang lang_name` from current sources.
+
+    Parameters
+    ----------
+    lang_name : str
+        Registry key of the language (``jayasree.languages.LANGUAGES``).
+    """
     lang = get_language(lang_name)
     paths = data_paths(lang)
     out = _out_path(lang_name)
@@ -154,7 +158,13 @@ window.addEventListener("DOMContentLoaded", () => {
 
 
 def check(lang_name: str = "malayalam") -> None:
-    """Exit non-zero with a clear message if `--lang lang_name`'s standalone file is stale."""
+    """Exit non-zero with a clear message if `--lang lang_name`'s standalone file is stale.
+
+    Parameters
+    ----------
+    lang_name : str
+        Registry key of the language (``jayasree.languages.LANGUAGES``).
+    """
     out = _out_path(lang_name)
     if not out.exists():
         print(f"STALE: {out.relative_to(ROOT)} does not exist yet.", file=sys.stderr)

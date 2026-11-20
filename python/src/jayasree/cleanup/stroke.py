@@ -56,12 +56,10 @@ __all__ = ["clean_stroke", "clean_strokes"]
 def _round_stem_junction(
     m: np.ndarray, radius: np.ndarray, stem: tuple, step: float
 ) -> tuple[np.ndarray, np.ndarray, list[np.ndarray], np.ndarray | None]:
-    """Prepare the head and exact stem lines of a stroke that ends going up then down a stem.
-
-    Returns ``(head, head_radius, stem_points, bridge)``: the head's ridge, its ink radii, the
-    stem's three points ``[start, tip, end]`` and, when the head turns into the stem at an angle,
-    the cubic that rounds that corner (otherwise ``None``).
-    """
+    """Prepare the head and exact stem lines of a stroke that ends going up then down a stem."""
+    # Returns ``(head, head_radius, stem_points, bridge)``: the head's ridge, its ink radii, the
+    # stem's three points ``[start, tip, end]`` and, when the head turns into the stem at an angle,
+    # the cubic that rounds that corner (otherwise ``None``).
     head, (p_junction, p_tip, p_end), on_axis = stem
     m = head.copy()
     # If the head ends by running up alongside the stem from a corner (a crossbar turning up into
