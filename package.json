@@ -4,7 +4,7 @@
   "description": "Repo-level dev tooling (linting) for jayasree. The publishable package lives in js/.",
   "type": "module",
   "scripts": {
-    "lint": "eslint js/src tools/*.js demo/*.js tests/*.js",
+    "lint": "eslint js/src tools/*.js demo/*.js tests",
     "test": "vitest run --coverage"
   },
   "devDependencies": {
