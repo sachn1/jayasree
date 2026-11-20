@@ -30,6 +30,12 @@ Stages (each independently toggleable):
                 doesn't pre-bake a candidate for every base times every
                 mark regardless of whether it's ever traced.
 
+  --cleanup     Hindi only, opt-in (not part of any preset): replace a cluster's
+                recorded strokes with the font's own geometry - exact dots,
+                lines and circles, a fair curve through the ink - instead of
+                centering/smoothing/straightening them (jayasree.cleanup). A
+                cluster with no outline of its own keeps the stages above.
+
 --preset=full (or its historical alias --preset=malayalam) enables all four
 stages - script-agnostic, despite the alias's name; pass explicit
 --center/--no-center etc. to override any of them.
@@ -64,6 +70,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "python" / "src"))
 
 from jayasree import centering, geometry, ghost_reference, stroke_compose  # noqa: E402
+from jayasree.cleanup import clean_strokes  # noqa: E402
 from jayasree.languages import data_paths, get_language  # noqa: E402
 
 N_SAMPLES = 120  # arc-length-uniform points sampled per stroke before center/smooth
@@ -110,6 +117,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--smooth", action=argparse.BooleanOptionalAction, default=None)
     parser.add_argument("--straighten", action=argparse.BooleanOptionalAction, default=None)
     parser.add_argument("--expand", action=argparse.BooleanOptionalAction, default=None)
+    parser.add_argument(
+        "--cleanup",
+        action="store_true",
+        help="Hindi only: rebuild strokes from the font's geometry (see jayasree.cleanup). "
+        "Ignored for other languages; not part of any preset.",
+    )
     parser.add_argument(
         "--lang",
         default="malayalam",
@@ -389,7 +402,7 @@ def _process_cluster_strokes(
     glyph_data : dict
         The language's parsed ``glyph-data.json`` (``clusters`` and, optionally, ``marks``).
     args : argparse.Namespace
-        Which stages run (``center``, ``smooth``, ``straighten``).
+        Which stages run (``center``, ``smooth``, ``straighten``; ``cleanup`` is optional).
     lang_code : str
         The language's code, for the inline per-language gates in :func:`_process_stroke`.
 
@@ -399,6 +412,19 @@ def _process_cluster_strokes(
         The processed strokes, ``[{"d": ...}, ...]``, in recorded order.
     """
     cluster_info = glyph_data["clusters"].get(cluster)
+
+    # Opt-in and Hindi-only, read with getattr so a Namespace built from a preset (the Malayalam
+    # freeze test builds one) needs no `cleanup` field. Malayalam can never reach this branch.
+    if getattr(args, "cleanup", False) and lang_code == "hi" and cluster_info is not None:
+        ref_glyphs = _reference_glyphs(cluster, cluster_info, glyph_data.get("marks", {}))
+        raw_ds = [s["d"] for s in entry.get("strokes", [])]
+        try:
+            return [{"d": d} for d in clean_strokes(raw_ds, ref_glyphs)]
+        except Exception as exc:  # keep the ordinary stages rather than lose the cluster
+            print(
+                f"  cleanup failed for {cluster!r} ({type(exc).__name__}); using stages",
+                file=sys.stderr,
+            )
 
     field = None
     refs: list[dict] = []
