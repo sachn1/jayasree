@@ -105,6 +105,32 @@ stroke, `--preset=full` enabling all four (`malayalam` is its historical alias):
    already has its own stroke gets one built by offsetting each into place.
    See "Composition" below.
 
+### Cleanup (Hindi): rebuild the stroke from the font's geometry
+
+Centering and smoothing keep the hand's tremor, which shows on a thick font like Noto Sans
+Devanagari (wavy knots and junctions). For Hindi, `process_strokes.py` instead runs
+`jayasree.cleanup` on each atom that has an outline of its own - on by default for Hindi,
+`--no-cleanup` to skip, never run for Malayalam (guarded by the freeze tests). The human supplies
+only what a font cannot: order, direction and where the corners are. The font supplies the curve:
+
+1. A dot or a straight line is replaced by the exact primitive on the font's ink.
+2. Otherwise the stroke follows the ink's *ridge* (a minimum-cost path through a winding-aware
+   distance field, so a letter's counters stay empty) between the human's anchors. Where the ridge
+   cannot be trusted - a hand-drawn curl in one thick blob of ink - the human's own path is
+   spliced back in.
+3. The ridge is faired (least bending energy, inside the ink's channel); corners the font really
+   has are kept, corners the human rounded are rounded, straight stretches become exact lines and
+   round stretches exact circular arcs; a stem drawn up then down becomes two exact lines.
+4. The result is a few cubic Beziers (an approximation, so tremor is not carried over).
+
+It is deterministic (no randomness, one answer per input) and shrinks the data: the Hindi stroke
+file went from about 29 MB to about 9 MB. A cluster with no outline of its own (the half-form and
+reph triggers) keeps the ordinary stages. The code is `python/src/jayasree/cleanup/` (`fitting`,
+`ink`, `primitives`, `shape`, `stroke`); `python/tests/test_cleanup.py` tests each part on
+synthetic glyphs and pins a sample of the committed Hindi strokes to what the code produces, so
+the data cannot drift from the code. A letter that still looks unclean after cleanup is a case to
+fix in this module, with a test, not to patch in the data.
+
 The centering/straightening reference for a given cluster is built from
 that cluster's own outline in `glyph-data.json` - for a standalone mark
 whose ghost includes the placeholder circle, `process_strokes.py`
