@@ -371,13 +371,17 @@ def _process_cluster_strokes(
     #
     # cluster (str): The cluster's key in the stroke data.
     # entry (dict): Its ``{"strokes": [{"d": ...}, ...]}`` as recorded.
-    # glyph_data (dict): The language's parsed ``glyph-data.json`` (``clusters`` and,
-    #     optionally, ``marks``).
+    # glyph_data (dict): The language's parsed ``glyph-data.json`` (``clusters`` and, optionally,
+    #     ``marks`` and, for Hindi, ``contextualForms``).
     # args (argparse.Namespace): Which stages run (``center``, ``smooth``, ``straighten``).
     # lang_code (str): The language's code, for the inline per-language gates in
     #     :func:`_process_stroke`.
     # Returns list[dict]: The processed strokes, ``[{"d": ...}, ...]``, in recorded order.
     cluster_info = glyph_data["clusters"].get(cluster)
+    # A half-form / reph trigger atom ("क्") has no `clusters` entry (see docs/ARCHITECTURE.md), but
+    # `contextualForms` carries the font's own outline for it - clean against that.
+    if cluster_info is None and lang_code == "hi":
+        cluster_info = glyph_data.get("contextualForms", {}).get(cluster, {}).get("ghost")
 
     # Hindi only: the language is the switch, so Malayalam can never reach this branch.
     if lang_code == "hi" and cluster_info is not None:
