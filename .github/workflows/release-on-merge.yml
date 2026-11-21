@@ -60,6 +60,18 @@ jobs:
           # Call cz directly, not through `make bump-ci`: make reports any failed recipe as its
           # own exit code 2, so the 21 ("nothing to release") and 3 checks below could never
           # match and every merge with nothing to release failed the job.
+          #
+          # Release only when something will reach the changelog. cz lists just feat, fix, refactor,
+          # perf and breaking changes, so a release made of build/ci/test/docs commits (dependency
+          # bumps) would be an empty heading, and a stray "BREAKING CHANGE" in a dependabot body
+          # makes cz bump anyway.
+          prev_tag=$(git describe --tags --abbrev=0 2>/dev/null || true)
+          if ! git log ${prev_tag:+"$prev_tag..HEAD"} --format=%s |
+            grep -qE '^(feat|fix|refactor|perf)(\([^)]*\))?!?:|^[a-z]+(\([^)]*\))?!:'; then
+            echo "Nothing for the changelog in this merge - skipping."
+            echo "bumped=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           set +e
           python/.venv/bin/cz bump --yes
           code=$?
