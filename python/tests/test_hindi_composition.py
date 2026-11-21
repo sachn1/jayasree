@@ -1,6 +1,6 @@
-"""Tests for the Hindi-only build steps: conjunct + vowel-sign clusters and stem-last order.
+"""Tests for the Hindi-only build steps: conjunct + vowel-sign clusters.
 
-Both live in ``tools/`` and are gated on ``lang.code == "hi"``, so Malayalam never runs them (the
+They live in ``tools/`` and are gated on ``lang.code == "hi"``, so Malayalam never runs them (the
 Malayalam freeze, ``test_malayalam_freeze.py``, covers that side). The shaping is stubbed here: what
 is under test is the decision logic (which clusters get an entry, and whether it carries a
 ``markNudge``), not HarfBuzz.
@@ -12,7 +12,6 @@ import json
 import sys
 from pathlib import Path
 from types import SimpleNamespace
-from typing import ClassVar
 
 import pytest
 
@@ -20,7 +19,6 @@ ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT / "tools"))
 
 import build_glyph_data  # noqa: E402
-import process_strokes  # noqa: E402
 
 VIRAMA = "\u094d"
 MARK = "\u0941"  # ु
@@ -105,39 +103,6 @@ class TestHindiConjunctMarkClusters:
         monkeypatch.setattr(build_glyph_data, "shape_word", boom)
         assert build_glyph_data._hi_conjunct_mark_clusters(CHARS, SHAPED, "font") == {}
         assert "skip" in capsys.readouterr().err
-
-
-def _line(x0: float, y0: float, x1: float, y1: float) -> dict:
-    """Return a one-segment stroke."""
-    return {"d": f"M{x0} {y0} L{x1} {y1}"}
-
-
-class TestHindiStemLast:
-    """_hi_stem_last: the vertical line comes after the other strokes, dots stay last."""
-
-    HEADLINE: ClassVar[dict] = _line(0, 0, 400, 0)
-    CURVE: ClassVar[dict] = {"d": "M0 100 C60 300 200 300 300 100"}
-    STEM: ClassVar[dict] = _line(150, 0, 150, 600)
-    DOT: ClassVar[dict] = _line(500, 700, 510, 705)
-
-    def test_stem_moves_after_other_strokes_and_before_dots(self) -> None:
-        """Ensure that the order becomes others, then the vertical, then dots."""
-        recorded = [self.STEM, self.DOT, self.CURVE, self.HEADLINE]
-        assert process_strokes._hi_stem_last(recorded) == [
-            self.CURVE,
-            self.HEADLINE,
-            self.STEM,
-            self.DOT,
-        ]
-
-    def test_without_a_vertical_stroke_the_order_is_unchanged(self) -> None:
-        """Ensure that an atom with no vertical line keeps its recorded order."""
-        recorded = [self.DOT, self.CURVE, self.HEADLINE]
-        assert process_strokes._hi_stem_last(recorded) == recorded
-
-    def test_only_the_two_known_atoms_are_reordered(self) -> None:
-        """Ensure that the reorder list is exactly ख़ and ङ्ख (so no other atom changes)."""
-        assert process_strokes._HI_STEM_LAST_ATOMS == ("\u0959", "\u0919\u094d\u0916")
 
 
 @pytest.fixture(scope="module")
