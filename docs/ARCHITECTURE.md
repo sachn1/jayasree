@@ -124,8 +124,8 @@ only what a font cannot: order, direction and where the corners are. The font su
 4. The result is a few cubic Beziers (an approximation, so tremor is not carried over).
 
 It is deterministic (no randomness, one answer per input) and shrinks the data: the Hindi stroke
-file went from about 29 MB to about 9 MB. A cluster with no outline of its own (the half-form and
-reph triggers) keeps the ordinary stages. A cluster whose cleanup *fails* also falls back, but the run
+file went from about 29 MB to about 9 MB. A half-form or reph trigger has no
+outline of its own, so it is cleaned against its `contextualForms` ghost instead. A cluster whose cleanup *fails* also falls back, but the run
 then reports it and writes nothing, so a regression cannot quietly produce a half-cleaned file. The code is `python/src/jayasree/cleanup/` (`fitting`,
 `ink`, `primitives`, `shape`, `stroke`); `python/tests/test_cleanup.py` tests each part on
 synthetic glyphs and pins a sample of the committed Hindi strokes to what the code produces, so

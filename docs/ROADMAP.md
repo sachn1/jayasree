@@ -89,12 +89,6 @@ Catmull-Rom-tangent fix already has one
 Scoped as a separate PR, not blocking anything else - this is a quality
 tuning pass on already-shipped, already-working smoothing, not a bug fix.
 
-- **Clean Hindi's half-form and reph atoms.** The cleanup needs a glyph outline, and the 39 trigger
-  atoms (क्, भ्, र् ...) have none of their own, so they still get the ordinary centering and
-  smoothing - and they are the wobbliest strokes left (`tools/audit_strokes.py`: up to 45 curvature
-  flips against at most 5 for cleaned atoms), reused inside every conjunct that contains them. Their
-  half-form outlines are in `glyph-data.hi.json`'s `contextualForms`, so the cleanup can be run
-  against those.
 - **Clean Malayalam the same way as Hindi.** Hindi's strokes are rebuilt from the font's own
   geometry (`jayasree.cleanup`, "Cleanup (Hindi)" in `docs/ARCHITECTURE.md`); if only cleaned
   strokes are shipped for Hindi, Malayalam should get the same treatment for consistency. This
@@ -151,12 +145,10 @@ stages: research, font - Noto Sans Devanagari, 183-atom worklist, recording,
 processing; real coverage 2443/2443). It also added the contextual-form
 composition primitive (Devanagari half-forms and reph) and a coverage-report
 tool - see "What Hindi's first run taught us" in
-`docs/LANGUAGE_ONBOARDING_AGENTS.md`. Still open for Hindi, deliberately on a
-separate branch from the data: stroke cleanup (de-wobbling hand-recorded
-strokes against the font's ink ridge - prototyped in notebooks, not wired
-into the pipeline), the known rendering glitches (e.g. the bridge in ञ, a
-shirorekha pause in ङ, a gap in ऊ), a more fluid animation, and deciding
-what to do with the stroke-source survey's findings.
+`docs/LANGUAGE_ONBOARDING_AGENTS.md`. Hindi's strokes are cleaned against the
+font's ink ridge (`jayasree.cleanup`, wired into `process_strokes.py`). Still open: a
+constant pen speed (the shared ease-in/out makes strokes slow-fast-slow) and deciding what to do
+with the stroke-source survey's findings.
 
 What's left for the *next* language (Tamil is the obvious candidate) is the
 per-language *content*, not further plumbing:

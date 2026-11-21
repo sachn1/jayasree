@@ -20,8 +20,8 @@ The character inventory lives in `python/src/jayasree/_chars_hi.py`.
 | 2 Font | **Noto Sans Devanagari** (static Regular), approved by the project owner 2026-09-06; supersedes Annapurna SIL. |
 | 3 Atom set | **183 atoms**, derived against Noto; simulated coverage 100% (2443/2443). |
 | 4 Recording | All 183 recorded by the owner (`js/src/stroke-data.hi.raw.json`). |
-| 5 Process + verify | `stroke-data.hi.json`: 2384 clusters; real coverage 2443/2443, 0 outline fallbacks. |
-| 6 Inspect / clean up | open - see "Still open". |
+| 5 Process + verify | `stroke-data.hi.json`: 2782 clusters; real coverage 2443/2443, 0 outline fallbacks; strokes cleaned against the font (`jayasree.cleanup`). |
+| 6 Inspect | owner has checked the letters and half-forms in the demo. |
 
 ## Scope decisions (project owner, 2026-09-04)
 
@@ -147,9 +147,7 @@ top line; the renderer draws it programmatically over the word's width.
 
 ## Still open
 
-- Visual cleanup: stroke wobble, and rendering glitches noted in the
-  2026-10-19 session (the bridge in ञ, a headline pause in ङ, a gap in ऊ,
-  stray dots in ष ई इ स, the knot in भ) - on the experiments branch.
+- Constant pen speed (the shared ease-in/out is slow-fast-slow); see `docs/ROADMAP.md`.
 - Implement and verify the shirorekha design above.
 - The profile has no recorded final sign-off (see Status).
 

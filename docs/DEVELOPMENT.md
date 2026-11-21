@@ -100,9 +100,10 @@ Early. Two languages have data:
   [`docs/ARCHITECTURE.md`](ARCHITECTURE.md)) extends them to the ~2050
   clusters `glyph-data.json` covers.
 - **Hindi** - all 183 atoms of its reduced worklist are recorded; they cover
-  all 2443 clusters in `glyph-data.hi.json` with no outline fallbacks. What
-  remains is visual cleanup (stroke smoothness, a few known rendering
-  glitches), which is planned as separate work, not part of the data.
+  all 2443 clusters in `glyph-data.hi.json` with no outline fallbacks. The
+  strokes are also cleaned against the font's own geometry
+  (`jayasree.cleanup`, see "Cleanup (Hindi)" in [`ARCHITECTURE.md`](ARCHITECTURE.md)),
+  which is Hindi-only.
 
 `glyph-data.json` currently pre-shapes
 every consonant+vowel-sign and conjunct combination via HarfBuzz rather
