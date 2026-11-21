@@ -66,8 +66,10 @@ jobs:
           # bumps) would be an empty heading, and a stray "BREAKING CHANGE" in a dependabot body
           # makes cz bump anyway.
           prev_tag=$(git describe --tags --abbrev=0 2>/dev/null || true)
-          if ! git log ${prev_tag:+"$prev_tag..HEAD"} --format=%s |
-            grep -qE '^(feat|fix|refactor|perf)(\([^)]*\))?!?:|^[a-z]+(\([^)]*\))?!:'; then
+          # Capture first, then test: `git log | grep -q` can die of SIGPIPE under pipefail and
+          # wrongly read as "nothing to release"; a failing `git log` here fails the step instead.
+          subjects=$(git log ${prev_tag:+"$prev_tag..HEAD"} --format=%s)
+          if ! grep -qE '^(feat|fix|refactor|perf)(\([^)]*\))?!?:|^[a-z]+(\([^)]*\))?!:' <<<"$subjects"; then
             echo "Nothing for the changelog in this merge - skipping."
             echo "bumped=false" >> "$GITHUB_OUTPUT"
             exit 0

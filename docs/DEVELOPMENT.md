@@ -94,9 +94,10 @@ CI, so a PR must be green before it is merged.
 
 ## Releases
 
-Versions come from commit history (`feat` minor, `fix` patch, a `BREAKING CHANGE` footer major); never edit
-one by hand. Merging to `master` runs `release-on-merge.yml`, which bumps, tags and updates the changelog
-only if the merge has a `feat`, `fix`, `refactor`, `perf` or breaking commit (what the changelog lists, so no release has an empty entry). `publish.yml` publishes to npm only if `js/src/`
+Versions come from commit history (`feat` minor, `fix` patch, a `!` breaking commit or `BREAKING CHANGE` footer on
+a `feat`/`fix` major); never edit one by hand. Merging to `master` runs `release-on-merge.yml`, which bumps, tags
+and updates the changelog only if the merge has a `feat`, `fix`, `refactor`, `perf` or breaking commit (what the
+changelog lists, so no release has an empty entry). `publish.yml` publishes to npm only if `js/src/`
 changed since the previous tag, and only while the repository variable `NPM_PUBLISH_ENABLED` is `true`
 (held for now: setting it does not publish a tag already pushed, so run `publish.yml` by hand
 (`workflow_dispatch`) to publish the held release). The workflows document the details.
