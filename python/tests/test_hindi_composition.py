@@ -1,6 +1,6 @@
 """Tests for the Hindi-only build steps: conjunct + vowel-sign clusters.
 
-Both live in ``tools/`` and are gated on ``lang.code == "hi"``, so Malayalam never runs them (the
+They live in ``tools/`` and are gated on ``lang.code == "hi"``, so Malayalam never runs them (the
 Malayalam freeze, ``test_malayalam_freeze.py``, covers that side). The shaping is stubbed here: what
 is under test is the decision logic (which clusters get an entry, and whether it carries a
 ``markNudge``), not HarfBuzz.
