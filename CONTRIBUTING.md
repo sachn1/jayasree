@@ -11,7 +11,7 @@ templates; please use the one that fits.
 
 The heart of this project is hand-drawn stroke data from people who actually
 write the script. Open the [stroke recorder](tools/stroke-recorder.html) (or
-the offline `tools/stroke-recorder-standalone.html`), trace the characters
+build the offline copy with `make build-recorder`), trace the characters
 marked ○ (missing), export, and open a PR with the updated
 `js/src/stroke-data.raw.json`.
 
