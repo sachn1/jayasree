@@ -1,7 +1,7 @@
 ---
 name: atom-reducer
 description: Drives build_glyph_data.py and coverage_report.js to generate a language's glyph-data.json and reduced labeling worklist for jayasree's language-onboarding pipeline (docs/LANGUAGE_ONBOARDING_AGENTS.md's Agent 3). Use only when explicitly asked, for a language whose font choice already has human sign-off.
-tools: Bash, Read, Write
+tools: Bash, Read, Write, Edit
 model: inherit
 ---
 
@@ -18,8 +18,10 @@ per that doc's Agent 3 section, is closer to running an existing pipeline
 than free-form design:
 
 1. Register the language in `python/src/jayasree/languages.py`'s
-   `LANGUAGES` dict (code, chars_module, carrier_consonant, font) and
-   write its `_chars_<code>.py` from the approved `chars.json`.
+   `LANGUAGES` dict (`code`, `name`, `chars_module`, `carrier_consonant`,
+   `default_font`, `native_name`) and write its `_chars_<code>.py` from the
+   approved `chars.json`, plus `python/tests/test_chars_<code>.py` (the
+   sibling of `test_chars_hi.py`).
 2. Run `python tools/build_glyph_data.py --lang <name> <font-path>` to
    produce `glyph-data.<code>.json`.
 3. Derive the reduced atom set from that file's own `marks` table - reuse
@@ -27,7 +29,7 @@ than free-form design:
    `tryComposeStroke`/`tryComposeFromCharacters`), never a new heuristic.
    Check for synthesizable marks (simple dots, or a character that's
    really "another atom, twice, offset") that need no human tracing at
-   all - see the plan doc's "New composition primitives" note.
+   all - see the plan doc's Agent 3 section on synthetic strokes and self-composition.
 4. Run `node tools/coverage_report.js --simulate-atoms <planned-atom-list>
    --glyph-data js/src/glyph-data.<code>.json` and confirm full simulated
    coverage before finalizing the worklist - anything less means the

@@ -1,13 +1,14 @@
 # Language Onboarding - Multi-Agent Pipeline
 
 A design for the agent pipeline that takes this project from "a language
-name" to "a human has a minimal, correct set of atoms to trace." This is
-**Phase 1 only**: research the script, pick a ghost font, and produce the
-reduced labeling set. It stops there, at the same handoff point
-`CONTRIBUTING.md`'s "Adding a new language" section already stops at -
-*"recording needs a native speaker/writer of that script."* Actually driving
-the recording session, triaging bug reports, and everything after is a
-separate, later design (see "Out of scope" below).
+name" to "a human has a minimal, correct set of atoms to trace." It
+covers the whole path, in eight stages (see "The sequence at a glance"):
+research the script, pick a ghost font, reduce the atom set, then a human
+records, the strokes are processed and checked, the language is wired into the
+demo and site, and finally the owner freezes it. Only the recording (stage 4),
+the sign-offs and the look in a browser need a human; "recording needs a native
+speaker/writer of that script" (`CONTRIBUTING.md`). Orchestrating the recording
+session itself and triaging bug reports are a later design (see "Out of scope").
 
 **Status.** Implemented and run once, end to end, on Hindi. The role specs
 below are the portable source of truth; `.claude/agents/*.md` are thin Claude
@@ -675,7 +676,8 @@ browser before anything goes to `master`.
 5. **Scope line.** Update "Current scope" in `CLAUDE.md` and the roster in
    `docs/ROADMAP.md`.
 6. **Gate.** `make ci` green, every already-frozen language's freeze tests
-   unmodified, and `test_language_wiring.py` passing.
+   unmodified, `test_language_wiring.py` passing, and the `code-reviewer` agent
+   run on the branch before its PR.
 
 The font-geometry cleanup is not part of this stage: a language gets it by being
 added to the language check in `process_strokes.py` (stage 5's command), after its
@@ -694,9 +696,10 @@ language changes only by a deliberate, reviewed regeneration of its golden file
 (for example a later cleanup of Malayalam's strokes).
 
 Today Malayalam is frozen (`tests/malayalam-freeze.test.js`,
-`python/tests/test_malayalam_freeze.py`). Hindi is not yet: it has a data pin
-and composition tests, but no freeze, because the owner has not signed off its
-letters. Making the freeze machinery per-language, then freezing Hindi at
+`python/tests/test_malayalam_freeze.py`, a raw-data snapshot). Hindi is not yet:
+it has composition tests and a byte-for-byte pin on a sample of its processed
+atoms, but no freeze and no raw-data snapshot, because the owner has not signed
+off its letters. Making the freeze machinery per-language, then freezing Hindi at
 sign-off, is the next piece of work; the stage after that is the same for every
 language.
 
@@ -738,11 +741,9 @@ stays human.
 *(Hindi's first run did stages 4-5 by hand, so this list shrank - see "What
 Hindi's first run taught us". What is still deliberately not designed:)*
 
-Everything after `labeling-worklist.md` exists: actually orchestrating the
-native-speaker recording session, `docs/ROADMAP.md`'s "Bug-report → data
+Still not designed: actually orchestrating the native-speaker recording
+session, `docs/ROADMAP.md`'s "Bug-report → data
 pipeline" (diagnosing wrong renders, a coverage gate, a frictionless
 report→record loop), and any tooling to help a non-technical native speaker
 work through the worklist without needing to understand this pipeline. Not
-designed here on purpose - per the request that started this doc, Phase 1
-stops at "the requirement/labeling-set is well understood," and Phase 2
-should be scoped once Phase 1 has actually run once.
+designed here on purpose.

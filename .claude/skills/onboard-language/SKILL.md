@@ -58,15 +58,27 @@ given). Check `docs/languages/<code>/` for what already exists:
   stop and ask, same as above.
 - Font signed off, no (or stale) `labeling-worklist.md` /
   `glyph-data.<code>.json` -> Stage 3.
-- Everything through the worklist present and current, but no
-  `stroke-data.<code>.json` (or its stage-5 gate not passed) -> nothing left
-  for this skill to do yet; point at the labeling worklist for the human
-  stroke-tracing work.
-- Strokes processed and the stage-5 gate passed, but
-  `python/tests/test_language_wiring.py` failing for the language -> Stage 7
-  (step 4 below).
-- That test passing -> the language is wired; say so. Shipping to `master`
-  is the owner's call, never this skill's.
+- Worklist present and current, strokes not (fully) recorded -> **Stage 4**, a
+  human step: point at `labeling-worklist.md` and `tools/stroke-recorder.html`,
+  and stop. `coverage_report.js` says how far the recording is.
+- Raw strokes recorded (the owner says the recording is done), no processed
+  `stroke-data.<code>.json` -> **Stage 5**: run the post-recording gate (spec,
+  "Post-recording gate"); it is commands, not an agent.
+- Processed, but the stage-5 gate failing (`validate_data.py` not OK, or
+  coverage under 100% / fallbacks) -> still **Stage 5**: read
+  `coverage_report.js --verbose`; a missing atom goes back to Stage 4, a
+  composition bug is a code fix with every shipped language's tests unmodified.
+- Gate passing, `python/tests/test_language_wiring.py` failing for the language
+  -> **Stage 7** (below). Stage 6, the owner's look in a browser, follows it,
+  because it needs the demo tab.
+- Wired and the owner is happy with the letters -> **Stage 8**, the freeze:
+  the owner's call only, never started by this skill unprompted.
+- Frozen (a freeze test and golden file exist for the language) -> done;
+  that language's files are never edited again except by a deliberate,
+  reviewed regeneration the owner asked for.
+
+Known limit: sign-offs live only in conversation today, so a resumed session
+must ask rather than infer them (recording them in the repo is planned).
 
 Never assume "the files exist, so it's approved" - existence means a
 *draft* exists. Only an explicit human sign-off in conversation clears a
@@ -109,7 +121,7 @@ Report back what was generated and where the labeling worklist lives.
 **Recording strokes by hand is never this skill's job** - that's
 `tools/stroke-recorder.html`, a human task, per `CLAUDE.md`'s hard rules.
 
-### 4. Stage 7 - wire up and document (only after the stage-5 gate)
+### Stage 7 - wire up and document (only after the stage-5 gate)
 
 Confirm the gate really passed (`python3 tools/validate_data.py` OK and
 `node tools/coverage_report.js` at 0 fallbacks); do not take anyone's word for
