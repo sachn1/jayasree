@@ -4,7 +4,8 @@ description: >
   Orchestrates jayasree's multi-agent language-onboarding pipeline
   (docs/LANGUAGE_ONBOARDING_AGENTS.md) end to end for one Indic script:
   Agent 1 research -> human sign-off -> Agent 2 font selection -> human
-  sign-off -> Agent 3 atom reduction. Detects which stage a language is
+  sign-off -> Agent 3 atom reduction; then, once the owner has recorded and
+  processed the strokes, stage 7 wiring (`language-publisher`). Detects which stage a language is
   already at and resumes from there instead of restarting. Use when the
   user says "/onboard-language <name>", "onboard <language>", "start
   onboarding <language>", or asks to run the language-onboarding pipeline
@@ -21,8 +22,8 @@ against it.
 
 ## What this skill actually does that isn't already automatic
 
-Spawning the four pipeline agents (`language-researcher`, `language-reviewer`,
-`font-selector`, `atom-reducer`) already works without this skill - it's
+Spawning the five pipeline agents (`language-researcher`, `language-reviewer`,
+`font-selector`, `atom-reducer`, `language-publisher`) already works without this skill - it's
 what's been happening in this conversation by hand. What a skill adds:
 
 1. **A single entry point** (`/onboard-language <language>`) instead of the
@@ -57,9 +58,15 @@ given). Check `docs/languages/<code>/` for what already exists:
   stop and ask, same as above.
 - Font signed off, no (or stale) `labeling-worklist.md` /
   `glyph-data.<code>.json` -> Stage 3.
-- Everything present and current -> nothing left for this skill to do;
-  say so and point at the labeling worklist for the actual (human,
-  unautomatable) stroke-tracing work.
+- Everything through the worklist present and current, but no
+  `stroke-data.<code>.json` (or its stage-5 gate not passed) -> nothing left
+  for this skill to do yet; point at the labeling worklist for the human
+  stroke-tracing work.
+- Strokes processed and the stage-5 gate passed, but
+  `python/tests/test_language_wiring.py` failing for the language -> Stage 7
+  (step 4 below).
+- That test passing -> the language is wired; say so. Shipping to `master`
+  is the owner's call, never this skill's.
 
 Never assume "the files exist, so it's approved" - existence means a
 *draft* exists. Only an explicit human sign-off in conversation clears a
@@ -102,10 +109,21 @@ Report back what was generated and where the labeling worklist lives.
 **Recording strokes by hand is never this skill's job** - that's
 `tools/stroke-recorder.html`, a human task, per `CLAUDE.md`'s hard rules.
 
+### 4. Stage 7 - wire up and document (only after the stage-5 gate)
+
+Confirm the gate really passed (`python3 tools/validate_data.py` OK and
+`node tools/coverage_report.js` at 0 fallbacks); do not take anyone's word for
+it. Then spawn `Agent(language-publisher, ...)` per the spec's "Stage 7 - wire
+up and document". Report what it changed and **stop**: the owner looks at the
+tab and the wordmark in a browser, and says when the letters are clean.
+
 ## Hard boundaries (same ones every pipeline agent already has)
 
-- Never touch Malayalam's files (`python/src/jayasree/_chars.py`,
-  `js/src/stroke-data.raw.json`, `python/tests/test_chars_malayalam.py`).
+- Never touch a shipped (frozen) language's files: today Malayalam's
+  (`python/src/jayasree/_chars.py`, `js/src/stroke-data.raw.json`,
+  `python/tests/test_chars_malayalam.py`), later every language the owner
+  has signed off. Freezing a language (spec stage 8) is the owner's call,
+  never this skill's.
 - Never hand-edit a generated data file; only the dedicated tools/agents
   regenerate them.
 - One language at a time, per the plan's own target-roster ordering -

@@ -34,6 +34,8 @@ directly, e.g. `Agent(language-researcher, "Tamil")`.
 | 4 | Record strokes | **a human** (no agent) - `tools/stroke-recorder.html` | the worklist | `js/src/stroke-data.<code>.raw.json` | the owner has traced every atom (or noted why one was skipped) |
 | 5 | Process + verify | **commands, not an agent** - see "Post-recording gate" | the raw strokes | `js/src/stroke-data.<code>.json` | `validate-data` OK and `coverage_report.js` at 100% / 0 fallbacks |
 | 6 | Inspect and clean up | a human, in a browser | the demo | follow-up fixes (a separate branch) | - |
+| 7 | Wire up and document | `language-publisher` | the processed data | demo tab, wordmark, README and home-page mentions, `docs/languages/<code>/README.md` | `python/tests/test_language_wiring.py` passes; the owner confirms the letters look clean |
+| 8 | Freeze | **the owner** decides; a freeze test is added | the shipped language | a golden file + JS and Python freeze tests | from here on the language is shipped and must never change |
 
 `code-reviewer` is **not** a stage of this pipeline - it reviews code diffs
 and is invoked separately.
@@ -283,7 +285,7 @@ folded into the shared tooling before that language's own onboarding
 continues - not deferred, and not generalized preemptively for languages
 not yet being worked on.
 
-## The three agents
+## The research, font and atom agents
 
 ### Agent 1 - Linguistic Research & Script Profiling
 
@@ -519,10 +521,11 @@ all because only one language has ever gone through it.
 This document is the portable specification of each role - deliberately
 tool-agnostic prose, usable by a human or any AI tool regardless of which
 one this project happens to use. `.claude/agents/language-researcher.md`,
-`language-reviewer.md`, `font-selector.md`, and `atom-reducer.md` are
+`language-reviewer.md`, `font-selector.md`, `atom-reducer.md`, and
+`language-publisher.md` are
 **thin adapters**, not a second copy of this spec: each one is a short
-pointer telling Claude Code "read this document's Agent N section and
-follow it," plus the mechanical bits only Claude Code needs (tool grants,
+pointer telling Claude Code "read this document's Agent N section (or, for
+`language-publisher`, the Stage 7 section) and follow it," plus the mechanical bits only Claude Code needs (tool grants,
 model choice). If this project ever uses a different AI tool alongside or
 instead of Claude Code, that tool gets its own thin adapter pointing at
 the same sections here - the actual process knowledge never needs
@@ -643,15 +646,69 @@ Commit the raw and processed strokes together as a one-line `data(<code>)`
 commit. A language's *first* data needs no `make update-snapshot`; a later
 change to an already-recorded cluster does.
 
-### Is a 6th agent needed?
+### Stage 7 - wire up and document
 
-Not yet. Everything after stage 3 is either a human task (recording,
-inspecting) or a fixed command sequence (the gate above) - neither is
-open-ended judgment, which is what agents are for here. The one plausible
-candidate is **coverage triage** (turn `coverage_report.js --verbose` into a
-"record these / fix this recipe" list); build it only if a second language
-shows the same recurring pattern. Visual QA of the animation needs a
-browser and is deliberately out of scope for this branch's work.
+A language is not finished when its strokes are processed: a visitor sees it
+only once the demo, the site and the docs know about it. This used to be done
+by hand (Hindi's lessons are the checklist), so a step could be forgotten.
+`language-publisher` does it, and `python/tests/test_language_wiring.py` fails
+until the demo tab, wordmark and README pieces are in (it does not check the
+language README, scope line or roadmap - review those). Do these in order; the owner reviews the result in a
+browser before anything goes to `master`.
+
+1. **Demo tab.** One entry in `demo/demo.js`'s `LANGUAGES` table (code, tab
+   label, tagline, default word, "Try:" words, letter browser, speech tag, the
+   three data paths, stroke width, `logo`).
+2. **Wordmark.** `tools/export_wordmark.py --lang <name> --output
+   demo/jayasree.<code>.svg --color <hex>`, in a colour no other language
+   uses. `DEFAULT_COLOR` in that tool is Hindi's red and is tied to it by a
+   test, so a new language passes `--color` and leaves the default alone.
+   `demo/demo.css` has one `#logo-live` colour rule (Hindi's): a second live
+   wordmark needs its own per-language rule there and in `demo.js`.
+3. **README and home page.** Show the wordmark beside the others in
+   `README.md` and `index.html` (the `<img>` and the home page's replay-script
+   entry), add the language to the status table, name it
+   in the one-line description.
+4. **Fold the working files** (see "Where artifacts live") into
+   `docs/languages/<code>/README.md`, using `docs/languages/hi/README.md` as the
+   template.
+5. **Scope line.** Update "Current scope" in `CLAUDE.md` and the roster in
+   `docs/ROADMAP.md`.
+6. **Gate.** `make ci` green, every already-frozen language's freeze tests
+   unmodified, and `test_language_wiring.py` passing.
+
+The font-geometry cleanup is not part of this stage: a language gets it by being
+added to the language check in `process_strokes.py` (stage 5's command), after its
+own review.
+
+### Stage 8 - freeze
+
+The last step, and the owner's: once the owner has looked at the language in a
+browser, says the letters are clean and it ships, **freeze it** - snapshot
+exactly what its visitors see (words, clusters, data) into a golden file, with a
+JS and a Python test that fail if any of it moves. From then on the language is
+*shipped*, and the rule for every later change, human or agent, is: **no
+previously shipped language's letters, data or behaviour may change**; shared
+code may change only if every frozen language's tests pass unmodified. A frozen
+language changes only by a deliberate, reviewed regeneration of its golden file
+(for example a later cleanup of Malayalam's strokes).
+
+Today Malayalam is frozen (`tests/malayalam-freeze.test.js`,
+`python/tests/test_malayalam_freeze.py`). Hindi is not yet: it has a data pin
+and composition tests, but no freeze, because the owner has not signed off its
+letters. Making the freeze machinery per-language, then freezing Hindi at
+sign-off, is the next piece of work; the stage after that is the same for every
+language.
+
+### More agents
+
+Not yet. Everything else is a human task (recording, inspecting) or a fixed
+command sequence (the stage-5 gate). The plausible candidates, to build only
+once a second language shows the same recurring pattern: **coverage triage**
+(turn `coverage_report.js --verbose` into a "record these / fix this recipe"
+list) and, for the cleanup, a `stroke-auditor` that runs `tools/audit_strokes.py`
+and reports the worst strokes. Visual QA of the animation needs a browser and
+stays human.
 
 ## Open questions
 
