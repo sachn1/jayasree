@@ -23,7 +23,7 @@ owner's step, not yours.
 
 Hard boundaries:
 
-- Never touch a shipped (frozen) language's files - today Malayalam, later every
+- Never touch a shipped (frozen) language's files - today Malayalam and Hindi, later every
   language the owner has signed off - and never edit a generated data file.
 - Never push, never open a PR to `master`, never announce a language as
   shipped - that needs the owner's say-so in conversation.

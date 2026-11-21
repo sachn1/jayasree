@@ -58,7 +58,7 @@ composes thousands of clusters from those few hundred atoms. Each language has i
 | Create strokes for a font, record, process | [`docs/CREATING_HANDWRITING.md`](docs/CREATING_HANDWRITING.md) |
 | Add a new language | [`docs/LANGUAGE_ONBOARDING_AGENTS.md`](docs/LANGUAGE_ONBOARDING_AGENTS.md) |
 | Run it locally, repo layout, `make` commands | [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) |
-| Contribute (commits, data rules, Malayalam freeze) | [`CONTRIBUTING.md`](CONTRIBUTING.md) |
+| Contribute (commits, data rules, language freezes) | [`CONTRIBUTING.md`](CONTRIBUTING.md) |
 | Code of conduct, reporting a vulnerability | [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md), [`SECURITY.md`](SECURITY.md) |
 | What is planned | [`docs/ROADMAP.md`](docs/ROADMAP.md) |
 

@@ -79,7 +79,7 @@ The checker is already green if `make lint` is. What it cannot judge, check by h
   that's a P0 (see CONTRIBUTING.md's "Data integrity & governance").
 
 - Per language: the processed file has every raw cluster; for Hindi, `python3 tools/audit_strokes.py --lang hindi` ranks strokes where the cleanup bent more than the recording (it is a ranking, not a verdict - report the worst few for a human to look at, do not call them defects).
-- Every frozen language's freeze tests (today `tests/malayalam-freeze.test.js`, `python/tests/test_malayalam_freeze.py`) pass unmodified, and its golden file has no uncommitted or unexplained change. A language that is shipped but has no freeze is a P1.
+- Every frozen language's freeze tests (today `tests/malayalam-freeze.test.js` and `tests/hindi-freeze.test.js`, `python/tests/test_malayalam_freeze.py` and `python/tests/test_hindi_freeze.py`) pass unmodified, and its golden file has no uncommitted or unexplained change. A language that is shipped but has no freeze is a P1.
 
 ## 5b. Language wiring
 

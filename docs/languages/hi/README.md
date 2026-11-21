@@ -22,6 +22,7 @@ The character inventory lives in `python/src/jayasree/_chars_hi.py`.
 | 4 Recording | All 183 recorded by the owner (`js/src/stroke-data.hi.raw.json`). |
 | 5 Process + verify | `stroke-data.hi.json`: 2782 clusters; real coverage 2443/2443, 0 outline fallbacks; strokes cleaned against the font (`jayasree.cleanup`). |
 | 6 Inspect | owner has checked the letters and half-forms in the demo. |
+| 8 Freeze | frozen at the owner's "Hindi ships": `tests/hindi-freeze.test.js`, `python/tests/test_hindi_freeze.py`, `tests/freeze/hindi-golden.json`, `stroke_data_raw_snapshot.hi.json`. |
 
 ## Scope decisions (project owner, 2026-09-04)
 

@@ -36,7 +36,7 @@ directly, e.g. `Agent(language-researcher, "Tamil")`.
 | 5 | Process + verify | a command, run by the skill (not an agent) - see "Post-recording gate" | the owner says the recording is done | `js/src/stroke-data.<code>.json` | gate: `validate-data` OK and coverage 0 fallbacks | command planned (an `onboard-gate` target) |
 | 7 | Wire up and document | `language-publisher` | the stage-5 gate passes | demo tab, wordmark, README and home-page mentions, `docs/languages/<code>/README.md` | `test_language_wiring.py` passes | built |
 | 6 | Inspect in a browser | **the owner** | stage 7 is done (it needs the demo tab) | follow-up fixes, each on its own branch | the owner says the letters are clean | human |
-| 8 | Freeze | a generator command, run by the skill | **only** the owner's "this ships" | a golden file + JS and Python freeze tests | the owner | tooling planned (per-language freeze) |
+| 8 | Freeze | a generator command, run by the skill | **only** the owner's "this ships" | a golden file + JS and Python freeze tests | the owner | built by hand per language (Malayalam, Hindi); see "Stage 8" |
 
 Stage 7 runs before 6 because the browser check needs the demo tab. Every stage
 that changes the repo goes in as a branch and a PR; **the owner merging that PR
@@ -701,13 +701,16 @@ code may change only if every frozen language's tests pass unmodified. A frozen
 language changes only by a deliberate, reviewed regeneration of its golden file
 (for example a later cleanup of Malayalam's strokes).
 
-Today Malayalam is frozen (`tests/malayalam-freeze.test.js`,
-`python/tests/test_malayalam_freeze.py`, a raw-data snapshot). Hindi is not yet:
-it has composition tests and a byte-for-byte pin on a sample of its processed
-atoms, but no freeze and no raw-data snapshot, because the owner has not signed
-off its letters. Making the freeze machinery per-language, then freezing Hindi at
-sign-off, is the next piece of work; the stage after that is the same for every
-language.
+Today Malayalam and Hindi are frozen: each has `tests/<language>-freeze.test.js`,
+`python/tests/test_<language>_freeze.py`, a golden file in `tests/freeze/` and a
+raw-data snapshot (`CONTRIBUTING.md`, "The Malayalam freeze" and "The Hindi
+freeze"). Hindi was frozen when the owner said "Hindi ships". For the next
+language, copy Hindi's files (`tests/freeze/hindi-snapshot.mjs`,
+`generate-hindi-golden.mjs`, `tests/hindi-freeze.test.js`,
+`python/tests/test_hindi_freeze.py`), then change the language, the words, the
+file list and the label. A shared, language-parametrized freeze is a worthwhile
+cleanup once a third language needs it; it would touch Malayalam's frozen
+tests, so it needs the owner's approval.
 
 ### More agents
 
