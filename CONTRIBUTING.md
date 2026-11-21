@@ -5,6 +5,19 @@ Thanks for wanting to help! You can contribute **stroke data** (no coding), **co
 By taking part you agree to the [Code of Conduct](CODE_OF_CONDUCT.md). Report security problems through
 [SECURITY.md](SECURITY.md), not a public issue. Issues and PRs have templates; please use the one that fits.
 
+## Where do I start?
+
+| I want to... | Do this |
+|---|---|
+| Add or fix handwriting for a letter | [Contribute stroke data](#contributing-stroke-data-no-code-needed): record in the browser, open a PR with the exported file |
+| Fix a bug or add a feature | [Contribute code](#contributing-code): branch, write the test first, `make ci`, open a PR |
+| Bring a new script (Tamil, Telugu ...) | [Add a language](#adding-a-new-language): open an issue first, then follow the pipeline |
+| Report a problem or suggest something | Open an issue with the matching template |
+| Understand how it works first | [`README.md`](README.md), then [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) |
+
+Using an AI agent? [`CLAUDE.md`](CLAUDE.md) is its rulebook and map of the repo, and `/onboard-language <name>`
+walks the language pipeline. The rules are the same for agents and people.
+
 ## Quick start
 
 ```bash
