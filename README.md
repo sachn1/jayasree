@@ -31,7 +31,7 @@ await writer.loadStrokes();   // fetches stroke-data.json (optional)
 await writer.play("നന്ദി");
 ```
 
-The npm package bundles Malayalam's data. Hindi's lives in `js/src/*.hi.json` and is shown in the demo.
+The npm package bundles every language on `master` (Malayalam and Hindi); see [`js/README.md`](js/README.md) for loading a language other than the default.
 
 All options and examples: [`docs/JS_API.md`](docs/JS_API.md).
 

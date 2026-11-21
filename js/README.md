@@ -5,7 +5,7 @@ Animates Indic-script text (Malayalam and Hindi so far) as handwriting - a pen t
 over a faint ghost of the complete letterform.
 
 Self-contained. No server. No font file at runtime. Glyph shapes are
-pre-computed and bundled in `glyph-data.json`.
+pre-computed and bundled in `glyph-data*.json`, one pair of data files per language.
 
 ## Install
 
@@ -32,6 +32,20 @@ writer.cancel();   // stop mid-animation
 writer.destroy();  // cancel + clear the container
 ```
 
+A language's data is a `glyph-data` file and a `stroke-data` file, shipped in the package under `src/`:
+Malayalam's are unsuffixed, Hindi's end in `.hi.json`. Malayalam is the default; for another language,
+load its files:
+
+```js
+const base = new URL("./node_modules/jayasree/src/", location.href); // or wherever you serve them
+const writer = createStrokeWriter(stage);
+await writer.load(new URL("glyph-data.hi.json", base));
+await writer.loadStrokes(new URL("stroke-data.hi.json", base));
+await writer.play("भारत");
+```
+
+Every language on `master` ships in the package.
+
 Spaces and common punctuation (`.`, `,`, `!`, `?`, `;`, `:`, `-`, quotes,
 parens) work in `play()` text without any setup - they're rendered as
 plain static characters, not animated handwriting, since they're not part
@@ -54,8 +68,8 @@ Both live in `js/` and should be committed to your repo:
 
 | File | What it contains | Font-specific? |
 |---|---|---|
-| `src/glyph-data.json` | SVG outlines + advance widths for every cluster | Yes - re-run `tools/build_glyph_data.py` when you change fonts |
-| `stroke-data.json` | Hand-authored centerline stroke paths | No - commit once, works across fonts |
+| `src/glyph-data.json`, `src/glyph-data.hi.json` | SVG outlines + advance widths for every cluster (Malayalam, Hindi) | Yes - re-run `tools/build_glyph_data.py` when you change fonts |
+| `src/stroke-data.json`, `src/stroke-data.hi.json` | Hand-authored centerline stroke paths (Malayalam, Hindi) | No - commit once, works across fonts |
 
 When `stroke-data.json` has coverage for a cluster, the pen follows those
 paths. Otherwise it falls back to tracing the outer contour of the font
