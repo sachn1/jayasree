@@ -11,7 +11,7 @@ smoothly. Delete lines that do not apply.
 - [ ] New behavior has tests; a bug fix has a regression test that fails without the fix
 - [ ] Docs are updated where they describe what changed (README, `docs/`, CONTRIBUTING, docstrings)
 - [ ] **Every frozen language (Malayalam, Hindi) is unchanged**: the freeze tests pass *unmodified*
-      (CONTRIBUTING, "The Malayalam freeze" and "The Hindi freeze"). If one is meant to change, say so
+      (CONTRIBUTING, "Language freezes"). If one is meant to change, say so
       here, get the owner's sign-off, and regenerate its golden in this PR
 - [ ] Generated data (`glyph-data*.json`, `stroke-data*.json`) was regenerated with the tools
       (`make build-glyph-data`, `make process-strokes`), never hand-edited

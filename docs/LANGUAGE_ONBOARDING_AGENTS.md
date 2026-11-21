@@ -703,7 +703,7 @@ language changes only by a deliberate, reviewed regeneration of its golden file
 
 Today Malayalam and Hindi are frozen: each has `tests/<language>-freeze.test.js`,
 `python/tests/test_<language>_freeze.py`, a golden file in `tests/freeze/` and a
-raw-data snapshot (`CONTRIBUTING.md`, "The Malayalam freeze" and "The Hindi
+raw-data snapshot (`CONTRIBUTING.md`, "Language freezes" and "The Hindi
 freeze"). Hindi was frozen when the owner said "Hindi ships". For the next
 language, copy Hindi's files (`tests/freeze/hindi-snapshot.mjs`,
 `generate-hindi-golden.mjs`, `tests/hindi-freeze.test.js`,

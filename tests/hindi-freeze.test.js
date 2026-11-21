@@ -2,8 +2,8 @@
  * Hindi freeze: nothing a Hindi visitor sees may change.
  *
  * Compares the working tree against `tests/freeze/hindi-golden.json`, a snapshot taken when the owner signed
- * Hindi off - see `tests/freeze/hindi-snapshot.mjs` for what it covers and, in CONTRIBUTING.md's "The Hindi
- * freeze", what it does not. Shared code may change; Hindi's letters, data and behaviour may not. A failure
+ * Hindi off - see `tests/freeze/hindi-snapshot.mjs` for what it covers and, in CONTRIBUTING.md's "Language
+ * freezes", what it does not. Shared code may change; Hindi's letters, data and behaviour may not. A failure
  * names the clusters, words or files that moved.
  *
  * If Hindi is *supposed* to change, regenerate the golden file in that same PR (instructions in
