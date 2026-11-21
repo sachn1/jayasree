@@ -86,7 +86,7 @@ reintroduce by "obvious" refactoring.
 make install         # poetry (python/) + npm ci (repo root)
 make lint             # ruff + interrogate + eslint
 make test              # pytest (+coverage) + vitest (+coverage)
-make validate-data      # structural check of the 3 committed JSON data files
+make validate-data      # structural check of every language's committed JSON data files
 make ci                  # everything CI runs, both languages, in one shot
 make build-glyph-data FONT=/path/to/Font.ttf   # regenerate glyph-data.json
 make process-strokes                            # regenerate stroke-data.json

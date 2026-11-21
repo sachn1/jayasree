@@ -19,7 +19,7 @@ help:
 	@echo "  make lint           lint Python + JS"
 	@echo "  make format         auto-fix formatting (Python only - see lint-js for JS)"
 	@echo "  make test           run Python + JS test suites"
-	@echo "  make validate-data  structural validation of the 3 committed JSON data files"
+	@echo "  make validate-data  structural validation of the committed JSON data files"
 	@echo "  make precommit      run every pre-commit hook against all files"
 	@echo "  make ci             everything CI runs, for both languages, in one shot"
 	@echo "  make demo           serve the demo AND the stroke recorder (same server, see"
@@ -142,7 +142,7 @@ build-glyph-data:
 	cd python && poetry run python ../tools/build_glyph_data.py $(FONT) $(if $(PROJECT_LANG),--lang $(PROJECT_LANG),)
 
 process-strokes:
-	python3 tools/process_strokes.py --preset=full $(if $(PROJECT_LANG),--lang $(PROJECT_LANG),)
+	cd python && poetry run python ../tools/process_strokes.py --preset=full $(if $(PROJECT_LANG),--lang $(PROJECT_LANG),)
 
 build-recorder:
 	cd python && poetry run python ../tools/build_standalone_recorder.py $(if $(PROJECT_LANG),--lang $(PROJECT_LANG),)
