@@ -1,3 +1,94 @@
+## v0.7.0 (2026-11-21)
+
+### Feat
+
+- Hindi (Devanagari) - recorded, cleaned and frozen (#70)
+
+## v0.6.1 (2026-11-20)
+
+### Feat
+
+- **tools**: clean Hindi half-form and reph atoms (#61)
+- **tools**: clean Hindi half-form and reph atoms against their contextualForms outline
+- **py**: add an audit that ranks cleaned Hindi strokes by the bend the cleanup introduced (#59)
+- **py**: add an audit that ranks cleaned strokes by the bend the cleanup introduced
+- **tools**: enforce one-line docstrings for modules and classes too
+- **tools**: make the docstring checker match real sections and handle generators and nested scopes
+- **py**: clean Hindi strokes with the font's own geometry (#57)
+- **tools**: fail the run when a Hindi cleanup falls back instead of hiding it
+- **tools**: run the stroke cleanup by default for Hindi
+- **tools**: add an opt-in, Hindi-only --cleanup stage to process_strokes
+- **py**: add stroke cleanup that rebuilds a stroke from the font's own geometry
+- **demo**: add a Hindi wordmark and show both on the landing page and README (#53)
+- **js**: Hindi headlines, dots-last and conjunct vowel-sign placement (#51)
+- **tools**: validate the markNudge on a glyph-data cluster
+- **tools**: add real-shaped conjunct vowel-sign clusters and stem-last stroke order for Hindi
+- **js**: draw dots last and give runtime-composed clusters their own headline and mark placement
+- **demo**: show both wordmarks on the landing page and README, and match the colour in the demo
+- **demo**: add the Hindi wordmark in a soft red
+- **tools**: export a language's animated wordmark as one solid colour
+
+### Fix
+
+- **demo**: drop the cleanup-in-progress note from the Hindi tab
+- **py**: make the audit handle arcs, empty paths and added limbs, and word its output as candidates
+- **demo**: align the Hindi and Malayalam wordmarks (#55)
+- **demo**: regenerate the Hindi wordmark with the aligned framing
+- **tools**: frame the Hindi wordmark like the Malayalam one so the two line up
+- **py**: raise clear errors for empty input in the cleanup instead of numpy ones
+
+### Refactor
+
+- **tools**: drop the stem-last reorder for ख़ and ङ्ख (#65)
+- **tools**: drop the stem-last reorder for ख़ and ङ्ख, the recorded order is kept
+- **tools**: drop the cleanup flag; the language is the only switch
+- **js**: extract the dot-size test so its thresholds are unit-tested
+
+## v0.6.0 (2026-11-20)
+
+## v0.5.1 (2026-11-20)
+
+## v0.5.0 (2026-11-20)
+
+### Feat
+
+- **demo**: draw a live Devanagari wordmark on the Hindi tab
+- **demo**: one demo page with a tab per language
+- **demo**: add Hindi demo
+- **tools**: extend glyph-data build, stroke processing, validation and stroke recorder for Hindi
+- **js**: runtime updates for Hindi composition
+- **py**: extend ghost reference and geometry for Hindi recording
+- **tools**: add a private build-extension hook for per-language research
+- **py**: add $JAYASREE_DATA_ROOT override for non-primary languages
+- **tools**: auto-load a language via ?lang=<code>, no file picker needed
+- **tools**: save recorded strokes straight to the repo over Wi-Fi
+- add a general-purpose code-reviewer subagent for this repo
+- **tools**: wire contextual-form composition into the coverage audit and recorder
+- **py**: mirror contextual-form composition in the offline stroke baker
+- **js**: compose Devanagari half-form/reph clusters via contextualForms
+- add named subagents for the language-onboarding pipeline
+- **tools**: add coverage_report.js, a per-cluster direct/composed/fallback audit
+- **js**: read chillu/split-vowel data from glyphData, not hardcoded tables
+- **tools**: emit legacyEncodings/splitVowelParts into glyph-data.json
+- **tools**: recognize candrabindu, nukta, and native-punctuation categories
+- **tools**: validate every onboarded language's data files, not just Malayalam's
+- **tools**: parametrize process_strokes.py by --lang, alias --preset=full
+- **py**: add --lang to the CLI's alphabet command
+- **tools**: parametrize build_glyph_data.py by --lang
+- **py**: add language registry for multi-script tooling
+
+### Fix
+
+- **demo**: fill the Hindi wordmark in its ink color
+- **tools**: handle an out_path outside ROOT in build_glyph_data's status print
+- **demo**: detect the actual outbound IP instead of the hostname's
+- **demo**: fall back to the next free port when the requested one is busy
+- **tools**: make the stroke recorder's per-language text data-driven
+
+### Refactor
+
+- **tools**: share one per-cluster processing function between main and its tests
+
 ## v0.4.1 (2026-10-05)
 
 ### Fix
