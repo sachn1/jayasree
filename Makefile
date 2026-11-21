@@ -145,7 +145,7 @@ process-strokes:
 	python3 tools/process_strokes.py --preset=full $(if $(PROJECT_LANG),--lang $(PROJECT_LANG),)
 
 build-recorder:
-	python3 tools/build_standalone_recorder.py $(if $(PROJECT_LANG),--lang $(PROJECT_LANG),)
+	cd python && poetry run python ../tools/build_standalone_recorder.py $(if $(PROJECT_LANG),--lang $(PROJECT_LANG),)
 
 coverage-report:
 	node tools/coverage_report.js
