@@ -1,72 +1,102 @@
 # Contributing
 
-Thanks for wanting to help! There are two very different ways to contribute
-here, and the most valuable one needs no coding at all.
+Thanks for wanting to help! You can contribute **stroke data** (no coding), **code**, or a **new language**.
 
-## Contributing stroke data (no code needed)
+By taking part you agree to the [Code of Conduct](CODE_OF_CONDUCT.md). Report security problems through
+[SECURITY.md](SECURITY.md), not a public issue. Issues and PRs have templates; please use the one that fits.
 
-The heart of this project is hand-drawn stroke data from people who actually
-write the script. Open the [stroke recorder](tools/stroke-recorder.html) (or
-the offline `tools/stroke-recorder-standalone.html`), trace the characters
-marked ○ (missing), export, and open a PR with the updated
-`js/src/stroke-data.raw.json`.
+## Where do I start?
 
-Rules that keep the data trustworthy:
+| I want to... | Do this |
+|---|---|
+| Add or fix handwriting for a letter | [Contribute stroke data](#contributing-stroke-data-no-code-needed): record in the browser, open a PR with the exported file |
+| Fix a bug or add a feature | [Contribute code](#contributing-code): branch, write the test first, `make ci`, open a PR |
+| Bring a new script (Tamil, Telugu ...) | [Add a language](#adding-a-new-language): open an issue first, then follow the pipeline |
+| Report a problem or suggest something | Open an issue with the matching template |
+| Understand how it works first | [`README.md`](README.md), then [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) |
 
-- **Whitespace and punctuation never get a recorded stroke.** Space, `.`,
-  `,`, `!`, `?`, `;`, `:`, and a few others (`UNIVERSAL_CHARS` in
-  `js/src/index.js`) are handled entirely outside this pipeline - they're
-  rendered as plain static text, not traced handwriting, since they aren't
-  part of any script's letterforms. The recorder itself refuses to add one
-  ("Add custom cluster" rejects them with an explanation), and
-  `tools/validate_data.py` fails CI if one ever ends up in any committed
-  data file, so this isn't something you need to remember - just know why
-  you won't find them in the recorder's list.
-- **Never hand-edit `stroke-data.raw.json`.** Only the recorder writes it.
-  It is the project's source of truth; everything else is derived from it.
-- **Don't edit `stroke-data.json` or `glyph-data.json` at all** - they're
-  generated (`make process-strokes`, `make build-glyph-data`). Regenerate,
-  don't patch.
-- **Changing an already-recorded character is a deliberate act.** The
-  snapshot test will fail until you run `make update-snapshot` and commit
-  the updated snapshot *in the same PR* - that's by design, so every change
-  to previously-recorded data is explicit and reviewable, never a silent
-  side effect. New characters don't need this; only changed/removed ones do.
-- **Licensing:** by contributing stroke data you agree it's released under
-  the project's data license (CC BY 4.0 - see [LICENSE-DATA](LICENSE-DATA)).
-  You'll be credited in the git history; if you'd like more prominent
-  attribution, say so in the PR.
+Using an AI agent? [`CLAUDE.md`](CLAUDE.md) is its rulebook and map of the repo, and `/onboard-language <name>`
+walks the language pipeline. The rules are the same for agents and people.
 
-## Contributing code
-
-Ground rules, enforced by CI (`make ci` runs exactly what CI runs - if it's
-green locally, it's green there):
-
-- **Tests are not optional.** New behavior comes with tests; bug fixes come
-  with a regression test that fails before the fix. Aim to keep coverage
-  where it is or better (Python is ~95%; don't dilute it).
-- **Clean code is enforced, not aspirational.** `ruff` (lint + format,
-  NumPy-style docstrings, type hints everywhere) and `eslint` gate every
-  commit via pre-commit and CI. Public functions document their Parameters
-  and Returns. If a linter and this document disagree, the linter wins.
-- **Match the code around you** - comment density, naming, idiom. Comments
-  explain *why*, not *what*.
-
-Setup:
+## Quick start
 
 ```bash
 make install     # poetry + npm dependencies
 make test        # pytest + vitest
-make lint        # ruff + interrogate + eslint
+make lint        # ruff + interrogate + eslint + docstring check
+make ci          # everything CI runs - green here means green there
 make precommit   # every pre-commit hook, as CI runs them
+```
+
+Run `pre-commit install --hook-type commit-msg` once after cloning. Repo layout and the full command list
+are in [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md).
+
+## Contributing stroke data (no code needed)
+
+Open the [stroke recorder](tools/stroke-recorder.html) (or build an offline copy with
+`make build-recorder`), trace the characters marked ○ (missing), export, and open a PR with the updated
+`js/src/stroke-data.raw.json` (`stroke-data.<code>.raw.json` for other languages).
+
+- **Only the recorder writes `stroke-data*.raw.json`.** Never hand-edit it.
+- **Never edit `stroke-data*.json` or `glyph-data*.json`.** They are generated
+  (`make process-strokes`, `make build-glyph-data`); regenerate, don't patch.
+- **Whitespace and punctuation never get a recorded stroke.** They are plain text, handled outside the
+  pipeline (`UNIVERSAL_CHARS` in `js/src/index.js`); the recorder refuses them and `tools/validate_data.py`
+  fails CI if one appears in any data file.
+- **Changing an already-recorded character is deliberate.** The snapshot test fails until you run
+  `make update-snapshot` and commit the result in the same PR. New characters don't need this.
+- **Licence:** stroke data for every language is CC BY-SA 4.0 ([LICENSE-DATA](LICENSE-DATA)). You are
+  credited in git history; ask in the PR for more prominent credit. There is no private or premium tier.
+  The engine code stays MIT.
+
+## Contributing code
+
+- **Tests are not optional.** New behaviour comes with tests; a bug fix comes with a regression test that
+  fails before the fix. Keep coverage where it is or better (Python is about 95%).
+- **Clean code is enforced.** `ruff`, `eslint`, `interrogate` and the docstring check gate every commit
+  (pre-commit) and CI. If a linter and this document disagree, the linter wins.
+- **Match the code around you** (comment density, naming, idiom). Comments explain *why*, not *what*.
+- **Don't invent a parallel implementation** of something that exists; extend it (see
+  [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)).
+
+## Docstrings
+
+NumPy style with this project's split, enforced by `tools/check_docstrings.py` (in `make lint`):
+
+| Kind | Docstring |
+|---|---|
+| Module, class, private function (leading `_`) | one line only; anything longer is a comment or belongs in `docs/` |
+| Public function | one-line summary, then NumPy `Parameters` (if it takes arguments) and `Returns` (or `Yields`) |
+| Test, nested helper, dunder | not checked (tests: one line, "Ensure that ...") |
+
+A command-line tool's `--help` text lives in a `_HELP` constant, not in the docstring.
+
+```python
+def center(points: np.ndarray, field: DistField) -> np.ndarray:
+    """Move each point onto the ink's ridge.
+
+    Parameters
+    ----------
+    points : np.ndarray
+        ``(n, 2)`` points in font units.
+    field : DistField
+        The glyph's distance field.
+
+    Returns
+    -------
+    np.ndarray
+        The centred points, same shape.
+    """
+
+
+def _snap(p: float) -> float:
+    """Round `p` to the raster grid."""
 ```
 
 ## Commit messages & versioning
 
-This repo uses [conventional commits](https://www.conventionalcommits.org/)
-enforced by commitizen (a `commit-msg` pre-commit hook rejects anything
-else - run `pre-commit install --hook-type commit-msg` once after cloning,
-or let `cz commit` write the message interactively for you):
+[Conventional commits](https://www.conventionalcommits.org/), enforced by commitizen (`cz commit` writes
+one interactively). One line, no body unless it is a breaking change.
 
 ```
 <type>(<scope>): <description>
@@ -74,118 +104,89 @@ or let `cz commit` write the message interactively for you):
 feat(js): add per-play speed multiplier
 fix(py): keep straight runs straight through loop-adjacent pieces
 data(ml): record the remaining chillu letters
-docs: explain the snapshot re-approval flow
 ```
 
-Types follow the standard set (`feat`, `fix`, `docs`, `refactor`, `test`,
-`build`, `ci`, `chore`, `perf`). Use the scope for where the change lives:
+| Type | Use for |
+|---|---|
+| `feat` / `fix` | new behaviour / bug fix (these trigger a release) |
+| `docs` `test` `refactor` `build` `ci` `chore` `perf` | everything else (no release) |
 
-- `js` - the runtime library (`js/src/`)
-- `py` - the Python package (`python/`)
-- `data` - the committed JSON data (suffix the language, e.g. `data(ml)`)
-- `tools` / `demo` / `docs` / `ci` - the corresponding directories
+| Scope | Where the change lives |
+|---|---|
+| `js` / `py` | `js/src/` / `python/` |
+| `data` | committed JSON; suffix the language, e.g. `data(ml)` |
+| `tools` `demo` `docs` `ci` | the directory of that name |
 
-Releases are semantic-versioned from the commit history: bumping picks the
-next version (`feat` -> minor, `fix` -> patch, a `BREAKING CHANGE` footer ->
-major), rewrites every version reference (Python package, JS package, the
-version badge on the website), updates CHANGELOG.md, and tags. Don't edit
-version numbers by hand anywhere.
+Group commits by logical unit, not by file. Never edit a version number by hand: merging to `master`
+bumps it from the commit history. How releases work: [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md#releases).
 
-Merging a PR into `master` is what triggers a release:
-`.github/workflows/release-on-merge.yml` runs the version bump
-automatically once a PR is merged, if the merged commits include anything
-release-worthy (`feat`/`fix`/a breaking change). A PR of only
-`docs`/`chore`/`ci`/non-breaking `refactor` commits merges normally with no
-release triggered. The bump commit + tag it pushes cascades everything
-else: `pages.yml` redeploys, `publish.yml` attempts an npm publish.
+## Pull requests
 
-One version number covers the npm package, the (unpublished) Python
-build-tool package, and the site's version badge together - simpler than
-tracking independent version schemes per package, at the cost that plenty
-of tagged releases don't touch anything npm actually ships (e.g. a
-`docs`/`demo`-only `fix`). `publish.yml` accounts for this: it only runs
-`npm publish` if `js/src/`, `js/README.md`, or `js/LICENSE` actually
-changed since the previous tag - the tag/CHANGELOG entry still always
-happens, only the redundant npm publish is skipped. A manual
-`workflow_dispatch` run bypasses this check and always publishes.
+- Branch from `master` as `feature/<short-description>`; never commit to `master` directly.
+- Keep each PR small and on one topic. Fill in the PR template's checklist.
+- `make ci` must be green before you ask for review (the site deploys on merge to `master`).
+- Data files under `js/src/` are always owner-reviewed (`.github/CODEOWNERS`).
 
 ## Adding a new language
 
-The core is deliberately script-agnostic - geometry, centering,
-straightening, and composition know nothing about Malayalam. The tests
-mirror that split: `test_geometry.py`/`test_stroke_compose.py` use synthetic
-fixtures, while everything Malayalam-specific lives in
-`test_chars_malayalam.py` and the data files. Keep it that way:
+Follow the pipeline in [`docs/LANGUAGE_ONBOARDING_AGENTS.md`](docs/LANGUAGE_ONBOARDING_AGENTS.md), or run
+`/onboard-language <name>` in Claude Code, which detects the stage and enforces the sign-offs. One language
+at a time:
 
-- **A new language must not touch the existing one.** No edits to
-  `_chars.py`, `stroke-data.raw.json`, or Malayalam tests. If a "common"
-  feature needs changes to shared code, the existing language's tests must
-  pass unmodified - if you had to change them, the feature wasn't common.
-- Add a sibling character-inventory module (e.g. `_chars_tamil.py`), its own
-  data files (see the README's "Data size & deployment" on per-script
-  splitting), and its own test module mirroring `test_chars_malayalam.py`.
-- Recording needs a native speaker/writer of that script - strokes drawn by
-  someone who doesn't write it daily are worse than no strokes (the outline
-  fallback is always correct, just less handwriting-like).
-- Whitespace/punctuation handling (`UNIVERSAL_CHARS` in `js/src/index.js`)
-  is already script-agnostic - it's checked before any language-specific
-  lookup and never touches per-language data. Nothing to add per language.
+1. **Research and profile** (`language-researcher`, `language-reviewer`); a human who reads the script signs off.
+2. **Ghost font** (`font-selector`); a human signs off on one OFL-licensed, HarfBuzz-verified font.
+3. **Atom set** (`atom-reducer`): `_chars_<code>.py`, the registry entry, `glyph-data.<code>.json`, the worklist.
+4. **Record**: a native writer traces the worklist in the recorder. No agent does this.
+5. **Process and verify**: `process_strokes.py --lang <name>`, `validate_data.py` and
+   `node tools/coverage_report.js` until 100% with 0 fallbacks.
+7. **Wire up** (`language-publisher`): demo tab, wordmark, README, site, docs. Then the owner looks (stage 6).
+8. **Freeze** (the owner's call), see below.
 
-## The Malayalam freeze
+Rules:
 
-Malayalam is the published, human-approved language, so what a Malayalam visitor sees must not change
-as a side effect of work on anything else - another language, a refactor, a new feature. Shared code may
-change freely; Malayalam's *output* may not. `tests/malayalam-freeze.test.js` pins it and runs in
-`make ci`:
+- **A new language must not touch a shipped one.** Today that is Malayalam and Hindi: no edits to their
+  `_chars*.py`, `stroke-data*.raw.json` or `test_chars_*.py`. If shared code must change, every shipped
+  language's tests must pass *unmodified*; if you had to change them, the feature wasn't common.
+- Add `_chars_<code>.py` (`_chars_hi.py` is the worked example), a `LanguageSpec` in `languages.py`'s
+  `LANGUAGES`, its own data files, and a `test_chars_<code>.py`.
+- Recording needs a native writer; strokes from someone who doesn't write the script daily are worse than
+  none (the outline fallback is always correct).
+- Give it a wordmark: `tools/export_wordmark.py --lang <name> --output demo/jayasree.<code>.svg`, in a colour
+  no other language uses (Hindi is red), kept in step with `--ms-ink-color` in `demo/demo.css`, the landing
+  page and the README header.
+- Hard stops: never skip a human sign-off, never run two languages at once, never hand-edit generated data.
 
-- for **every** Malayalam cluster and for 38 real words (including both chillu spellings, split vowels,
-  digits, spaces and punctuation), it re-derives with today's runtime the ghost outline and the strokes
-  that would be drawn, and compares them with `tests/freeze/malayalam-golden.json`, a snapshot taken
-  from production (`origin/master`);
-- it hashes Malayalam's data files (`stroke-data.raw.json`, `stroke-data.json`, `_chars.py`,
-  `test_chars_malayalam.py`, `stroke_data_raw_snapshot.json`, and the `clusters` and `marks` of
-  `glyph-data.json`);
-- it allows only a short, named list of extra fields in Malayalam's glyph data and pins their content,
-  so a new field counts as a change.
+## Language freezes
 
-A failure names the clusters, words or files that moved. **Do not edit the golden file or Malayalam's
-data to make it pass.** If Malayalam is *meant* to change, do it in its own PR, say so in the
-description, regenerate the golden in that PR (instructions in
-`tests/freeze/generate-malayalam-golden.mjs`), update the pins in `tests/malayalam-freeze.test.js` that
-the change affects (approved extra fields, composition steps) and get the owner's explicit sign-off.
-Gate new behaviour
-on data a language opts into, never on a default Malayalam inherits.
+A language the owner has signed off is **frozen**: shared code may change, its output may not. Each has a
+JS test, a Python test, a golden file and a raw-data snapshot, all run by `make ci`. How each works is in
+the header of its test file.
 
-Run just this test with `npx vitest run tests/malayalam-freeze.test.js`.
+| Language | JS test | Python test | Golden |
+|---|---|---|---|
+| Malayalam | `tests/malayalam-freeze.test.js` | `python/tests/test_malayalam_freeze.py` | `tests/freeze/malayalam-golden.json` |
+| Hindi | `tests/hindi-freeze.test.js` | `python/tests/test_hindi_freeze.py` | `tests/freeze/hindi-golden.json` |
 
-**What it does not cover** (so it is not mistaken for more than it is): the DOM and animation code
-(stroke order and timing, SVG construction, the layout and tightening `buildTrace` applies between
-clusters), the demo pages and the wordmark, the contents of the npm package, and the segmentation of
-text outside the 38 words. Its Python counterpart - re-deriving Malayalam's shaping, marks and stroke
-processing - lands with the language registry. Check the demo by hand before a release.
+- **Never edit a golden, a snapshot or a frozen language's data to make a freeze test pass.**
+- To change a frozen language on purpose: own PR, the owner's sign-off, then regenerate its golden
+  (`tests/freeze/generate-<language>-golden.mjs`, labelled `approved change: <reason>`) and, for recorded
+  strokes, `python3 tools/validate_data.py --update-snapshot --lang <code>`.
+- To freeze a new language (the owner's call): copy Hindi's four freeze files and the snapshot, change the
+  language, words, data files and label, and add a row above.
+- Gate new behaviour on data a language opts into, never on a default a frozen language inherits.
+- **What it does not cover:** the DOM and animation code (stroke order, timing, pen speed), the demo pages,
+  the wordmark and the npm package contents. Check the demo by hand before a release.
 
 ## Data integrity & governance
 
-How this repo keeps its data trustworthy, in layers - worth understanding
-before touching any `js/src/*.json`:
+Layers that keep the data trustworthy:
 
-1. **Structural validation** - `tools/validate_data.py` checks every stroke
-   and glyph entry is well-formed, and that every hand-authored cluster
-   survived into the processed file. Runs in pre-commit and CI; a
-   structurally corrupt commit can't land.
-2. **Content snapshot** - a per-cluster content hash
-   (`python/tests/snapshots/`) fails the test suite if previously-recorded
-   data is lost or silently altered. Re-approval (`make update-snapshot`) is
-   a visible, reviewable diff in the same PR as the change it approves.
-3. **Generated vs. source separation** - `stroke-data.raw.json` is the only
-   hand-made data file; everything else regenerates from it, so corruption
-   in derived files is always recoverable.
-4. **Review + history** - all changes land via PR; git history is the
-   provenance record of who contributed which strokes and when.
-5. **Read-only runtime** - the published site and library only ever *fetch*
-   the data. Nothing a visitor does can write back; the recorder runs
-   entirely client-side and produces a file the contributor must
-   deliberately submit through a PR.
+1. **Structural validation**: `tools/validate_data.py` (pre-commit and CI) rejects malformed data.
+2. **Content snapshot**: per-cluster hashes in `python/tests/snapshots/` fail the tests if recorded data
+   is lost or silently altered; re-approval is a visible diff.
+3. **Generated vs. source**: `stroke-data*.raw.json` is the only hand-made file; the rest regenerates.
+4. **Review and history**: everything lands by PR; git history records who contributed which strokes.
+5. **Read-only runtime**: the site only fetches data; the recorder runs client-side and produces a file
+   you submit through a PR.
 
-If you find a way to corrupt the data that slips past all of this, that's a
-bug - please open an issue.
+If you find a way to corrupt the data past all of this, that's a bug; please open an issue.

@@ -1,0 +1,142 @@
+---
+name: onboard-language
+description: >
+  Orchestrates jayasree's multi-agent language-onboarding pipeline
+  (docs/LANGUAGE_ONBOARDING_AGENTS.md) end to end for one Indic script:
+  Agent 1 research -> human sign-off -> Agent 2 font selection -> human
+  sign-off -> Agent 3 atom reduction; then, once the owner has recorded and
+  processed the strokes, stage 7 wiring (`language-publisher`). Detects which stage a language is
+  already at and resumes from there instead of restarting. Use when the
+  user says "/onboard-language <name>", "onboard <language>", "start
+  onboarding <language>", or asks to run the language-onboarding pipeline
+  for a new or in-progress language. Not for ad-hoc single-stage requests
+  ("just re-run Agent 2") - those still go straight to the matching
+  subagent (font-selector, etc.) without this skill.
+---
+
+This skill is a thin orchestrator. It does not restate the pipeline - read
+`docs/LANGUAGE_ONBOARDING_AGENTS.md` in full before doing anything else,
+same as every agent in `.claude/agents/` already does. If this file and
+that doc ever disagree, the doc wins; fix this file to match, don't act
+against it.
+
+## What this skill actually does that isn't already automatic
+
+Spawning the five pipeline agents (`language-researcher`, `language-reviewer`,
+`font-selector`, `atom-reducer`, `language-publisher`) already works without this skill - it's
+what's been happening in this conversation by hand. What a skill adds:
+
+1. **A single entry point** (`/onboard-language <language>`) instead of the
+   user needing to know the agent names or which stage comes next.
+2. **A hard-enforced sign-off gate**, not an advisory one. Each agent's own
+   description says "use only when explicitly asked, for a language whose
+   profile/font already has human sign-off" - that's a note to whoever is
+   orchestrating, not something the agent itself checks. This skill is the
+   thing that actually enforces it: never invoke Agent 2 or Agent 3 without
+   first getting an explicit, real sign-off message from the user in *this*
+   conversation. A prior commit message, a doc header, or your own belief
+   that something "seems fine" is not sign-off - if in doubt, ask.
+3. **Resume detection**, so re-invoking this skill for a language already in
+   progress doesn't redo finished work.
+
+## Procedure
+
+### 0. Identify the language and current stage
+
+Determine the target language (from the skill's arguments, or ask if not
+given). Check `docs/languages/<code>/` for what already exists:
+
+- No `profile.md` -> start at Stage 1.
+- `profile.md` exists, status header says "pending sign-off" or similar,
+  and the user hasn't signed off in this conversation -> stop and ask for
+  sign-off before doing anything else (don't re-run Agent 1 just because
+  it's unsigned - re-running redoes real research work for nothing if the
+  draft is actually fine).
+- `profile.md` signed off, no `font-report.md` (or it's stale relative to
+  a signed-off profile revision) -> Stage 2.
+- `font-report.md` exists but its recommendation hasn't been signed off ->
+  stop and ask, same as above.
+- Font signed off, no (or stale) `labeling-worklist.md` /
+  `glyph-data.<code>.json` -> Stage 3.
+- Worklist present and current, strokes not (fully) recorded -> **Stage 4**, a
+  human step: point at `labeling-worklist.md` and `tools/stroke-recorder.html`,
+  and stop. `coverage_report.js` says how far the recording is.
+- Raw strokes recorded (the owner says the recording is done), no processed
+  `stroke-data.<code>.json` -> **Stage 5**: run the post-recording gate (spec,
+  "Post-recording gate"); it is commands, not an agent.
+- Processed, but the stage-5 gate failing (`validate_data.py` not OK, or
+  coverage under 100% / fallbacks) -> still **Stage 5**: read
+  `coverage_report.js --verbose`; a missing atom goes back to Stage 4, a
+  composition bug is a code fix with every shipped language's tests unmodified.
+- Gate passing, `python/tests/test_language_wiring.py` failing for the language
+  -> **Stage 7** (below). Stage 6, the owner's look in a browser, follows it,
+  because it needs the demo tab.
+- Wired and the owner is happy with the letters -> **Stage 8**, the freeze:
+  the owner's call only, never started by this skill unprompted.
+- Frozen (a freeze test and golden file exist for the language) -> done;
+  that language's files are never edited again except by a deliberate,
+  reviewed regeneration the owner asked for.
+
+Known limit: sign-offs live only in conversation today, so a resumed session
+must ask rather than infer them (recording them in the repo is planned).
+
+Never assume "the files exist, so it's approved" - existence means a
+*draft* exists. Only an explicit human sign-off in conversation clears a
+gate.
+
+### 1. Stage 1 - research (if needed)
+
+Spawn `Agent(language-researcher, ...)` per `docs/LANGUAGE_ONBOARDING_AGENTS.md`'s
+Agent 1 section, giving it the language name and pointing it at the "Don't
+generalize from Malayalam" section so it profiles the script on its own
+structural terms.
+
+Then spawn `Agent(language-reviewer, ...)` against the draft - this is the
+review gate the plan itself requires before a human ever sees the draft,
+not optional polish.
+
+Present the reviewed draft profile to the user and **stop**. Summarize the
+open questions the reviewer raised. Do not proceed until the user
+explicitly signs off (approves as-is, or approves with named corrections
+you then apply).
+
+### 2. Stage 2 - font selection (only after Stage 1 sign-off)
+
+Spawn `Agent(font-selector, ...)` against the signed-off `profile.md`/
+`chars.json`, per Agent 2's section of the plan.
+
+Present the recommendation (and runner-up, if any) to the user and
+**stop**. Do not wire the font into `python/src/jayasree/languages.py` or
+invoke Agent 3 until the user explicitly signs off on a specific font.
+
+### 3. Stage 3 - atom reduction (only after Stage 2 sign-off)
+
+Spawn `Agent(atom-reducer, ...)` against the signed-off font choice, per
+Agent 3's section. This is the stage that actually wires the registry
+entry, regenerates `glyph-data.<code>.json`, and produces the labeling
+worklist - it's allowed to write code/data, unlike Stages 1-2's review
+gates.
+
+Report back what was generated and where the labeling worklist lives.
+**Recording strokes by hand is never this skill's job** - that's
+`tools/stroke-recorder.html`, a human task, per `CLAUDE.md`'s hard rules.
+
+### Stage 7 - wire up and document (only after the stage-5 gate)
+
+Confirm the gate really passed (`python3 tools/validate_data.py` OK and
+`node tools/coverage_report.js` at 0 fallbacks); do not take anyone's word for
+it. Then spawn `Agent(language-publisher, ...)` per the spec's "Stage 7 - wire
+up and document". Report what it changed and **stop**: the owner looks at the
+tab and the wordmark in a browser, and says when the letters are clean.
+
+## Hard boundaries (same ones every pipeline agent already has)
+
+- Never touch a shipped (frozen) language's files: today Malayalam's
+  (`python/src/jayasree/_chars.py`, `js/src/stroke-data.raw.json`,
+  `python/tests/test_chars_malayalam.py`) and Hindi's `.hi` equivalents, later
+  every language the owner has signed off. Freezing a language (spec stage 8) is the owner's call,
+  never this skill's.
+- Never hand-edit a generated data file; only the dedicated tools/agents
+  regenerate them.
+- One language at a time, per the plan's own target-roster ordering -
+  don't fan this skill out across multiple languages in parallel.

@@ -1,6 +1,6 @@
 name: Deploy GitHub Pages
 
-# The whole site is static (see README's "Data size & deployment") - the demo
+# The whole site is static (see docs/CREATING_HANDWRITING.md "Data size & deployment") - the demo
 # fetches glyph-data.json / stroke-data.json at runtime and serve.py's only
 # dynamic endpoint (/api/shape) is unused by the demo UI. So deployment is
 # just: publish a filtered copy of the repo as the Pages artifact.
@@ -34,10 +34,16 @@ jobs:
       - name: Assemble site
         run: |
           mkdir -p _site
+          # Only what the pages reference: the home page, the demo, the runtime + data, the
+          # in-browser recorder (three files) and the home page's four example images.
           cp index.html favicon.svg _site/
-          cp -r js demo tools docs _site/
-          # Not useful on the website; keep the artifact lean.
-          rm -f _site/demo/serve.py _site/tools/*.py
+          mkdir -p _site/js
+          cp -r js/src _site/js/
+          cp -r demo _site/demo
+          mkdir -p _site/tools _site/docs
+          cp tools/stroke-recorder.html tools/stroke-recorder.css tools/stroke-recorder.js _site/tools/
+          cp -r docs/centering-example _site/docs/
+          rm -f _site/demo/serve.py
 
       - uses: actions/configure-pages@v6
 

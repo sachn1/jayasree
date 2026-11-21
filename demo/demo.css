@@ -21,6 +21,37 @@ body {
   margin: 0 auto;
 }
 
+#logo-stage[hidden],
+#logo-live[hidden] {
+  display: none;
+}
+
+/* Live wordmark for languages without a pre-exported SVG: an ink outline is
+   drawn, then the fill is revealed. Outline and fill are one solid color (this
+   language's wordmark color, the same red as demo/jayasree.hi.svg), so a thick
+   font's overlapping inner contours do not show as dark lines across a pale
+   fill. Keep it in step with DEFAULT_COLOR in tools/export_wordmark.py. */
+#logo-live {
+  display: flex;
+  justify-content: center;
+  height: 90px;
+  cursor: pointer;
+  --ms-ink-color: #e06c75;
+  --ms-stylus-color: #e8b84b;
+}
+
+#logo-live svg {
+  width: auto;
+  height: 90px;
+  overflow: visible;
+}
+
+#logo-live .ms-ghost path {
+  fill: var(--ms-ink-color);
+  fill-opacity: 1;
+  stroke: none;
+}
+
 p.tagline {
   color: #6b6591;
   font-size: 0.8rem;
@@ -120,6 +151,56 @@ button:disabled {
   background: #f3f0fb;
 }
 
+/* ── Letter browser ── */
+
+#letterBrowser {
+  margin-bottom: 1rem;
+}
+
+#letterBrowser summary {
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: #6d28d9;
+  margin-bottom: 0.4rem;
+}
+
+#letterChips {
+  margin-bottom: 0;
+}
+
+#letterChips button {
+  font-size: 1.1rem;
+}
+
+/* ── Language tabs ── */
+
+#langTabs {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.6rem 0 1rem;
+}
+
+#langTabs button {
+  background: none;
+  color: #6d28d9;
+  border: 1px solid #c4b5e8;
+  border-radius: 999px;
+  padding: 0.35rem 1rem;
+  font-size: 0.95rem;
+}
+
+#langTabs button:hover {
+  background: #f3f0fb;
+}
+
+#langTabs button[aria-selected="true"] {
+  background: #6d28d9;
+  color: #fff;
+  border-color: #6d28d9;
+}
+
 /* ── Stage ── */
 
 #stage {
@@ -130,6 +211,14 @@ button:disabled {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.lang-stage {
+  width: 100%;
+}
+
+.lang-stage[hidden] {
+  display: none;
 }
 
 #stage svg {

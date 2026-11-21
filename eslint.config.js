@@ -58,6 +58,17 @@ export default [
     },
   },
   {
+    // tools/coverage_report.js: Node ES module, run via `node`, not loaded
+    // by a browser - more specific than the tools/*.js block above, so its
+    // settings win for this one file.
+    files: ["tools/coverage_report.js"],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: "module",
+      globals: { console: "readonly", process: "readonly" },
+    },
+  },
+  {
     // tests/: vitest test files (Node, ES modules).
     files: ["tests/*.js"],
     languageOptions: {
@@ -67,8 +78,8 @@ export default [
     },
   },
   {
-    // tests/freeze/*.mjs: Node ES modules run directly by `node` (the Malayalam freeze's snapshot
-    // logic and its generator CLI).
+    // tests/freeze/*.mjs: Node ES modules run directly by `node` (the freeze tests' snapshot
+    // logic and generator CLIs, Malayalam's and Hindi's).
     files: ["tests/freeze/*.mjs"],
     languageOptions: {
       ecmaVersion: 2022,

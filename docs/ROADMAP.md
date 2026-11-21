@@ -81,13 +81,21 @@ count.
 needed) with each candidate change, and visually compare a representative
 sample - not just ജ (the one worked example currently in
 `docs/ARCHITECTURE.md`), since a single letter won't surface every corner
-shape Malayalam script produces. `test_geometry.py` should also grow a
+shape the scripts so far (Malayalam, Devanagari) produce. `test_geometry.py` should also grow a
 regression test once a concrete change lands, mirroring how the existing
 Catmull-Rom-tangent fix already has one
 (`test_straight_line_through_a_curved_piece_stays_straight`).
 
 Scoped as a separate PR, not blocking anything else - this is a quality
 tuning pass on already-shipped, already-working smoothing, not a bug fix.
+
+- **Clean Malayalam the same way as Hindi.** Hindi's strokes are rebuilt from the font's own
+  geometry (`jayasree.cleanup`, "Cleanup (Hindi)" in `docs/ARCHITECTURE.md`); if only cleaned
+  strokes are shipped for Hindi, Malayalam should get the same treatment for consistency. This
+  *changes Malayalam's published output*, so it is deliberately not part of the Hindi work: it needs
+  the owner's approval, a visual review of every letter, and a regenerated freeze golden labelled as
+  an approved change (`CONTRIBUTING.md`, "Language freezes"). The cleanup was tuned on Noto
+  Sans Devanagari, so Manjari's glyphs need their own check.
 
 ## Learning features
 
@@ -117,37 +125,52 @@ tuning pass on already-shipped, already-working smoothing, not a bug fix.
 
 ## Multi-language support
 
-Everything Malayalam-specific currently lives in one place per layer:
-`python/src/jayasree/_chars.py` (character inventory) and the two
-committed JSON files (`js/src/glyph-data.json`, `stroke-data(.raw).json`).
-Adding a second script (Tamil is the obvious next candidate, per early
-conversations about this project) means:
+See **`docs/LANGUAGE_ONBOARDING_AGENTS.md`** for the multi-agent pipeline
+plan covering the research/font-selection/labeling-set-reduction stages of
+adding a language, its target roster (Hindi, Tamil, Telugu, Kannada,
+Bengali, Sanskrit, one at a time, more beyond that), and an explicit
+caution against generalizing from Malayalam's Dravidian-specific quirks.
 
-- A `_chars_ta.py`-equivalent character inventory module, and a decision on
-  whether `cli.py`/`build_glyph_data.py` become script-parametrized or get
-  a sibling per script.
-- Splitting the committed JSON data per script (`glyph-data.ml.json`,
-  `glyph-data.ta.json`, ...) so a page using one language doesn't fetch
-  another's data - see "Data size & deployment" in the README. The format
-  is already per-cluster keyed, so this is a file-naming/build-tooling
-  change, not a data-model rewrite.
-- Re-auditing every place that currently assumes "the only script" - the
-  segmentation regex bounds in `index.js`, the CLI's standalone-alphabet
-  list, `validate_data.py`'s hardcoded filenames - for hidden Malayalam-only
-  assumptions.
+**Phase 0 (the code-parametrization prerequisite) is done**: `_chars.py`,
+`build_glyph_data.py`, `cli.py`, `process_strokes.py`, and `validate_data.py`
+are all language-parametrized now (`jayasree.languages`'s registry +
+`--lang`/`PROJECT_LANG=`), with Malayalam's own committed filenames kept unsuffixed
+for backward compatibility. `index.js` was audited and needed no changes -
+its segmentation was already fully data-driven, not the hardcoded
+Malayalam-only regex this section used to warn about. See that doc's
+"Phase 0" section for the full list of what changed.
+
+**Hindi is the first language onboarded through this pipeline** (all five
+stages: research, font - Noto Sans Devanagari, 183-atom worklist, recording,
+processing; real coverage 2443/2443). It also added the contextual-form
+composition primitive (Devanagari half-forms and reph) and a coverage-report
+tool - see "What Hindi's first run taught us" in
+`docs/LANGUAGE_ONBOARDING_AGENTS.md`. Hindi's strokes are cleaned against the
+font's ink ridge (`jayasree.cleanup`, wired into `process_strokes.py`). Still open: a
+constant pen speed (the shared ease-in/out makes strokes slow-fast-slow) and deciding what to do
+with the stroke-source survey's findings.
+
+What's left for the *next* language (Tamil is the obvious candidate) is the
+per-language *content*, not further plumbing:
+
+- Agent 1/2/3's work: a sourced character-inventory module
+  (`_chars_ta.py`-equivalent), a verified ghost font, and a reduced
+  labeling set - see `docs/LANGUAGE_ONBOARDING_AGENTS.md`.
+- One `LanguageSpec` entry registered in
+  `python/src/jayasree/languages.py`.
 - A second recorder pass with native speakers of the new language, plus
-  re-running the centering/straightening pipeline against a font that
-  supports it.
+  running the centering/straightening pipeline (`process_strokes.py
+  --lang <name>`) against the chosen font.
 
 ## Data & scale
 
 - **Git LFS**, once the committed JSON data (currently low hundreds of KB)
   grows into the tens of MB - from a second language, or a much larger
-  font's outlines. See the README's "Data size & deployment" section for
+  font's outlines. See `docs/CREATING_HANDWRITING.md`'s "Data size & deployment" section for
   the full reasoning; not needed yet.
 - **Prune `glyph-data.json`** to only the consonant+vowel-sign/conjunct
   combinations that occur in real Malayalam, instead of pre-shaping every
-  combination HarfBuzz can produce (see README's "Status" section). Needs a
+  combination HarfBuzz can produce (see `docs/DEVELOPMENT.md`'s "Status and known limitations"). Needs a
   real-word corpus to prune against first.
 
 ## Deployment
@@ -164,41 +187,34 @@ The site (landing page + demo + recorder) deploys to GitHub Pages via
 
 ## Bug-report → data pipeline
 
-Right now, diagnosing "this word/letter renders wrong" is entirely manual -
-today's session doing exactly that (the space-rendering gap, the ത്സ്യ
+Right now, diagnosing "this word/letter renders wrong" is mostly manual -
+an early session doing exactly that (the space-rendering gap, the ത്സ്യ
 composition bug, and the ്ര missing-mark gap) took reading through
 `resolveSegments`/`tryComposeStroke` by hand, shaping clusters directly via
 `shape_word()` in a scratch script, and cross-referencing three JSON files.
 That's not sustainable once reports come from real users instead of one
-person reading the source. Needs a proper pipeline:
+person reading the source.
 
-- **A one-command diagnostic**, e.g. `tools/diagnose.py <word>` (or a JS
-  equivalent for browser-side use), that takes a reported word and reports,
-  per cluster: directly authored / composed-from-authored / outline-fallback
-  - and *why* for the fallback case specifically (missing base stroke?
-    missing mark recipe entirely, like ്ര today? mark recipe exists but the
-    composition itself failed - the resolveGhostEntry-shaped bug class?).
-  This is the exact investigation this session did by hand, made reusable.
-  `getFallbackClusters()` (added this session, see README's "Detecting
-  approximated clusters") already gives runtime code the *first* signal
-  (which clusters fell back); this tool would be the next layer down -
-  explaining *why*, for whoever's triaging the report.
-- **A standing coverage gate**, not just point fixes. `composition-coverage.test.js`
-  (added this session) systematically checks conjunct+mark chains resolve
-  instead of silently bailing, and already caught a real regression that a
-  hand-written unit test's fixture had accidentally masked (its intermediate
-  cluster was pre-registered in the mock, which real glyph-data.json never
-  does). Worth extending as new mark chains and multi-word phrases come up,
-  so composition regressions are caught in CI, not by a user report.
+**Done**: the "one-command diagnostic" and "standing coverage gate" ideas
+this section used to list are now `tools/coverage_report.js` - reuses
+`js/src/index.js`'s own
+composition functions (not a reimplementation) to report, for every
+cluster a language's `glyph-data.json` defines, direct/composed/fallback
+status and *why* for the fallback case; `--simulate-atoms` runs the same
+check before any stroke is recorded (verifying a planned atom set is
+sufficient), `--min-coverage N` makes it usable as a CI gate. See
+`docs/LANGUAGE_ONBOARDING_AGENTS.md`'s Agent 3 section for how this fits
+the multi-language onboarding pipeline specifically. Still open:
+
 - **A frictionless report → record loop.** Once a report is confirmed as a
   genuine missing-stroke gap (not a bug), recording the fix currently means:
   open the recorder, manually type the exact cluster string into "Add
   custom cluster" (no ghost, no reduced-set prompt for it since it isn't in
   `clusters` - true for every subjoined mark, not just ്ര), record, export,
   merge into `stroke-data.json`, regenerate `glyph-data.json` +
-  `stroke-recorder-standalone.html`. `tools/diagnose.py` above could end
-  with "run this to jump straight to recording it" instead of the reporter
-  (or whoever triages) having to reconstruct those steps.
+  `stroke-recorder-standalone.html` (local, untracked). `tools/coverage_report.js --verbose`
+  above could end with "run this to jump straight to recording it" instead
+  of the reporter (or whoever triages) having to reconstruct those steps.
 - **Catch embedded-data staleness**, not just source staleness.
   `build_standalone_recorder.py --check` only hashes
   `stroke-recorder.{html,css,js}` + the favicon - it happily reports "in

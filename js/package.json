@@ -1,7 +1,7 @@
 {
   "name": "jayasree",
   "version": "0.6.1",
-  "description": "Animated stroke-trace widget for Malayalam (or any script) - renders the JSON produced by the jayasree Python package as a left-to-right ink reveal",
+  "description": "Animated stroke-trace widget for Indic scripts (Malayalam and Hindi so far) - renders the JSON produced by the jayasree Python package as a left-to-right ink reveal",
   "type": "module",
   "main": "src/index.js",
   "module": "src/index.js",
@@ -19,12 +19,15 @@
   },
   "keywords": [
     "malayalam",
+    "hindi",
+    "devanagari",
     "stroke-order",
     "handwriting",
     "svg",
     "indic",
     "harfbuzz"
   ],
+  "author": "Sachin Nandakumar",
   "license": "MIT",
   "repository": {
     "type": "git",

@@ -4,6 +4,7 @@
 	validate-data precommit \
 	ci ci-py ci-js \
 	demo record build-glyph-data process-strokes build-recorder update-snapshot \
+	coverage-report \
 	bump bump-ci clean
 
 # Single source of truth for the commands used both by contributors locally
@@ -18,15 +19,22 @@ help:
 	@echo "  make lint           lint Python + JS"
 	@echo "  make format         auto-fix formatting (Python only - see lint-js for JS)"
 	@echo "  make test           run Python + JS test suites"
-	@echo "  make validate-data  structural validation of the 3 committed JSON data files"
+	@echo "  make validate-data  structural validation of the committed JSON data files"
 	@echo "  make precommit      run every pre-commit hook against all files"
 	@echo "  make ci             everything CI runs, for both languages, in one shot"
 	@echo "  make demo           serve the demo AND the stroke recorder (same server, see"
 	@echo "                      its printed URLs) at :8000 - alias: make record"
-	@echo "  make build-glyph-data [FONT=/path/to/Font.ttf]   regenerate glyph-data.json"
-	@echo "  make process-strokes                              regenerate stroke-data.json"
-	@echo "  make build-recorder                                bundle the standalone recorder"
-	@echo "  make update-snapshot                               re-approve the data snapshot"
+	@echo "  make build-glyph-data [FONT=/path/to/Font.ttf] [PROJECT_LANG=malayalam]   regenerate glyph-data.json"
+	@echo "  make process-strokes [PROJECT_LANG=malayalam]              regenerate stroke-data.json"
+	@echo "  make build-recorder [PROJECT_LANG=malayalam]             build the offline recorder (untracked)"
+	@echo "  make update-snapshot [PROJECT_LANG=malayalam]              re-approve the data snapshot"
+	@echo "  make validate-data [PROJECT_LANG=malayalam]                (PROJECT_LANG only affects --update-snapshot)"
+	@echo "  make coverage-report                                       per-cluster direct/composed/fallback report"
+	@echo ""
+	@echo "  PROJECT_LANG picks a registry key from python/src/jayasree/languages.py -"
+	@echo "  see docs/LANGUAGE_ONBOARDING_AGENTS.md. Defaults to malayalam everywhere. Named"
+	@echo "  PROJECT_LANG, not LANG, so it can't collide with your shell's own locale LANG"
+	@echo "  env var (make silently inherits environment variables of the same name)."
 	@echo "  make bump           cut a release: bump semver from commit history, tag, changelog"
 	@echo "  make clean          remove venvs/node_modules/coverage artifacts"
 
@@ -47,6 +55,7 @@ lint: lint-py lint-js
 lint-py:
 	cd python && poetry run ruff check .. && poetry run ruff format --check ..
 	cd python && poetry run interrogate --fail-under=90 --ignore-init-module --ignore-magic src ../tools
+	python3 tools/check_docstrings.py
 
 lint-js:
 	npm run lint
@@ -72,7 +81,7 @@ validate-data:
 	python3 tools/validate_data.py
 
 update-snapshot:
-	python3 tools/validate_data.py --update-snapshot
+	python3 tools/validate_data.py --update-snapshot $(if $(PROJECT_LANG),--lang $(PROJECT_LANG),)
 
 # ── Release ──────────────────────────────────────────────────────────────
 
@@ -130,13 +139,20 @@ demo record:
 	cd python && poetry run python ../demo/serve.py
 
 build-glyph-data:
-	cd python && poetry run python ../tools/build_glyph_data.py $(FONT)
+	cd python && poetry run python ../tools/build_glyph_data.py $(FONT) $(if $(PROJECT_LANG),--lang $(PROJECT_LANG),)
 
 process-strokes:
-	python3 tools/process_strokes.py --preset=malayalam
+	cd python && poetry run python ../tools/process_strokes.py --preset=full $(if $(PROJECT_LANG),--lang $(PROJECT_LANG),)
 
 build-recorder:
-	python3 tools/build_standalone_recorder.py
+	cd python && poetry run python ../tools/build_standalone_recorder.py $(if $(PROJECT_LANG),--lang $(PROJECT_LANG),)
+
+coverage-report:
+	node tools/coverage_report.js
+	@echo ""
+	@echo "For another language or a pre-recording (simulated) check, run directly:"
+	@echo "  node tools/coverage_report.js --glyph-data js/src/glyph-data.<code>.json --stroke-data js/src/stroke-data.<code>.json"
+	@echo "  node tools/coverage_report.js --simulate-atoms <file-of-planned-atoms> --glyph-data <path> [--verbose] [--min-coverage N]"
 
 # ── Housekeeping ─────────────────────────────────────────────────────────
 

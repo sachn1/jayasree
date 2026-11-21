@@ -70,6 +70,85 @@ const strokeData = {};
 let existingStrokeData = null;
 
 /**
+ * Per-cluster authoring remarks - why a cluster was left unrecorded, or
+ * which other atom it might compose/derive from. Pure human-authored
+ * metadata for a later human/agent reviewer; never consumed by the
+ * runtime composition code (js/src/index.js, stroke_compose.py) or by
+ * `isAtom`/`isRecorded` - a remark doesn't make a cluster "done". Exported
+ * under stroke-data.raw.json's reserved `_remarks` key (see
+ * tools/validate_data.py's `RESERVED_STROKE_DATA_KEYS`, which
+ * tools/process_strokes.py also excludes when building stroke-data.json).
+ *
+ * @type {Record<string, { text: string, refAtoms: string[] }>}
+ */
+let remarks = {};
+
+/**
+ * Assign `existingStrokeData` and seed `remarks` from its `_remarks` key.
+ * The one place `existingStrokeData` should ever be set, so every load
+ * path (file drop, "Load existing strokes", the standalone build's
+ * bundled data) picks up prior remarks the same way.
+ *
+ * @param {Record<string, any> | null} data
+ */
+function setExistingStrokeData(data) {
+  existingStrokeData = data;
+  remarks = { ...(data?.["_remarks"] ?? {}) };
+}
+
+/**
+ * Number of real clusters in a loaded stroke-data.raw.json, excluding the
+ * reserved `_remarks` key - for user-facing counts only (`isAtom`/
+ * `isRecorded` already key off specific cluster strings and never see
+ * "_remarks" match anything real).
+ *
+ * @param {Record<string, any> | null} data
+ * @returns {number}
+ */
+function realClusterCount(data) {
+  return Object.keys(data ?? {}).filter((k) => k !== "_remarks").length;
+}
+
+/**
+ * Whether `clusterStr` has a saved remark with non-empty text.
+ *
+ * @param {string} clusterStr
+ * @returns {boolean}
+ */
+function hasRemark(clusterStr) {
+  return !!remarks[clusterStr]?.text;
+}
+
+/**
+ * The cluster the remark fields (#remark-text/#remark-ref) currently
+ * reflect - lets renderGlyph skip re-syncing them on renders that don't
+ * change the current glyph (e.g. every eraser-drag pointermove tick).
+ *
+ * @type {string | null}
+ */
+let lastRemarkFieldsCluster = null;
+
+/**
+ * Populate #remark-text/#remark-ref from `remarks[clusterStr]` (blank if
+ * none saved yet) - called whenever the current glyph changes.
+ *
+ * #remark-ref shows `refAtoms` joined with ", " - deliberately plain free
+ * text, not an autocomplete against a datalist: with ~2500 clusters in a
+ * language like Hindi, a native `<datalist>` of all of them is unusably
+ * slow/truncated in practice, and a remark like "this is क plus ़" needs
+ * to point at *several* atoms at once anyway, which a single-value
+ * datalist-backed input can't express.
+ *
+ * @param {string} clusterStr
+ */
+function loadRemarkFields(clusterStr) {
+  const note = remarks[clusterStr];
+  document.getElementById("remark-text").value = note?.text ?? "";
+  document.getElementById("remark-ref").value = (note?.refAtoms ?? []).join(", ");
+  lastRemarkFieldsCluster = clusterStr;
+}
+
+/**
  * Get `strokeData[clusterStr]`, seeding it from `existingStrokeData` the
  * first time a character with already-recorded strokes is touched (viewed,
  * drawn on, erased, or undone).
@@ -129,12 +208,18 @@ const DEPRECATED_ATOMS = new Set(["ൊ", "ോ", "ൌ"]); // ൊ ോ ൌ
 
 /**
  * Cluster strings present in the loaded glyph-data.json's `marks` map (e.g.
- * "്ര") - populated by parseGlyphData. A multi-character mark given its own
- * `clusters` entry (see build_glyph_data.py's `_standalone_inputs()`)
- * genuinely needs its own recorded stroke, same as any single-codepoint
- * mark - it just isn't one. Doesn't affect marks-only entries like
- * ്യ/്വ/്ല, which have no `clusters` ghost at all and so never appear in
- * `trace.glyphs` in the first place.
+ * "്ര"), `contextualForms` map (e.g. "क्"), or `knownAtoms` list (e.g.
+ * Hindi's true akhand ligatures, "क्ष") - populated by parseGlyphData. A
+ * multi-character mark given its own `clusters` entry (see
+ * build_glyph_data.py's `_standalone_inputs()`), a contextual-form
+ * trigger given its own `contextualForms[...].ghost` (see
+ * `_build_contextual_forms()` - deliberately *not* a `clusters` entry, see
+ * parseGlyphData's comment above), or a cluster a language's own build
+ * extension already mechanically verified needs its own trace
+ * (`knownAtoms`), genuinely needs its own recorded stroke, same as any
+ * single-codepoint mark - it just isn't one. Doesn't affect marks-only
+ * entries like ്യ/്വ/്ല, which have no ghost at all and so never appear
+ * in `trace.glyphs` in the first place.
  *
  * @type {Set<string>}
  */
@@ -147,13 +232,14 @@ const composableMarkClusters = new Set();
  * of pre-shaping every one").
  *
  * Single codepoints (letters, digits, virama, matras) are always atoms -
- * they can't be decomposed further. A multi-character mark given its own
- * `clusters` ghost (e.g. ്ര - see composableMarkClusters) is an atom for
- * the same reason: it's a mark in its own right, just not a single
- * codepoint. Any other multi-character cluster is an atom only if it's
- * already known to need its own stroke: either it's already recorded in
- * the loaded stroke-data.raw.json (the existing 292-ish hand-picked
- * fused/conjunct forms), or it was just added this session via "+ Add".
+ * they can't be decomposed further. A multi-character mark or contextual
+ * form given its own ghost (e.g. ്ര, or Devanagari's क् - see
+ * composableMarkClusters) is an atom for the same reason: it's a
+ * mark/substitute atom in its own right, just not a single codepoint. Any
+ * other multi-character cluster is an atom only if it's already known to
+ * need its own stroke: either it's already recorded in the loaded
+ * stroke-data.raw.json (the existing 292-ish hand-picked fused/conjunct
+ * forms), or it was just added this session via "+ Add".
  *
  * @param {string} clusterStr
  * @returns {boolean}
@@ -303,8 +389,27 @@ function parseGlyphData(text) {
         paths: entry.glyphs,
         advance: entry.advance,
       }));
+    // Contextual-form atoms (Devanagari half-forms/reph - see
+    // tools/build_glyph_data.py's `_build_contextual_forms` docstring)
+    // deliberately have no `clusters` entry of their own (that would make
+    // real-text segmentation misrender genuine word-final occurrences of
+    // the same 2-character string) - their ghost lives only in
+    // `contextualForms[trigger].ghost`, so it's appended here as its own
+    // navigable/traceable row instead.
+    for (const [trigger, form] of Object.entries(parsed.contextualForms ?? {})) {
+      glyphs.push({ clusterStr: trigger, paths: form.ghost.glyphs, advance: form.ghost.advance });
+    }
     composableMarkClusters.clear();
     for (const markKey of Object.keys(parsed.marks ?? {})) composableMarkClusters.add(markKey);
+    for (const trigger of Object.keys(parsed.contextualForms ?? {})) composableMarkClusters.add(trigger);
+    // `knownAtoms` (optional, language-specific - e.g. Hindi's true akhand
+    // ligatures/half-form exceptions, see tools/build_glyph_data.py's
+    // `_hi_extract_true_ligatures`): multi-character clusters a language's
+    // own build logic has already *mechanically verified* need their own
+    // direct trace (same evidence bar as marks/contextualForms - never
+    // hand-curated prose copied in here), so they show up in the reduced
+    // set by default instead of requiring "+ Add" from memory.
+    for (const clusterStr of parsed.knownAtoms ?? []) composableMarkClusters.add(clusterStr);
   } else {
     // Legacy StrokeTrace array from the Python CLI
     const sources = Array.isArray(parsed) ? parsed : [parsed];
@@ -330,6 +435,29 @@ function parseGlyphData(text) {
 
   trace = { unitsPerEm, ascent, descent, glyphs };
   glyphIndex = 0;
+
+  // Per-language recorder banner (e.g. Hindi's shirorekha notice) - see
+  // tools/build_glyph_data.py's `_recorder_note()`. Absent for every
+  // language that doesn't need one, so the note element stays hidden.
+  const noteEl = document.getElementById("recorder-note");
+  const recorderNote = parsed.meta?.recorderNote;
+  noteEl.textContent = recorderNote ?? "";
+  noteEl.hidden = !recorderNote;
+
+  // The page title/heading and the custom-cluster example are written by
+  // tools/build_glyph_data.py into every language's own `meta` (never
+  // hardcoded to Malayalam here) - see `projectNameNative`/
+  // `exampleCustomCluster` in that file's `main()`.
+  const nativeName = parsed.meta?.projectNameNative;
+  if (nativeName) {
+    document.title = `Stroke Recorder - ${nativeName}`;
+    document.getElementById("project-name-native").textContent = nativeName;
+  }
+  const addInput = document.getElementById("add-input");
+  addInput.placeholder = parsed.meta?.exampleCustomCluster
+    ? `Add custom cluster, e.g. ${parsed.meta.exampleCustomCluster}`
+    : "Add custom cluster";
+
   document.getElementById("drop-zone").classList.add("hidden");
   document.getElementById("recorder").classList.add("active");
   populateSelect();
@@ -382,7 +510,7 @@ function populateSelect() {
     const g = trace.glyphs[i];
     const opt = document.createElement("option");
     opt.value = String(i);
-    const mark = isRecorded(g.clusterStr) ? "✓" : "○";
+    const mark = isRecorded(g.clusterStr) ? "✓" : hasRemark(g.clusterStr) ? "💬" : "○";
     opt.textContent = `${mark} ${g.clusterStr}  ·  ${pos + 1} / ${visible.length}`;
     sel.appendChild(opt);
   }
@@ -504,13 +632,22 @@ function renderGlyph() {
   const recorded = isRecorded(g.clusterStr);
   const statusLabel = recorded
     ? `<span class="status-recorded">✓ already recorded</span>`
-    : `<span class="status-missing">○ needs a stroke</span>`;
+    : hasRemark(g.clusterStr)
+      ? `<span class="status-remark">💬 flagged, not recorded</span>`
+      : `<span class="status-missing">○ needs a stroke</span>`;
   document.getElementById("glyph-label").innerHTML =
     `<strong>${g.clusterStr}</strong> &nbsp;·&nbsp; ${posLabel} &nbsp;·&nbsp; ${statusLabel}`;
 
   // Sync dropdown selection
   const sel = document.getElementById("glyph-select");
   sel.value = String(glyphIndex);
+
+  // Sync the remark fields to the current glyph (only on an actual glyph
+  // change, not every render - renderGlyph also fires on every eraser-drag
+  // pointermove tick, and these fields never change mid-stroke).
+  if (lastRemarkFieldsCluster !== g.clusterStr) {
+    loadRemarkFields(g.clusterStr);
+  }
 
   updateCounts();
 
@@ -705,6 +842,10 @@ function onPointerUp(e) {
       eraserCursor.remove();
       eraserCursor = null;
     }
+    // Erasing can empty a previously-recorded cluster's strokes entirely -
+    // refresh the dropdown's checkmark to reflect that (cheap enough here;
+    // deliberately not done on every onPointerMove erase-drag tick).
+    populateSelect();
     renderGlyph();
     return;
   }
@@ -720,6 +861,7 @@ function onPointerUp(e) {
   const g = trace.glyphs[glyphIndex];
   ensureStrokes(g.clusterStr).push({ d: smoothPath(pts) });
   redoStacks[g.clusterStr] = [];
+  populateSelect();
   renderGlyph();
 }
 
@@ -805,6 +947,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (strokes.length === 0) return;
     const popped = strokes.pop();
     (redoStacks[g.clusterStr] ??= []).push(popped);
+    populateSelect();
     renderGlyph();
   });
   document.getElementById("redo-btn").addEventListener("click", () => {
@@ -812,12 +955,14 @@ document.addEventListener("DOMContentLoaded", () => {
     const stack = redoStacks[g.clusterStr];
     if (!stack || stack.length === 0) return;
     ensureStrokes(g.clusterStr).push(stack.pop());
+    populateSelect();
     renderGlyph();
   });
   document.getElementById("clear-btn").addEventListener("click", () => {
     const g = trace.glyphs[glyphIndex];
     strokeData[g.clusterStr] = [];
     redoStacks[g.clusterStr] = [];
+    populateSelect();
     renderGlyph();
   });
 
@@ -840,6 +985,15 @@ document.addEventListener("DOMContentLoaded", () => {
     const lib = existingStrokeData ? { ...existingStrokeData } : {};
     for (const [name, strokes] of Object.entries(strokeData)) {
       if (strokes.length) lib[name] = { strokes };
+    }
+    // This session's remarks overlay the loaded file's own `_remarks`
+    // (same per-cluster overlay rule as strokeData above) - and the
+    // reserved key is dropped entirely rather than exported empty, same
+    // as any other cluster never has a zero-length `strokes` entry.
+    if (Object.keys(remarks).length) {
+      lib["_remarks"] = { ...remarks };
+    } else {
+      delete lib["_remarks"];
     }
     const out = JSON.stringify(lib, null, 2);
     document.getElementById("export-output").value = out;
@@ -915,6 +1069,34 @@ document.addEventListener("DOMContentLoaded", () => {
     if (e.key === "Enter") document.getElementById("add-btn").click();
   });
 
+  // ── Remark: save/clear a note on why the current cluster is skipped ───
+  document.getElementById("remark-save-btn").addEventListener("click", () => {
+    const g = trace.glyphs[glyphIndex];
+    const text = document.getElementById("remark-text").value.trim();
+    const refAtoms = document
+      .getElementById("remark-ref")
+      .value.split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (!text) {
+      delete remarks[g.clusterStr];
+    } else {
+      remarks[g.clusterStr] = { text, refAtoms };
+    }
+    lastRemarkFieldsCluster = null; // force loadRemarkFields to re-sync on next render
+    populateSelect();
+    renderGlyph();
+  });
+  document.getElementById("remark-clear-btn").addEventListener("click", () => {
+    const g = trace.glyphs[glyphIndex];
+    delete remarks[g.clusterStr];
+    document.getElementById("remark-text").value = "";
+    document.getElementById("remark-ref").value = "";
+    lastRemarkFieldsCluster = g.clusterStr;
+    populateSelect();
+    renderGlyph();
+  });
+
   // ── Merge: load an existing stroke-data.raw.json to append to ─────────
   document.getElementById("load-existing-btn").addEventListener("click", () => {
     document.getElementById("existing-file-input").click();
@@ -925,14 +1107,15 @@ document.addEventListener("DOMContentLoaded", () => {
     const reader = new FileReader();
     reader.onload = (ev) => {
       try {
-        existingStrokeData = JSON.parse(ev.target.result);
-        const count = Object.keys(existingStrokeData).length;
+        setExistingStrokeData(JSON.parse(ev.target.result));
+        const count = realClusterCount(existingStrokeData);
         document.getElementById("merge-status").textContent =
           `✓ ${count} existing cluster(s) loaded - export will merge`;
         // Loaded strokes redefine which multi-char clusters count as atoms
         // (see isAtom) and which show as already-recorded - refresh both.
         if (trace) {
           populateSelect();
+          loadRemarkFields(trace.glyphs[glyphIndex].clusterStr);
           renderGlyph();
         }
         // Refresh textarea if it is already visible

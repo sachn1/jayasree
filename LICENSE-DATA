@@ -3,30 +3,53 @@ License for the data and artwork in this repository
 
 The *code* in this repository is MIT-licensed (see LICENSE). The following
 creative content is licensed separately, under the Creative Commons
-Attribution 4.0 International license (CC BY 4.0):
+Attribution-ShareAlike 4.0 International license (CC BY-SA 4.0):
 
-  - js/src/stroke-data.raw.json   (the hand-drawn centerline strokes -
-                                   the original creative work at the heart
-                                   of this project)
-  - js/src/stroke-data.json       (processed/derived from the above)
-  - demo/jayasree.svg             (the animated wordmark)
-  - docs/centering-example/*.svg  (the pipeline illustrations)
+  - js/src/stroke-data.raw.json      (Malayalam's hand-drawn centerline
+                                       strokes - the original creative work
+                                       at the heart of this project)
+  - js/src/stroke-data.json          (processed/derived from the above)
+  - js/src/stroke-data.hi.raw.json   (Hindi's hand-drawn centerline strokes)
+  - js/src/stroke-data.hi.json       (processed/derived from the above)
+  - demo/jayasree.svg                (the animated wordmark)
+  - docs/centering-example/*.svg     (the pipeline illustrations)
 
-Full license text: https://creativecommons.org/licenses/by/4.0/legalcode
+Full license text: https://creativecommons.org/licenses/by-sa/4.0/legalcode
 
-What CC BY 4.0 means in practice: you may copy, redistribute, remix, and
-build on this content - including commercially - as long as you give
-appropriate credit. Please credit as:
+**Scope.** This is the default and only license this project accepts for
+any language's stroke/glyph data - Malayalam's original dataset and every
+language contributed after it, with no exceptions. There is no private,
+premium, or all-rights-reserved tier for stroke data in this project: by
+opening a PR that adds or changes a language's `stroke-data*.raw.json`/
+`stroke-data*.json` (any `.{lang-code}.` variant included, whether or not
+it's explicitly listed above yet), a contributor agrees it is released
+under these same terms. The list above will simply grow as new languages
+are onboarded; a language's absence from it just means its onboarding
+hasn't landed yet, not that different terms apply.
 
-    "Jayasree" by Sachin Nandakumar
+What CC BY-SA 4.0 means in practice: you may copy, redistribute, remix, and
+build on this content - including commercially - as long as you (a) give
+appropriate credit and (b) release any derivative you distribute under
+these same CC BY-SA 4.0 terms. That share-alike requirement is deliberate:
+this project does not want a closed, monetized fork of its stroke data to
+be possible downstream, the same way it isn't possible here. Please credit
+as:
+
+    "Jayasree" by Sachin Nandakumar and contributors
     https://github.com/sachn1/jayasree
 
-Third-party letterforms (Manjari)
----------------------------------
+Third-party letterforms
+------------------------
 
 js/src/glyph-data.json, and the letterform outlines that appear inside the
 generated SVGs above, are derived from the Manjari typeface by Santhosh
 Thottingal / Swathanthra Malayalam Computing (https://smc.org.in/fonts/manjari),
 licensed under the SIL Open Font License 1.1. Manjari's copyright remains
-with its authors; if you regenerate glyph-data.json from a different font,
-that font's license applies to your output instead.
+with its authors.
+
+js/src/glyph-data.hi.json is derived from Noto Sans Devanagari (The Noto
+Project Authors), also licensed under the SIL Open Font License 1.1 - see
+docs/languages/hi/README.md for the selection rationale.
+
+If you regenerate a language's glyph-data.json from a different font, that
+font's own license applies to your output instead.

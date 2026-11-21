@@ -37,12 +37,24 @@ class DistField:
 
     @property
     def w(self) -> float:
-        """Bounding-box width in font units."""
+        """Bounding-box width in font units.
+
+        Returns
+        -------
+        float
+            The padded bounding box's width.
+        """
         return self.x_max - self.x_min
 
     @property
     def h(self) -> float:
-        """Bounding-box height in font units."""
+        """Bounding-box height in font units.
+
+        Returns
+        -------
+        float
+            The padded bounding box's height.
+        """
         return self.y_max - self.y_min
 
 

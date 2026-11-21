@@ -8,6 +8,9 @@ coverage/
 node_modules/
 dist/
 build/
+# generated offline recorder bundles - `make build-recorder` (PROJECT_LANG=hindi for Hindi)
+tools/stroke-recorder-standalone*.html
+
 # generated outputs - re-create with build_glyph_data.py / alphabet CLI
 alphabet-trace.json
 python/alphabet-trace.json

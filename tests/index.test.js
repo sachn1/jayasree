@@ -2,12 +2,15 @@
  * Tests for js/src/index.js's segmentation/composition engine, via the
  * `_internal` test-only export bundle (see index.js's bottom).
  *
- * Deliberately script-agnostic: fixtures use synthetic single-letter
- * "clusters" (A, B, s) shaped like glyph-data.json entries, never real
- * Malayalam clusters. The engine only cares about character/glyph counts
- * and x/y offsets - a new script's stroke pipeline should never need to
- * touch this file. The one exception is the SPLIT_VOWEL_PARTS test, which
- * is explicitly checking Malayalam-specific decomposition data.
+ * Fully script-agnostic: fixtures use synthetic single-letter "clusters"
+ * (A, B, s) shaped like glyph-data.json entries, never real Malayalam
+ * clusters - including for legacy-encoding normalization and split-vowel
+ * composition, both of which now read from a `legacyEncodings`/
+ * `splitVowelParts` argument/glyphData key rather than a hardcoded
+ * Malayalam-specific module constant. Regression coverage against
+ * Malayalam's *real* legacyEncodings/splitVowelParts data lives in
+ * composition-coverage.test.js instead, alongside its other real-data
+ * checks - see that file's docstring for why.
  *
  * DOM-dependent parts of index.js (buildStage, animation timing) aren't
  * covered here - they need real SVG geometry APIs (getTotalLength etc.)
@@ -22,15 +25,20 @@ const {
   composeMark,
   tightenMarks,
   offsetSvgPath,
-  SPLIT_VOWEL_PARTS,
   markContentAnchorX,
   applyMarkStroke,
   applySequentialMarkStrokes,
   tryComposeStroke,
   charDx,
+  tryComposeContextualForm,
   tryComposeFromCharacters,
   resolveSegments,
   normalizeChillus,
+  legacyAtoms,
+  clusterInkRanges,
+  nudgeMarkStrokes,
+  collectDotUnits,
+  isDotSized,
 } = _internal;
 
 beforeEach(() => {
@@ -239,13 +247,38 @@ describe("applySequentialMarkStrokes (compound vowel decomposition)", () => {
   });
 });
 
-describe("SPLIT_VOWEL_PARTS", () => {
-  it("matches the documented Unicode canonical decomposition for ൊ/ോ/ൌ", () => {
-    expect(SPLIT_VOWEL_PARTS).toEqual({
-      "ൊ": ["െ", "ാ"],
-      "ോ": ["േ", "ാ"],
-      "ൌ": ["െ", "ൗ"],
-    });
+describe("tryComposeStroke reading glyphData.splitVowelParts", () => {
+  it("composes a compound mark via its split-parts recipe instead of its own stroke", () => {
+    // Synthetic stand-in for e.g. Malayalam's ൊ -> [െ, ാ]: "o" is a compound
+    // 1-char mark with no stroke of its own, decomposed into "e" (prefix)
+    // and "a" (suffix), each individually recorded.
+    const clusters = {
+      base: { glyphs: [{ d: "Mbase", x: 0, y: 0 }], advance: 100 },
+    };
+    const marks = {
+      e: { shift: 50, prefix: [{ d: "e-glyph", x: 0, y: 0 }], suffix: [], trailingWidth: 0 },
+      a: { shift: 0, prefix: [], suffix: [{ d: "a-glyph", x: 0, y: 0 }], trailingWidth: 10 },
+    };
+    STROKE_LIBRARY.base = { strokes: [{ d: "M0 0" }] };
+    STROKE_LIBRARY.e = { strokes: [{ d: "M0 0" }] };
+    STROKE_LIBRARY.a = { strokes: [{ d: "M0 0" }] };
+
+    const glyphData = { clusters, marks, splitVowelParts: { o: ["e", "a"] } };
+    const result = tryComposeStroke("baseo", glyphData);
+    expect(result).not.toBeNull();
+  });
+
+  it("falls back to direct mark composition when splitVowelParts is absent", () => {
+    // A language with no compound marks at all (most of them) has no
+    // splitVowelParts key - tryComposeStroke must not crash or misbehave,
+    // just skip straight to tryDirectMarkStroke.
+    const clusters = { base: { glyphs: [{ d: "Mbase", x: 0, y: 0 }], advance: 100 } };
+    const marks = { s: { shift: 0, prefix: [], suffix: [{ d: "s", x: 0, y: 0 }], trailingWidth: 5 } };
+    STROKE_LIBRARY.base = { strokes: [{ d: "M0 0" }] };
+    STROKE_LIBRARY.s = { strokes: [{ d: "M0 0" }] };
+
+    const result = tryComposeStroke("bases", { clusters, marks });
+    expect(result).not.toBeNull();
   });
 });
 
@@ -312,43 +345,132 @@ describe("tryComposeFromCharacters", () => {
   });
 });
 
+describe("tryComposeContextualForm", () => {
+  // Synthetic, script-agnostic fixture shaped like Devanagari's half-form/
+  // reph clusters - "AB" is the 2-character trigger (e.g. consonant+virama),
+  // "C" the third character, "ABC" the full 3-character/2-glyph cluster.
+  const clusters = {
+    ABC: { glyphs: [{ x: 0, y: 0 }, { x: 100, y: 0 }], advance: 200 },
+  };
+
+  beforeEach(() => {
+    STROKE_LIBRARY.AB = { strokes: [{ d: "M0 0 L10 0" }] };
+    STROKE_LIBRARY.C = { strokes: [{ d: "M0 0 L20 0" }] };
+  });
+
+  it("composes a halfForm cluster with the atom first, other char second", () => {
+    const glyphData = { clusters, contextualForms: { AB: { role: "halfForm" } } };
+    const result = tryComposeContextualForm("ABC", glyphData);
+    expect(result.strokes).toEqual([
+      { d: "M0 0 L10 0" },
+      { d: "M 100.0 0.0 L 120.0 0.0" },
+    ]);
+  });
+
+  it("composes a reph cluster with the other char first, atom second (swapped order)", () => {
+    const glyphData = { clusters, contextualForms: { AB: { role: "reph" } } };
+    const result = tryComposeContextualForm("ABC", glyphData);
+    expect(result.strokes).toEqual([
+      { d: "M0 0 L20 0" }, // zero offset - offsetSvgPath returns the same reference unchanged
+      { d: "M 100.0 0.0 L 110.0 0.0" },
+    ]);
+  });
+
+  it("memoizes the composed result into STROKE_LIBRARY", () => {
+    const glyphData = { clusters, contextualForms: { AB: { role: "halfForm" } } };
+    tryComposeContextualForm("ABC", glyphData);
+    expect(STROKE_LIBRARY.ABC).toBeDefined();
+  });
+
+  it("is a no-op when contextualForms is absent (Malayalam safety)", () => {
+    expect(tryComposeContextualForm("ABC", { clusters })).toBeNull();
+  });
+
+  it("returns null when the cluster isn't 3 characters", () => {
+    const glyphData = {
+      clusters: { AB: { glyphs: [{ x: 0, y: 0 }], advance: 100 } },
+      contextualForms: { AB: { role: "halfForm" } },
+    };
+    expect(tryComposeContextualForm("AB", glyphData)).toBeNull();
+  });
+
+  it("returns null when the cluster doesn't resolve to exactly 2 glyphs", () => {
+    const glyphData = {
+      clusters: { ABC: { glyphs: [{ x: 0, y: 0 }], advance: 100 } },
+      contextualForms: { AB: { role: "halfForm" } },
+    };
+    expect(tryComposeContextualForm("ABC", glyphData)).toBeNull();
+  });
+
+  it("returns null when there's no registered contextual form for the trigger", () => {
+    expect(tryComposeContextualForm("ABC", { clusters, contextualForms: {} })).toBeNull();
+  });
+
+  it("returns null when the atom's own stroke hasn't been recorded", () => {
+    delete STROKE_LIBRARY.AB;
+    const glyphData = { clusters, contextualForms: { AB: { role: "halfForm" } } };
+    expect(tryComposeContextualForm("ABC", glyphData)).toBeNull();
+  });
+
+  it("returns null when the other character has no recorded/composable stroke", () => {
+    delete STROKE_LIBRARY.C;
+    const glyphData = { clusters, contextualForms: { AB: { role: "halfForm" } } };
+    expect(tryComposeContextualForm("ABC", glyphData)).toBeNull();
+  });
+});
+
 describe("normalizeChillus", () => {
-  it("rewrites legacy consonant+virama+ZWJ chillu sequences to the atomic codepoint", () => {
-    // Real-world/pasted Malayalam text (old fonts, older mobile keyboards)
-    // very commonly encodes chillus as base consonant + U+0D4D (virama) +
-    // U+200D (ZWJ) instead of the atomic Unicode 5.1+ chillu codepoint.
-    // glyph-data.json/stroke-data.json only key clusters by the atomic
-    // form, so this legacy sequence used to fall through to plain
-    // consonant+virama rendering instead of the authored chillu glyph.
-    expect(normalizeChillus("ന്‍")).toBe("ൻ");
-    expect(normalizeChillus("ര്‍")).toBe("ർ");
-    expect(normalizeChillus("ല്‍")).toBe("ൽ");
-    expect(normalizeChillus("ള്‍")).toBe("ൾ");
-    expect(normalizeChillus("ണ്‍")).toBe("ൺ");
-    expect(normalizeChillus("ക്‍")).toBe("ൿ");
+  // Synthetic legacyEncodings map - real Malayalam chillu regression
+  // coverage against build_glyph_data.py's actual _ML_LEGACY_CHILLU/the
+  // real glyph-data.json lives in composition-coverage.test.js instead
+  // (see this file's docstring).
+  const legacyEncodings = { xy: "Z", pq: "W" };
+
+  it("rewrites every legacy sequence to its atomic codepoint", () => {
+    expect(normalizeChillus("xy", legacyEncodings)).toBe("Z");
+    expect(normalizeChillus("pq", legacyEncodings)).toBe("W");
   });
 
-  it("normalizes every legacy chillu in a full word, leaving the rest untouched", () => {
-    expect(normalizeChillus("രുദ്രന്‍")).toBe("രുദ്രൻ");
-    expect(normalizeChillus("അയല്‍വാസികള്‍ക്ക്")).toBe("അയൽവാസികൾക്ക്");
+  it("normalizes every legacy sequence in a full word, leaving the rest untouched", () => {
+    expect(normalizeChillus("axyb", legacyEncodings)).toBe("aZb");
+    expect(normalizeChillus("xypq", legacyEncodings)).toBe("ZW");
   });
 
-  it("leaves already-atomic chillus and plain consonant+virama untouched", () => {
-    expect(normalizeChillus("ൻ")).toBe("ൻ");
-    expect(normalizeChillus("ക്ക്")).toBe("ക്ക്");
+  it("leaves already-atomic and unrelated text untouched", () => {
+    expect(normalizeChillus("Z", legacyEncodings)).toBe("Z");
+    expect(normalizeChillus("abc", legacyEncodings)).toBe("abc");
+  });
+
+  it("is a no-op when no legacyEncodings are given (a language with no such quirk)", () => {
+    expect(normalizeChillus("xy")).toBe("xy");
+  });
+});
+
+describe("legacyAtoms", () => {
+  it("returns the set of atomic codepoints legacyEncodings maps to", () => {
+    const atoms = legacyAtoms({ xy: "Z", pq: "W" });
+    expect(atoms.has("Z")).toBe(true);
+    expect(atoms.has("W")).toBe(true);
+    expect(atoms.has("xy")).toBe(false);
+  });
+
+  it("is empty when no legacyEncodings are given", () => {
+    expect(legacyAtoms().size).toBe(0);
   });
 });
 
 describe("resolveSegments", () => {
-  it("resolves a legacy consonant+virama+ZWJ chillu sequence to the atomic chillu's cluster", () => {
-    // Regression for the bug where real-world text like "ന്‍" (legacy
-    // encoding) rendered as bare consonant+virama instead of the authored
-    // chillu glyph, even though the atomic chillu "ൻ" was fully authored.
+  it("resolves a legacy-encoded sequence to its atomic cluster via legacyEncodings", () => {
+    // Regression for the bug class where real-world text using a legacy
+    // dual encoding (Malayalam's consonant+virama+ZWJ chillu spelling is
+    // the real-world example) rendered as the wrong, unauthored fallback
+    // instead of the authored glyph its atomic codepoint has - see
+    // composition-coverage.test.js for the real Malayalam version.
     const clusters = {
-      ൻ: { glyphs: [{ d: "chillu-n", x: 0, y: 0 }], advance: 100 },
+      Z: { glyphs: [{ d: "chillu-like", x: 0, y: 0 }], advance: 100 },
     };
-    const segs = resolveSegments("ന്‍", clusters, {});
-    expect(segs.map((s) => s.cluster)).toEqual(["ൻ"]);
+    const segs = resolveSegments("xy", clusters, {}, { xy: "Z" });
+    expect(segs.map((s) => s.cluster)).toEqual(["Z"]);
   });
 
 
@@ -457,5 +579,178 @@ describe("resolveSegments", () => {
     const segs = resolveSegments(" ,!", {}, {});
     expect(segs.map((s) => s.cluster)).toEqual([" ", ",", "!"]);
     expect(segs.every((s) => s.entry.universal)).toBe(true);
+  });
+});
+
+describe("clusterInkRanges", () => {
+  // Shaped like glyph-data's headline data for a script with a headline (shirorekha). Frames mirror real
+  // shaping: a suffix mark's standalone entry is [dotted circle, content]; a prefix mark's is [content, circle].
+  const clusters = {
+    B: { advance: 700, glyphs: [{ d: "", x: 0, y: 0 }] }, // a letter with a headline bar
+    N: { advance: 500, glyphs: [{ d: "", x: 0, y: 0 }] }, // a numeral: shaped, but no headline ink
+    s: { advance: 800, glyphs: [{ d: "", x: 0, y: 0 }, { d: "", x: 500, y: 0 }] }, // suffix mark, standalone
+    p: { advance: 800, glyphs: [{ d: "", x: 0, y: 0 }, { d: "", x: 250, y: 0 }] }, // prefix mark, standalone
+  };
+  const marks = {
+    s: { shift: 0, prefix: [], suffix: [{ d: "", x: 0, y: 0 }], trailingWidth: 250 },
+    p: { shift: 250, prefix: [{ d: "", x: 0, y: 0 }], suffix: [], trailingWidth: 0 },
+    q: { shift: 0, prefix: [{ d: "", x: 0, y: 0 }], suffix: [{ d: "", x: 0, y: 0 }], trailingWidth: 0 },
+  };
+  const inkRanges = { B: [[0, 710]], s: [[500, 770]], p: [[0, 260]] };
+
+  it("returns a known cluster's own ranges and advance", () => {
+    expect(clusterInkRanges("B", clusters, marks, inkRanges)).toEqual({ ranges: [[0, 710]], advance: 700 });
+  });
+
+  it("treats a known cluster with no entry as having no headline ink, not as unknown", () => {
+    expect(clusterInkRanges("N", clusters, marks, inkRanges)).toEqual({ ranges: [], advance: 500 });
+  });
+
+  it("places a suffix mark's ranges after the base, using its composed position", () => {
+    // standalone content sits at x=500, composed at base.advance + 0 = 700: shifted by +200
+    const got = clusterInkRanges("Bs", clusters, marks, inkRanges);
+    expect(got.ranges).toEqual([
+      [0, 710],
+      [700, 970],
+    ]);
+    expect(got.advance).toBe(700 + 250);
+  });
+
+  it("shifts the base for a prefix mark and keeps the mark at the start", () => {
+    const got = clusterInkRanges("Bp", clusters, marks, inkRanges);
+    expect(got.ranges).toEqual([
+      [0, 260],
+      [250, 960],
+    ]);
+    expect(got.advance).toBe(250 + 700);
+  });
+
+  it("composes a chain of marks from the inside out", () => {
+    const got = clusterInkRanges("Bps", clusters, marks, inkRanges);
+    // (B + p) = advance 950, then s after it: composed content at 950, standalone at 500 -> +450
+    expect(got.ranges.at(-1)).toEqual([950, 1220]);
+  });
+
+  it("gives up (null) on a cluster it cannot decompose, and on a mark with both parts", () => {
+    expect(clusterInkRanges("Zs", clusters, marks, inkRanges)).toBeNull();
+    expect(clusterInkRanges("Bq", { ...clusters, q: clusters.s }, marks, inkRanges)).toBeNull();
+    expect(clusterInkRanges("B", {}, undefined, {})).toBeNull();
+  });
+});
+
+describe("nudgeMarkStrokes / markNudge", () => {
+  const circle = { d: "", x: 0, y: 0 };
+  const clusters = {
+    B: { advance: 700, glyphs: [{ d: "", x: 0, y: 0 }] },
+    s: { advance: 500, glyphs: [circle, { d: "", x: 300, y: 18 }] }, // suffix mark standalone: [circle, content]
+  };
+  const marks = {
+    s: { shift: 0, prefix: [], suffix: [{ d: "", x: 0, y: 18 }], trailingWidth: 0 },
+    p: { shift: 100, prefix: [{ d: "", x: 0, y: 0 }], suffix: [], trailingWidth: 0 },
+  };
+
+  beforeEach(() => {
+    STROKE_LIBRARY.B = { strokes: [{ d: "M 0 0 L 0 10" }] };
+    STROKE_LIBRARY.s = { strokes: [{ d: "M 0 0 L 5 5" }, { d: "M 1 1 L 2 2" }] };
+    STROKE_LIBRARY.p = { strokes: [{ d: "M 0 0 L 3 3" }] };
+  });
+
+  const strokes = [{ d: "M 0 0 L 0 10" }, { d: "M 10 10 L 15 15" }, { d: "M 11 11 L 12 12" }];
+
+  it("returns the strokes untouched when the cluster has no nudge", () => {
+    expect(nudgeMarkStrokes(strokes, undefined, "s", marks)).toBe(strokes);
+  });
+
+  it("moves only a suffix mark's own (trailing) strokes", () => {
+    const got = nudgeMarkStrokes(strokes, { dx: -90, dy: 175 }, "s", marks);
+    expect(got[0]).toBe(strokes[0]);
+    expect(got[1].d).toBe(offsetSvgPath(strokes[1].d, -90, 175));
+    expect(got[2].d).toBe(offsetSvgPath(strokes[2].d, -90, 175));
+  });
+
+  it("leaves a prefix mark alone, and an unknown mark or a mark with no recorded stroke", () => {
+    expect(nudgeMarkStrokes(strokes, { dx: 1, dy: 1 }, "p", marks)).toBe(strokes);
+    expect(nudgeMarkStrokes(strokes, { dx: 1, dy: 1 }, "zz", marks)).toBe(strokes);
+    delete STROKE_LIBRARY.s;
+    expect(nudgeMarkStrokes(strokes, { dx: 1, dy: 1 }, "s", marks)).toBe(strokes);
+  });
+
+  it("tryComposeStroke applies a cluster's markNudge to the mark's strokes only", () => {
+    const plain = tryComposeStroke("Bs", { clusters: { ...clusters, Bs: { advance: 700, glyphs: [] } }, marks });
+    delete STROKE_LIBRARY.Bs;
+    const nudged = tryComposeStroke("Bs", {
+      clusters: { ...clusters, Bs: { advance: 700, glyphs: [], markNudge: { dx: -90, dy: 175 } } },
+      marks,
+    });
+    expect(nudged.strokes[0].d).toBe(plain.strokes[0].d); // the base is not moved
+    expect(nudged.strokes[1].d).toBe(offsetSvgPath(plain.strokes[1].d, -90, 175));
+    expect(nudged.strokes[2].d).toBe(offsetSvgPath(plain.strokes[2].d, -90, 175));
+  });
+});
+
+describe("isDotSized", () => {
+  const EM = 1000;
+  it("accepts a compact, short stroke (a nukta, an anusvara)", () => {
+    expect(isDotSized({ width: 30, height: 30 }, 90, EM)).toBe(true);
+  });
+  it("rejects a stroke whose bounding box is too large, even if short", () => {
+    expect(isDotSized({ width: 30, height: 40 }, 90, EM)).toBe(false);
+    expect(isDotSized({ width: 40, height: 30 }, 90, EM)).toBe(false);
+  });
+  it("rejects a compact stroke that is too long (a thin line, a big loop)", () => {
+    expect(isDotSized({ width: 30, height: 30 }, 130, EM)).toBe(false);
+  });
+  it("scales with the em", () => {
+    expect(isDotSized({ width: 30, height: 30 }, 90, 500)).toBe(false);
+    expect(isDotSized({ width: 30, height: 30 }, 90, 2048)).toBe(true);
+  });
+});
+
+describe("collectDotUnits", () => {
+  const at = (len, x, y, dot = len < 60) => ({ len, x, y, dot });
+  const isDot = (sub) => sub.dot;
+  const startOf = (sub) => ({ x: sub.x, y: sub.y });
+
+  it("moves dot strokes out of their units and keeps the letter strokes", () => {
+    const letter = at(500, 0, 0);
+    const dot = at(7, 10, 5);
+    const units = [{ subUnits: [letter, dot] }];
+    const dots = collectDotUnits(units, isDot, startOf);
+    expect(dots).toEqual([dot]);
+    expect(units[0].subUnits).toEqual([letter]);
+  });
+
+  it("decides by the predicate, not by length: a long, compact dot (a little loop) still counts", () => {
+    const loop = at(95, 0, 0, true);
+    const line = at(40, 0, 0, false);
+    const units = [{ subUnits: [loop, line] }];
+    expect(collectDotUnits(units, isDot, startOf)).toEqual([loop]);
+    expect(units[0].subUnits).toEqual([line]);
+  });
+
+  it("orders a visarga's dots top to bottom, whatever order they were recorded in", () => {
+    const lower = at(28, 600, 450);
+    const upper = at(7, 600, 140);
+    const dots = collectDotUnits([{ subUnits: [at(400, 0, 0), lower, upper] }], isDot, startOf);
+    expect(dots).toEqual([upper, lower]);
+  });
+
+  it("keeps word order across clusters, then top to bottom within each", () => {
+    const a2 = at(5, 0, 300);
+    const a1 = at(5, 0, 100);
+    const b1 = at(5, 900, 50);
+    const dots = collectDotUnits([{ subUnits: [a2, a1] }, { subUnits: [b1] }], isDot, startOf);
+    expect(dots).toEqual([a1, a2, b1]);
+  });
+
+  it("leaves the shirorekha unit alone", () => {
+    const bar = at(10, 0, 0);
+    const units = [{ subUnits: [bar], isShirorekha: true }, { subUnits: [at(300, 0, 0)] }];
+    expect(collectDotUnits(units, isDot, startOf)).toEqual([]);
+    expect(units[0].subUnits).toEqual([bar]);
+  });
+
+  it("returns nothing when no stroke is a dot", () => {
+    expect(collectDotUnits([{ subUnits: [at(300, 0, 0)] }, { subUnits: [] }], isDot, startOf)).toEqual([]);
   });
 });

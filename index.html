@@ -4,10 +4,10 @@
     <meta charset="utf-8" />
     <meta name="google-site-verification" content="F11JeIJuZoP5IZXZruNc1Nvmh2qUApjtbwkLBVPGt_Q" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Jayasree - Malayalam handwriting, animated</title>
+    <title>Jayasree - Malayalam and Hindi handwriting, animated</title>
     <meta
       name="description"
-      content="A self-contained JavaScript library that animates Malayalam script as handwriting - showing how to write a letter or word, not just what it looks like."
+      content="A self-contained JavaScript library that animates Indic scripts (Malayalam and Hindi so far) as handwriting - showing how to write a letter or word, not just what it looks like."
     />
     <link rel="icon" type="image/svg+xml" href="favicon.svg" />
     <style>
@@ -39,14 +39,24 @@
         text-align: center;
         padding: 3.5rem 1rem 2.5rem;
       }
-      #wordmark {
+      #wordmark,
+      #wordmark-hi {
         cursor: pointer;
         display: inline-block;
       }
-      #wordmark img {
+      #wordmark img,
+      #wordmark-hi img {
         height: 110px;
         width: auto;
         max-width: 100%;
+      }
+      /* One wordmark per language, side by side, wrapping on a narrow screen. */
+      .wordmarks {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: center;
+        gap: 1rem 2.5rem;
       }
       h1 {
         font-size: 1.15rem;
@@ -171,17 +181,23 @@
   </head>
   <body>
     <header>
-      <span id="wordmark" title="Click to replay">
-        <img src="demo/jayasree.svg" alt="ജയശ്രീ - animated stroke trace of the word Jayasree" />
-      </span>
+      <div class="wordmarks">
+        <span id="wordmark" title="Click to replay">
+          <img src="demo/jayasree.svg" alt="ജയശ്രീ - animated stroke trace of the word Jayasree" />
+        </span>
+        <span id="wordmark-hi" title="Click to replay">
+          <img src="demo/jayasree.hi.svg" lang="hi" alt="जयश्री - animated stroke trace of the word Jayasree" />
+        </span>
+      </div>
       <h1>
         jayasree &middot;
         <!-- cz-version --><span class="version">v0.6.1</span>
       </h1>
       <p class="tagline">
-        A self-contained JavaScript library that animates Malayalam script as
+        A self-contained JavaScript library that animates Indic scripts as
         <em>handwriting</em> - showing how a letter or word is written, stroke by
-        stroke, not just what it looks like. Think Hanzi Writer, for Malayalam.
+        stroke, not just what it looks like. Think Hanzi Writer, for Malayalam,
+        Hindi and more to come.
       </p>
       <a class="cta primary" href="demo/">Try the live demo</a>
       <a class="cta secondary" href="https://github.com/sachn1/jayasree">GitHub</a>
@@ -295,13 +311,18 @@ await writer.play("നന്ദി", { speed: 1, count: 1 });</code></pre>
     <script>
       // Replay the SMIL-animated wordmark by re-inserting the <img> - SMIL
       // timelines restart when the element is (re)loaded.
-      const wordmark = document.getElementById("wordmark");
-      wordmark.addEventListener("click", () => {
-        const img = wordmark.querySelector("img");
-        const clone = img.cloneNode(true);
-        clone.src = "demo/jayasree.svg?" + Date.now();
-        img.replaceWith(clone);
-      });
+      for (const [id, file] of [
+        ["wordmark", "demo/jayasree.svg"],
+        ["wordmark-hi", "demo/jayasree.hi.svg"],
+      ]) {
+        const wordmark = document.getElementById(id);
+        wordmark.addEventListener("click", () => {
+          const img = wordmark.querySelector("img");
+          const clone = img.cloneNode(true);
+          clone.src = `${file}?${Date.now()}`;
+          img.replaceWith(clone);
+        });
+      }
     </script>
   </body>
 </html>

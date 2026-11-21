@@ -16,6 +16,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "tools"))
 
 from validate_data import (
     cross_check_raw_in_processed,
+    discover_languages,
+    paths_for,
     validate_glyph_data,
     validate_stroke_d,
     validate_stroke_data,
@@ -100,6 +102,29 @@ class TestValidateGlyphData:
         errors = validate_glyph_data({"meta": {"unitsPerEm": 2048}, "clusters": {}})
         assert errors != []
 
+    @pytest.mark.parametrize("nudge", [{"dx": 3.5, "dy": -4}, {"dx": 0, "dy": 0}])
+    def test_valid_mark_nudge_is_accepted(self, nudge: dict) -> None:
+        """Ensure that a numeric markNudge on a cluster is not flagged."""
+        entry = {"glyphs": [{"d": "M0 0", "x": 0, "y": 0}], "markNudge": nudge}
+        data = {"meta": {"unitsPerEm": 2048}, "clusters": {"A": entry}}
+        assert validate_glyph_data(data) == []
+
+    @pytest.mark.parametrize(
+        "nudge",
+        [
+            {"dx": 1},
+            {"dx": 1, "dy": 2, "dz": 3},
+            {"dx": "1", "dy": 2},
+            {"dx": True, "dy": 2},
+            [1, 2],
+        ],
+    )
+    def test_malformed_mark_nudge_is_an_error(self, nudge: object) -> None:
+        """Ensure that a markNudge that is not exactly numeric dx and dy is rejected."""
+        entry = {"glyphs": [{"d": "M0 0", "x": 0, "y": 0}], "markNudge": nudge}
+        data = {"meta": {"unitsPerEm": 2048}, "clusters": {"A": entry}}
+        assert any("markNudge" in e for e in validate_glyph_data(data))
+
     def test_missing_units_per_em_is_an_error(self) -> None:
         """Ensure that a meta object missing unitsPerEm is rejected."""
         data = {"meta": {}, "clusters": {"A": {"glyphs": [{"d": "M0 0", "x": 0, "y": 0}]}}}
@@ -114,6 +139,68 @@ class TestValidateGlyphData:
         }
         assert validate_glyph_data(data) == []
 
+    def test_absent_contextual_forms_is_allowed(self) -> None:
+        """Ensure that a language with no contextualForms key at all is unaffected."""
+        data = {
+            "meta": {"unitsPerEm": 2048},
+            "clusters": {"A": {"glyphs": [{"d": "M0 0 L1 1", "x": 0, "y": 0}]}},
+        }
+        assert validate_glyph_data(data) == []
+
+    def test_valid_contextual_forms_has_no_errors(self) -> None:
+        """Ensure that a well-formed contextualForms table passes with no errors."""
+        data = {
+            "meta": {"unitsPerEm": 2048},
+            "clusters": {"A": {"glyphs": [{"d": "M0 0 L1 1", "x": 0, "y": 0}]}},
+            "contextualForms": {
+                "XY": {"role": "halfForm", "ghost": {"glyphs": [{"d": "M0 0", "x": 0, "y": 0}]}},
+            },
+        }
+        assert validate_glyph_data(data) == []
+
+    def test_contextual_forms_must_be_an_object(self) -> None:
+        """Ensure that a non-object contextualForms value is rejected."""
+        data = {
+            "meta": {"unitsPerEm": 2048},
+            "clusters": {"A": {"glyphs": [{"d": "M0 0 L1 1", "x": 0, "y": 0}]}},
+            "contextualForms": ["not", "an", "object"],
+        }
+        errors = validate_glyph_data(data)
+        assert any("contextualForms" in e for e in errors)
+
+    def test_contextual_forms_key_must_be_two_characters(self) -> None:
+        """Ensure that a non-2-character trigger key is rejected."""
+        data = {
+            "meta": {"unitsPerEm": 2048},
+            "clusters": {"A": {"glyphs": [{"d": "M0 0 L1 1", "x": 0, "y": 0}]}},
+            "contextualForms": {
+                "XYZ": {"role": "halfForm", "ghost": {"glyphs": [{"d": "M0 0", "x": 0, "y": 0}]}},
+            },
+        }
+        errors = validate_glyph_data(data)
+        assert any("2-character" in e for e in errors)
+
+    def test_contextual_forms_role_must_be_valid(self) -> None:
+        """Ensure that an invalid role value is rejected."""
+        ghost = {"glyphs": [{"d": "M0 0", "x": 0, "y": 0}]}
+        data = {
+            "meta": {"unitsPerEm": 2048},
+            "clusters": {"A": {"glyphs": [{"d": "M0 0 L1 1", "x": 0, "y": 0}]}},
+            "contextualForms": {"XY": {"role": "notARealRole", "ghost": ghost}},
+        }
+        errors = validate_glyph_data(data)
+        assert any("role" in e for e in errors)
+
+    def test_contextual_forms_ghost_must_have_glyphs(self) -> None:
+        """Ensure that a missing/empty ghost.glyphs is rejected."""
+        data = {
+            "meta": {"unitsPerEm": 2048},
+            "clusters": {"A": {"glyphs": [{"d": "M0 0 L1 1", "x": 0, "y": 0}]}},
+            "contextualForms": {"XY": {"role": "halfForm", "ghost": {"glyphs": []}}},
+        }
+        errors = validate_glyph_data(data)
+        assert any("ghost" in e for e in errors)
+
 
 class TestCrossCheckRawInProcessed:
     """cross_check_raw_in_processed: every raw cluster must survive processing."""
@@ -127,6 +214,50 @@ class TestCrossCheckRawInProcessed:
         errors = cross_check_raw_in_processed({"A": {}, "B": {}}, {"A": {}})
         assert len(errors) == 1
         assert "'B'" in errors[0]
+
+
+class TestPathsFor:
+    """paths_for: language-code -> committed data-file paths (Phase 0)."""
+
+    def test_primary_code_is_unsuffixed(self) -> None:
+        """Ensure that Malayalam's code ('ml') maps to the original, unsuffixed names."""
+        paths = paths_for("ml")
+        assert paths.glyph_data.name == "glyph-data.json"
+        assert paths.stroke_data_raw.name == "stroke-data.raw.json"
+        assert paths.snapshot.name == "stroke_data_raw_snapshot.json"
+
+    def test_empty_code_is_treated_as_primary(self) -> None:
+        """Ensure that an empty code is equivalent to the primary language's code."""
+        assert paths_for("") == paths_for("ml")
+
+    def test_other_code_is_suffixed(self) -> None:
+        """Ensure that a non-primary code inserts '.{code}' before the extension."""
+        paths = paths_for("ta")
+        assert paths.glyph_data.name == "glyph-data.ta.json"
+        assert paths.stroke_data_raw.name == "stroke-data.ta.raw.json"
+        assert paths.snapshot.name == "stroke_data_raw_snapshot.ta.json"
+
+
+class TestDiscoverLanguages:
+    """discover_languages: scans a directory for glyph-data*.json files."""
+
+    def test_finds_unsuffixed_and_suffixed_files(self, tmp_path: Path) -> None:
+        """Ensure that both Malayalam's and a second language's files are found."""
+        (tmp_path / "glyph-data.json").write_text("{}")
+        (tmp_path / "glyph-data.ta.json").write_text("{}")
+        found = {p.code for p in discover_languages(tmp_path)}
+        assert found == {"ml", "ta"}
+
+    def test_ignores_non_matching_files(self, tmp_path: Path) -> None:
+        """Ensure that a stray file like a .bak backup is not mistaken for a language."""
+        (tmp_path / "glyph-data.json").write_text("{}")
+        (tmp_path / "glyph-data.json.bak").write_text("{}")
+        found = {p.code for p in discover_languages(tmp_path)}
+        assert found == {"ml"}
+
+    def test_empty_directory_finds_nothing(self, tmp_path: Path) -> None:
+        """Ensure that a directory with no glyph-data files returns an empty list."""
+        assert discover_languages(tmp_path) == []
 
 
 @pytest.mark.parametrize(

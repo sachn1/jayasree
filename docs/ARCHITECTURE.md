@@ -24,7 +24,7 @@ js/src/stroke-data.raw.json   ← hand-authored strokes, exactly as drawn
                                  (commit this - never overwritten by anything)
         │
         ▼
-tools/process_strokes.py --preset=malayalam
+tools/process_strokes.py --preset=full
         │  (center → smooth → straighten → expand)
         ▼
 js/src/stroke-data.json       ← processed + composed (commit this - this is
@@ -93,7 +93,7 @@ this caused when it was missed.
 ## Stage 3 - `process_strokes.py`: processing
 
 Four independently-toggleable stages, applied in order to every raw
-stroke, `--preset=malayalam` enabling all four:
+stroke, `--preset=full` enabling all four (`malayalam` is its historical alias):
 
 1. **Center** - gradient-ascent centering onto the glyph's own ink ridge.
    See `docs/CENTERING_EXPERIMENTS.md`'s centering section.
@@ -104,6 +104,39 @@ stroke, `--preset=malayalam` enabling all four:
 4. **Expand** - per-glyph composition: a cluster where every character
    already has its own stroke gets one built by offsetting each into place.
    See "Composition" below.
+
+### Cleanup (Hindi): rebuild the stroke from the font's geometry
+
+Centering and smoothing keep the hand's tremor, which shows on a thick font like Noto Sans
+Devanagari (wavy knots and junctions). For Hindi, `process_strokes.py` instead runs
+`jayasree.cleanup` on each atom that has an outline of its own - there is no flag - the language is the
+switch - and it is never run for Malayalam (guarded by the freeze tests). The human supplies
+only what a font cannot: order, direction and where the corners are. The font supplies the curve:
+
+1. A dot or a straight line is replaced by the exact primitive on the font's ink.
+2. Otherwise the stroke follows the ink's *ridge* (a minimum-cost path through a winding-aware
+   distance field, so a letter's counters stay empty) between the human's anchors. Where the ridge
+   cannot be trusted - a hand-drawn curl in one thick blob of ink - the human's own path is
+   spliced back in.
+3. The ridge is faired (least bending energy, inside the ink's channel); corners the font really
+   has are kept, corners the human rounded are rounded, straight stretches become exact lines and
+   round stretches exact circular arcs; a stem drawn up then down becomes two exact lines.
+4. The result is a few cubic Beziers (an approximation, so tremor is not carried over).
+
+It is deterministic (no randomness, one answer per input) and shrinks the data: the Hindi stroke
+file went from about 29 MB to about 9 MB. A half-form or reph trigger has no
+outline of its own, so it is cleaned against its `contextualForms` ghost instead. A cluster whose cleanup *fails* also falls back, but the run
+then reports it and writes nothing, so a regression cannot quietly produce a half-cleaned file. The code is `python/src/jayasree/cleanup/` (`fitting`,
+`ink`, `primitives`, `shape`, `stroke`); `python/tests/test_cleanup.py` tests each part on
+synthetic glyphs and pins a sample of the committed Hindi strokes to what the code produces, so
+the data cannot drift from the code. A letter that still looks unclean after cleanup is a case to
+fix in this module, with a test, not to patch in the data.
+
+To see which strokes to look at first, `tools/audit_strokes.py --lang hindi` compares the
+recordings with the shipped strokes and ranks them by the bend the cleanup *introduced* beyond what
+the human drew, plus how often the curve changes direction and how far it strayed from the
+recording (`jayasree.cleanup.audit`; takes seconds). It ranks, it does not judge: a sharp corner
+the human really drew, or a stem deliberately drawn up and back down, also scores high.
 
 The centering/straightening reference for a given cluster is built from
 that cluster's own outline in `glyph-data.json` - for a standalone mark
@@ -138,7 +171,7 @@ bugs this project hit and fixed while building it out.
 
 The stages described above are easiest to understand side by side against
 a real stroke. Below is ജ (ja)'s recorded stroke at each stage of
-`process_strokes.py --preset=malayalam`, overlaid on its Manjari ghost
+`process_strokes.py --preset=full`, overlaid on its Manjari ghost
 outline (light tan): its raw `stroke-data.raw.json` entry, then the same
 points run through `centering.center_points`, `geometry.smooth_points`, and
 `ghost_reference.refine_stroke` in turn, the same four functions
@@ -312,6 +345,64 @@ mark chain more than one link deep silently fell through to the plain
 font-outline trace instead of a real composed stroke - not wrong, just a
 visibly different (and, worse, occasionally including a stray
 dotted-circle artifact, per Bug #2 above) style from its neighbors.
+
+### Contextual forms: Devanagari half-forms and reph
+
+Some scripts have clusters that fit neither a mark recipe nor
+per-character composition. In Devanagari a conjunct like "क्त" can
+render as 2 glyphs from 3 characters (the virama contributes none), and the
+base consonant itself changes shape (a *half-form*), or the mark detaches
+from its typed position (*reph*, which types first but renders last).
+`glyph-data.<code>.json`'s `contextualForms` table lists each such
+2-character *trigger* (e.g. "क्", "र्") with a `role` of `halfForm` or
+`reph`; the trigger is recorded once as its own atom, keyed by the trigger
+string and never by a `clusters`/`marks` key, so segmentation can't
+accidentally pick it up.
+
+`tryComposeContextualForm` (`index.js`) and its Python twin in
+`stroke_compose.py` then fill the cluster's two glyph slots from the trigger's
+atom and the third character's own stroke - in glyph order for `halfForm`,
+swapped for `reph`. Hindi has 39 triggers (38 half-forms + 1 reph).
+Languages without the quirk (Malayalam included) have no `contextualForms`
+table, which makes this path a guaranteed no-op for them - verified by
+composing all 2052 Malayalam clusters with and without it and diffing the
+results. The rationale and the per-font sweep are in
+`docs/languages/hi/README.md`.
+
+### Devanagari: conjunct + vowel sign, headline and dots
+
+Three further Devanagari behaviours sit on top of contextual forms. All are
+gated on data a language opts into (`shirorekha`, `markNudge`), never on a
+default Malayalam inherits - the Malayalam freeze (see `CONTRIBUTING.md`)
+checks that.
+
+**A conjunct + ु / ू / ृ the generic recipe gets wrong.** The mark recipe
+(above) places a vowel sign at a fixed offset from its base. For a Devanagari
+conjunct the font often does something else - it nudges the sign, or fuses it
+into the base glyphs. `build_glyph_data.py`'s `_hi_conjunct_mark_clusters`
+shapes every conjunct + sign for real and writes an entry only where the font
+disagrees with the recipe, so everything the recipe already gets right stays
+composed at runtime and the file stays small. An entry whose base glyphs are
+unchanged carries `markNudge: {dx, dy}` - how far the sign sits from the
+generic spot - and `tryComposeStroke` applies it to the sign's recorded stroke
+(`nudgeMarkStrokes`) so the stroke follows the ghost (only for a single-glyph suffix sign; a
+prefix or split vowel sign is never nudged). A *fused* entry has the
+right ghost but no nudge, so its strokes stay generic until someone records it.
+
+**The headline (shirorekha) of a composed cluster.** Devanagari letters hang
+from a headline that the runtime draws from `shirorekha.inkRanges`. A cluster
+with no entry of its own (composed from a base and a mark) gets its ranges
+assembled from its parts (`clusterInkRanges`), using the offset between the
+standalone and the composed glyph. A known cluster with no ink range - the
+numerals - gets no headline at all, not a full-width fallback line.
+
+**Dots come last.** For a script with a headline, small marks (nukta,
+anusvara, the dots of ऊ, घ ...) are drawn after the letter and the headline,
+one after the other from top to bottom (`collectDotUnits`). A stroke counts as
+a dot when its bounding box (larger side) is below
+`DOT_MAX_EXTENT_FRACTION` of the em *and* its length is below
+`DOT_MAX_LENGTH_FRACTION` of it (`isDotSized`), so this is by size, not a list
+of letters.
 
 ### Last resort: per-character fallback
 

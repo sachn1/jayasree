@@ -1,7 +1,7 @@
 
 # Jayasree (JS)
 
-Animates Malayalam text as handwriting - a pen traces each letter left to right,
+Animates Indic-script text (Malayalam and Hindi so far) as handwriting - a pen traces each letter left to right,
 over a faint ghost of the complete letterform.
 
 Self-contained. No server. No font file at runtime. Glyph shapes are
@@ -25,7 +25,7 @@ import { createStrokeWriter } from "jayasree";
 const writer = createStrokeWriter(document.getElementById("stage"));
 await writer.load();          // fetches glyph-data.json once
 await writer.loadStrokes();   // fetches stroke-data.json (no-op if absent)
-await writer.play("നന്ദി");   // any Malayalam Unicode text
+await writer.play("നന്ദി");   // any text in a supported script, e.g. Malayalam or Hindi
 
 writer.replay();   // play the same text again
 writer.cancel();   // stop mid-animation

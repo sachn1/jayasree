@@ -2,18 +2,29 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Jayasree - interactive demo</title>
     <link rel="icon" type="image/svg+xml" href="../favicon.svg" />
     <link rel="stylesheet" href="../js/src/style.css" />
     <link rel="stylesheet" href="demo.css" />
   </head>
   <body>
+    <!-- The wordmark. Malayalam's is a pre-exported, self-animating SVG; a
+         language whose config has a `logo` entry gets a live one in
+         #logo-live instead (see demo.js "Wordmark"). -->
     <img id="logo-stage" src="jayasree.svg" alt="ജയശ്രീ - animated stroke trace of the word Jayasree" />
-    <p class="tagline">Malayalam handwriting, animated stroke by stroke</p>
-    <p class="sub">Type any word and watch it be written.</p>
+    <div id="logo-live" role="img" aria-label="Jayasree wordmark, animated" title="Click to replay" hidden></div>
+
+    <!-- One tab per language; demo.js builds them from its LANGUAGES table
+         (add a language there, not here). The URL hash (#ml, #hi) selects a
+         tab so a language can be linked to directly. -->
+    <div id="langTabs" role="tablist" aria-label="Language"></div>
+
+    <p class="tagline" id="tagline"></p>
+    <p class="sub" id="sub"></p>
 
     <form id="traceForm">
-      <input id="wordInput" type="text" value="നന്ദി" lang="ml" autocomplete="off" />
+      <input id="wordInput" type="text" autocomplete="off" />
       <!-- Hidden by default; demo.js only reveals this if the browser
            actually supports SpeechRecognition - see its "Speech input"
            section. -->
@@ -33,18 +44,13 @@
       <button type="submit" id="traceBtn">Trace</button>
     </form>
 
-    <div class="chips">
-      Try: &nbsp;
-      <button type="button" data-word="അമ്മ">അമ്മ</button>
-      <button type="button" data-word="നന്ദി">നന്ദി</button>
-      <button type="button" data-word="മലയാളം">മലയാളം</button>
-      <button type="button" data-word="ആലയം">ആലയം</button>
-      <button type="button" data-word="ക്ഷമിക്കണം">ക്ഷമിക്കണം</button>
-      <button type="button" data-word="ജയശ്രീ">ജയശ്രീ</button>
-      <button type="button" data-word="നോവ്">നോവ്</button>
-      <button type="button" data-word="ധൃഷ്ടദ്യുമ്നൻ">ധൃഷ്ടദ്യുമ്നൻ</button>
-      <button type="button" data-word="പ്രദ്യുമ്നൻ">പ്രദ്യുമ്നൻ</button>
-    </div>
+    <div class="chips" id="wordChips"></div>
+
+    <!-- Only shown for languages whose config lists `letters`. -->
+    <details id="letterBrowser" hidden>
+      <summary>Browse letters (for checking individual traces)</summary>
+      <div id="letterChips" class="chips"></div>
+    </details>
 
     <div id="status"></div>
     <div id="stage"></div>

@@ -25,7 +25,7 @@ import { fileURLToPath } from "node:url";
 import { beforeEach, describe, expect, it } from "vitest";
 import { STROKE_LIBRARY, _internal } from "../js/src/index.js";
 
-const { tryComposeStroke, resolveGhostEntry } = _internal;
+const { tryComposeStroke, resolveGhostEntry, resolveSegments, normalizeChillus } = _internal;
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const glyphData = JSON.parse(readFileSync(`${ROOT}js/src/glyph-data.json`, "utf-8"));
@@ -56,6 +56,45 @@ describe("real-data sanity", () => {
     // The concrete case that surfaced this bug (see index.js's index.test.js
     // and this file's module docstring).
     const result = tryComposeStroke("ത്സ്യം", glyphData);
+    expect(result).not.toBeNull();
+  });
+});
+
+describe("real legacyEncodings / splitVowelParts (moved out of index.js - see tools/build_glyph_data.py's _runtime_quirks)", () => {
+  it("glyph-data.json carries Malayalam's real chillu legacy-encoding table", () => {
+    expect(glyphData.legacyEncodings).toEqual({
+      "ന്‍": "ൻ",
+      "ര്‍": "ർ",
+      "ല്‍": "ൽ",
+      "ള്‍": "ൾ",
+      "ണ്‍": "ൺ",
+      "ക്‍": "ൿ",
+    });
+  });
+
+  it("glyph-data.json carries Malayalam's real split-vowel decomposition table", () => {
+    expect(glyphData.splitVowelParts).toEqual({
+      "ൊ": ["െ", "ാ"],
+      "ോ": ["േ", "ാ"],
+      "ൌ": ["െ", "ൗ"],
+    });
+  });
+
+  it("resolveSegments normalizes a real legacy chillu sequence end-to-end", () => {
+    // Same regression index.test.js's synthetic version covers, against the
+    // real data this time - see that file's docstring for why the split.
+    const segs = resolveSegments("ന്‍", glyphData.clusters, {}, glyphData.legacyEncodings);
+    expect(segs.map((s) => s.cluster)).toEqual(["ൻ"]);
+  });
+
+  it("a real word with a legacy chillu spelling normalizes exactly like its atomic spelling", () => {
+    expect(normalizeChillus("അയല്‍വാസികള്‍ക്ക്", glyphData.legacyEncodings)).toBe(
+      "അയൽവാസികൾക്ക്"
+    );
+  });
+
+  it("കോ (ക + the compound ോ vowel sign) composes via the real splitVowelParts recipe", () => {
+    const result = tryComposeStroke("കോ", glyphData);
     expect(result).not.toBeNull();
   });
 });

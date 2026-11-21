@@ -31,6 +31,13 @@ repos:
         language: system
         files: ^(js/src|tools|demo|tests)/.*\.js$
 
+      - id: check-docstrings
+        name: check-docstrings (private = one line; public = Parameters + Returns)
+        entry: python3 tools/check_docstrings.py
+        language: system
+        pass_filenames: false
+        files: ^(python/src|tools)/.*\.py$
+
       - id: validate-data
         name: validate-data (glyph-data/stroke-data structural integrity)
         entry: python3 tools/validate_data.py

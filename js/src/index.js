@@ -29,6 +29,30 @@ const OUTLINE_SAMPLES = 200;
 /** Pause between consecutive strokes of one glyph (milliseconds). */
 const PEN_LIFT_MS = 120;
 
+/**
+ * A stroke is a dot (a visarga's, an anusvara, a nukta ...) rather than part of a letter when it is both
+ * compact (its bounding box no larger than this fraction of the em) and short. Compactness is what matters:
+ * a dot drawn as a tiny loop is long for its size, while the smallest real letter stroke is several times
+ * wider than the widest dot. The length bound only guards against a thin, long line.
+ */
+const DOT_MAX_EXTENT_FRACTION = 0.036;
+const DOT_MAX_LENGTH_FRACTION = 0.12;
+
+/**
+ * Whether a stroke of this bounding box and path length is a dot, for an em of `unitsPerEm`.
+ * @param {{width: number, height: number}} box - The stroke's bounding box.
+ * @param {number} length - The stroke's path length.
+ * @param {number} unitsPerEm - The font's em, which the thresholds are fractions of.
+ * @returns {boolean} True when the stroke is both compact (larger box side below `DOT_MAX_EXTENT_FRACTION`
+ *   of the em) and short (length below `DOT_MAX_LENGTH_FRACTION` of it).
+ */
+function isDotSized(box, length, unitsPerEm) {
+  return (
+    Math.max(box.width, box.height) < unitsPerEm * DOT_MAX_EXTENT_FRACTION &&
+    length < unitsPerEm * DOT_MAX_LENGTH_FRACTION
+  );
+}
+
 /** Pause between repeats when `play`/`replay` is given `count > 1` (milliseconds). */
 const REPLAY_PAUSE_MS = 500;
 
@@ -130,51 +154,46 @@ export const STROKE_LIBRARY = {};
 // ---------------------------------------------------------------------------
 
 /**
- * Legacy chillu encoding (base consonant + virama U+0D4D + ZWJ U+200D) mapped
- * to its atomic Unicode 5.1+ chillu codepoint. glyph-data.json/stroke-data.json
- * only key clusters by the atomic form, so text using the legacy 3-codepoint
- * sequence - very common in real-world/pasted Malayalam text, and what old
- * fonts/keyboards produce - would otherwise fall through to the plain
- * consonant+virama rendering instead of the authored chillu glyph.
+ * Rewrite whatever legacy dual-encoding sequences `legacyEncodings` maps
+ * (glyph-data.json's `legacyEncodings` key - e.g. Malayalam's legacy
+ * 3-codepoint chillu spelling, base consonant + virama U+0D4D + ZWJ
+ * U+200D, mapped to its atomic Unicode 5.1+ chillu codepoint) to their
+ * atomic equivalent. `clusters`/`stroke-data.json` only ever key by the
+ * atomic form, so text using a legacy sequence - very common in
+ * real-world/pasted text, and what old fonts/keyboards produce - would
+ * otherwise fall through to a less-correct rendering instead of the
+ * authored glyph.
  *
- * @type {Record<string, string>}
- */
-const LEGACY_CHILLU = {
-  // Each key is 3 codepoints (consonant + U+0D4D + U+200D); each value is 1
-  // (the atomic chillu). They render identically - only the string length
-  // (and which lookup key matches glyph-data.json) differs.
-  "ണ്‍": "ൺ", // ണ (U+0D23) + ് (U+0D4D) + ZWJ (U+200D)  ->  ൺ (U+0D7A)
-  "ന്‍": "ൻ", // ന (U+0D28) + ് (U+0D4D) + ZWJ (U+200D)  ->  ൻ (U+0D7B)
-  "ര്‍": "ർ", // ര (U+0D30) + ് (U+0D4D) + ZWJ (U+200D)  ->  ർ (U+0D7C)
-  "ല്‍": "ൽ", // ല (U+0D32) + ് (U+0D4D) + ZWJ (U+200D)  ->  ൽ (U+0D7D)
-  "ള്‍": "ൾ", // ള (U+0D33) + ് (U+0D4D) + ZWJ (U+200D)  ->  ൾ (U+0D7E)
-  "ക്‍": "ൿ", // ക (U+0D15) + ് (U+0D4D) + ZWJ (U+200D)  ->  ൿ (U+0D7F)
-};
-
-/**
- * The 6 atomic chillu codepoints (values of {@link LEGACY_CHILLU}) - used to
- * detect the "chillu + trailing consonant" base (currently only ൻറ; see
- * build_glyph_data.py's `_standalone_inputs`) where a following prefix mark
- * (െ/േ/ൈ) must split the base instead of shifting it as one block. See
- * {@link composeMark}'s docstring for why.
- *
- * @type {Set<string>}
- */
-const CHILLU_ATOMS = new Set(Object.values(LEGACY_CHILLU));
-
-/**
- * Replace legacy consonant+virama+ZWJ chillu sequences with their atomic
- * codepoint equivalent. See {@link LEGACY_CHILLU}.
+ * A language with no such duality (most of them) simply has no
+ * `legacyEncodings` key at all - this function then does nothing, and
+ * nothing Malayalam-specific is ever loaded into memory for that
+ * language's session. See docs/ARCHITECTURE.md's "Chillu letters".
  *
  * @param {string} text
+ * @param {Record<string, string>} [legacyEncodings] - From glyphData.legacyEncodings.
  * @returns {string}
  */
-function normalizeChillus(text) {
+function normalizeChillus(text, legacyEncodings = {}) {
   let result = text;
-  for (const [legacy, atomic] of Object.entries(LEGACY_CHILLU)) {
+  for (const [legacy, atomic] of Object.entries(legacyEncodings)) {
     result = result.split(legacy).join(atomic);
   }
   return result;
+}
+
+/**
+ * Derive the set of atomic codepoints `legacyEncodings` normalizes *to* -
+ * used to detect the "chillu + trailing consonant" base (currently only
+ * ൻറ; see build_glyph_data.py's `_standalone_inputs`) where a following
+ * prefix mark (െ/േ/ൈ) must split the base instead of shifting it as one
+ * block. See {@link composeMark}'s docstring for why. Empty for any
+ * language with no `legacyEncodings` at all.
+ *
+ * @param {Record<string, string>} [legacyEncodings]
+ * @returns {Set<string>}
+ */
+function legacyAtoms(legacyEncodings = {}) {
+  return new Set(Object.values(legacyEncodings));
 }
 
 /**
@@ -188,6 +207,24 @@ function svgEl(tag, attrs) {
   const el = document.createElementNS(SVGNS, tag);
   for (const k in attrs) el.setAttribute(k, attrs[k]);
   return el;
+}
+
+/**
+ * Cubic ease-in-out: slow start, fast middle, slow end.
+ *
+ * A real pen accelerates into a stroke and decelerates at its end, not a
+ * constant-velocity sweep - {@link traceSub} applies this to its
+ * frame-progress fraction instead of using the raw linear `t`, which reads
+ * as mechanical ("robotic") rather than handwritten. Standard shape
+ * (equivalent to CSS `ease-in-out`); not tunable per-stroke on purpose -
+ * this is a fixed property of how pens move, not a per-language or
+ * per-glyph concern.
+ *
+ * @param {number} t - Linear progress, 0-1.
+ * @returns {number} Eased progress, 0-1.
+ */
+function easeInOut(t) {
+  return t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2;
 }
 
 /**
@@ -313,15 +350,17 @@ function buildTracePath(pathEl, startOverride, direction) {
  * @param {{ glyphs: {d: string, x: number, y: number}[], advance: number }} base
  * @param {{ shift: number, prefix: object[], suffix: object[], trailingWidth: number }} mark
  * @param {string} [baseKey] - The base's character sequence, e.g. "ൻറ".
+ * @param {Set<string>} [legacyAtomsSet] - From {@link legacyAtoms}; empty for a
+ *   language with no legacy-encoded atoms (i.e. no chillu-style quirk) at all.
  * @returns {{ glyphs: {d: string, x: number, y: number}[], advance: number }}
  */
-function composeMark(base, mark, baseKey) {
+function composeMark(base, mark, baseKey, legacyAtomsSet = new Set()) {
   if (
     baseKey &&
     mark.prefix.length > 0 &&
     mark.suffix.length === 0 &&
     base.glyphs.length > 1 &&
-    CHILLU_ATOMS.has(baseKey[0])
+    legacyAtomsSet.has(baseKey[0])
   ) {
     const chilluAdvance = base.glyphs[1].x;
     const glyphs = [
@@ -337,6 +376,53 @@ function composeMark(base, mark, baseKey) {
     ...mark.suffix.map((s) => ({ d: s.d, x: mark.shift + base.advance + s.x, y: s.y })),
   ];
   return { glyphs, advance: mark.shift + base.advance + mark.trailingWidth };
+}
+
+/**
+ * Where a cluster has real ink at headline (shirorekha) height, as `[x0, x1]` ranges in the cluster's own
+ * frame, plus its advance - or `null` if that can't be worked out.
+ *
+ * `inkRanges` (glyph-data's `shirorekha.inkRanges`) is computed at build time for every cluster the font
+ * shaped. A cluster built at runtime (a conjunct plus a vowel sign, say श्च + ि) isn't one of those, so its
+ * ranges are assembled the same way {@link composeMark} assembles its glyphs: the base's ranges shifted by the
+ * mark's `shift`, plus the mark's own ranges (a prefix mark sits at the start, a suffix mark after the base).
+ * A *known* cluster with no entry simply has no headline ink (the numerals, a lone vowel sign): that is an
+ * answer ("draw nothing"), not a missing one.
+ *
+ * @param {string} cluster
+ * @param {Record<string, { advance: number }>} clusters
+ * @param {Record<string, { shift: number, prefix: object[], suffix: object[], trailingWidth: number }> | undefined} marks
+ * @param {Record<string, [number, number][]>} inkRanges
+ * @param {number} [depth]
+ * @returns {{ ranges: [number, number][], advance: number } | null}
+ */
+function clusterInkRanges(cluster, clusters, marks, inkRanges, depth = 0) {
+  const known = clusters[cluster];
+  if (known) return { ranges: inkRanges[cluster] ?? [], advance: known.advance };
+  if (depth > 8 || !marks) return null;
+  for (const markLen of [2, 1]) {
+    if (cluster.length <= markLen) continue;
+    const markKey = cluster.slice(-markLen);
+    const mark = marks[markKey];
+    if (!mark) continue;
+    const base = clusterInkRanges(cluster.slice(0, -markLen), clusters, marks, inkRanges, depth + 1);
+    if (!base) continue;
+    // A mark's own ranges are in its standalone frame, where its content glyph was shaped next to a dotted
+    // circle (a prefix mark's content first, a suffix mark's content last). In the composed cluster that
+    // glyph sits at the mark's own `prefix`/`suffix` position instead; the difference is the offset.
+    // A mark with both parts (a split vowel) can't be told apart here, so it is left to the caller.
+    const standalone = clusters[markKey]?.glyphs;
+    if (!standalone?.length || (mark.prefix.length > 0 && mark.suffix.length > 0)) continue;
+    const markOffset = mark.prefix.length > 0
+      ? mark.prefix[0].x - standalone[0].x
+      : mark.shift + base.advance + mark.suffix[0].x - standalone[standalone.length - 1].x;
+    const ranges = [
+      ...base.ranges.map(([a, b]) => [a + mark.shift, b + mark.shift]),
+      ...(inkRanges[markKey] ?? []).map(([a, b]) => [a + markOffset, b + markOffset]),
+    ].sort((r, s) => r[0] - s[0]);
+    return { ranges, advance: mark.shift + base.advance + mark.trailingWidth };
+  }
+  return null;
 }
 
 /**
@@ -390,9 +476,10 @@ function tightenMarks(marks, tightenUnits) {
  * @param {string} cluster
  * @param {Record<string, object>} clusters
  * @param {Record<string, object>} marks
+ * @param {Set<string>} [legacyAtomsSet] - See {@link composeMark}.
  * @returns {{ glyphs: object[], advance: number } | null}
  */
-function resolveGhostEntry(cluster, clusters, marks) {
+function resolveGhostEntry(cluster, clusters, marks, legacyAtomsSet = new Set()) {
   if (clusters[cluster]) return clusters[cluster];
   for (const markLen of [2, 1]) {
     if (cluster.length <= markLen) continue;
@@ -400,9 +487,9 @@ function resolveGhostEntry(cluster, clusters, marks) {
     const markKey = cluster.slice(-markLen);
     const mark = marks[markKey];
     if (!mark) continue;
-    const base = resolveGhostEntry(baseKey, clusters, marks);
+    const base = resolveGhostEntry(baseKey, clusters, marks, legacyAtomsSet);
     if (!base) continue;
-    return composeMark(base, mark, baseKey);
+    return composeMark(base, mark, baseKey, legacyAtomsSet);
   }
   return null;
 }
@@ -431,21 +518,17 @@ function offsetSvgPath(d, dx, dy) {
   });
 }
 
-/**
- * Compound vowel signs decomposed into the simpler marks they're built from,
- * in application order (each applied to the *result* of the previous one).
- * ൊ/ോ/ൌ match their official Unicode canonical decomposition (NFD: ൊ→െ+ാ,
- * ോ→േ+ാ, ൌ→െ+ൗ); ൈ has no such decomposition and, in this font, shapes as a
- * single prefix-only glyph rather than two, so it's deliberately left out -
- * it composes fine as its own atom already (see {@link tryComposeStroke}).
- *
- * @type {Record<string, string[]>}
- */
-const SPLIT_VOWEL_PARTS = {
-  "ൊ": ["െ", "ാ"],
-  "ോ": ["േ", "ാ"],
-  "ൌ": ["െ", "ൗ"],
-};
+// Compound vowel signs decomposed into the simpler marks they're built from
+// (e.g. Malayalam's ൊ→[െ,ാ]) live in glyphData.splitVowelParts, not a
+// hardcoded constant here - see build_glyph_data.py's `_runtime_quirks` and
+// {@link tryComposeStroke}, which reads `glyphData.splitVowelParts[markKey]`
+// directly. A language with no split marks (most of them) simply has no
+// such key, and this file holds none of that data for that language's
+// session. (For Malayalam specifically: ൊ/ോ/ൌ match their official Unicode
+// canonical decomposition, NFD ൊ→െ+ാ, ോ→േ+ാ, ൌ→െ+ൗ; ൈ has no such
+// decomposition and, in this font, shapes as a single prefix-only glyph
+// rather than two, so it's deliberately absent from that map - it composes
+// fine as its own atom already.)
 
 /**
  * The x-position where a mark's own *content* glyph (as opposed to the
@@ -489,7 +572,7 @@ function markContentAnchorX(markKey, clusters) {
  * one recorded stroke exists for those, and it can't be cleanly offset
  * without also warping the gap in the middle to match the base's width.
  * {@link tryComposeStroke} handles that case instead, by applying the
- * mark's {@link SPLIT_VOWEL_PARTS} one at a time through this function.
+ * mark's `glyphData.splitVowelParts` recipe one at a time through this function.
  *
  * @param {{d: string}[]} baseStrokes
  * @param {{ shift: number, prefix: object[], suffix: object[], trailingWidth: number }} mark
@@ -518,7 +601,9 @@ function applyMarkStroke(baseStrokes, mark, markStrokes, baseAdvance, markAnchor
   const composed = baseStrokes.map((s) => ({ d: offsetSvgPath(s.d, shift, 0) }));
   const strokes =
     mark.prefix.length > 0
-      ? [...markStrokes.map((s) => ({ d: s.d })), ...composed]
+      ? mark.writeAfterBase
+        ? [...composed, ...markStrokes.map((s) => ({ d: s.d }))]
+        : [...markStrokes.map((s) => ({ d: s.d })), ...composed]
       : [
           ...composed,
           ...markStrokes.map((s) => ({ d: offsetSvgPath(s.d, shift + baseAdvance - markAnchorX, 0) })),
@@ -529,8 +614,8 @@ function applyMarkStroke(baseStrokes, mark, markStrokes, baseAdvance, markAnchor
 /**
  * Apply a sequence of single-sided marks (each looked up and offset via
  * {@link applyMarkStroke}) to a base, one after another - used to compose a
- * compound vowel sign from its {@link SPLIT_VOWEL_PARTS} instead of needing
- * its own recorded stroke. Requires every part to already have a recorded
+ * compound vowel sign from its `glyphData.splitVowelParts` recipe instead of
+ * needing its own recorded stroke. Requires every part to already have a recorded
  * stroke in {@link STROKE_LIBRARY} (e.g. "െ" and "ാ" for ൊ); returns `null`
  * if any part is missing or its recipe is itself unexpectedly compound.
  *
@@ -580,6 +665,59 @@ function tryDirectMarkStroke(baseStrokes, baseAdvance, markKey, marks, clusters,
 }
 
 /**
+ * Take every dot-like stroke (per `isDot`) out of its glyph unit and return them as one ordered list:
+ * word order first (the cluster each came from), then top to bottom, then left to right. So a visarga's two dots
+ * come out upper dot, lower dot, and a word with several dotted clusters keeps them in reading order.
+ *
+ * Mutates each unit's `subUnits` (the dots are removed); a shirorekha unit is left alone.
+ *
+ * @param {{ subUnits: object[], isShirorekha?: boolean }[]} glyphUnits
+ * @param {(sub: object) => boolean} isDot - Whether a stroke is a dot.
+ * @param {(sub: object) => { x: number, y: number }} startOf - Where a stroke starts, in the stage's frame.
+ * @returns {object[]} The dot sub-units, in the order they should be drawn.
+ */
+function collectDotUnits(glyphUnits, isDot, startOf) {
+  const dots = [];
+  glyphUnits.forEach((unit, order) => {
+    if (unit.isShirorekha) return;
+    const keep = [];
+    for (const sub of unit.subUnits) {
+      if (isDot(sub)) {
+        const { x, y } = startOf(sub);
+        dots.push({ sub, order, x, y });
+      } else {
+        keep.push(sub);
+      }
+    }
+    unit.subUnits = keep;
+  });
+  dots.sort((a, b) => a.order - b.order || a.y - b.y || a.x - b.x);
+  return dots.map((d) => d.sub);
+}
+
+/**
+ * Move a suffix mark's strokes by a cluster's own `markNudge`, if its glyph-data entry has one.
+ *
+ * A cluster the font shaped for real (rather than one built from the generic base + mark recipe) can seat its
+ * mark glyph somewhere other than the recipe's position - a conjunct + ू, say. The build records how far
+ * (`markNudge: {dx, dy}`) so the mark's recorded stroke can follow its ghost. No entry carries one unless the
+ * build wrote it, so a language that doesn't use this is untouched.
+ *
+ * @param {{d: string}[]} strokes - Base strokes followed by the mark's (a suffix mark's go last).
+ * @param {{ dx: number, dy: number } | undefined} nudge
+ * @param {string} markKey
+ * @param {Record<string, object>} marks
+ * @returns {{d: string}[]}
+ */
+function nudgeMarkStrokes(strokes, nudge, markKey, marks) {
+  const mark = marks?.[markKey];
+  const markCount = STROKE_LIBRARY[markKey]?.strokes?.length ?? 0;
+  if (!nudge || !mark || mark.prefix.length > 0 || mark.suffix.length === 0 || !markCount) return strokes;
+  const first = strokes.length - markCount;
+  return strokes.map((s, i) => (i >= first ? { d: offsetSvgPath(s.d, nudge.dx, nudge.dy) } : s));
+}
+
+/**
  * Try composing a stroke for `cluster` from a shorter base plus a trailing
  * mark - mirrors {@link resolveSegments}'s glyph-level composition, one
  * level up. The base isn't required to already be in {@link STROKE_LIBRARY}
@@ -591,23 +729,24 @@ function tryDirectMarkStroke(baseStrokes, baseAdvance, markKey, marks, clusters,
  * out within `cluster.length` levels.
  *
  * A compound 1-char mark (both prefix and suffix, e.g. ൊ/ോ/ൌ) is composed
- * via its {@link SPLIT_VOWEL_PARTS} instead of its own stroke - see {@link
+ * via `glyphData.splitVowelParts` instead of its own stroke - see {@link
  * applySequentialMarkStrokes}. Composed results are cached into {@link
  * STROKE_LIBRARY} under `cluster` so repeated traces of the same word (or
  * repeated use of the same intermediate base) don't recompose it.
  *
  * @param {string} cluster
- * @param {{ clusters: Record<string, object>, marks: Record<string, object> }} glyphData
+ * @param {{ clusters: Record<string, object>, marks: Record<string, object>, legacyEncodings?: Record<string, string>, splitVowelParts?: Record<string, string[]> }} glyphData
  * @returns {{ strokes: {d: string}[] } | null}
  */
 function tryComposeStroke(cluster, glyphData) {
-  const { clusters, marks } = glyphData;
+  const { clusters, marks, legacyEncodings, splitVowelParts } = glyphData;
+  const legacyAtomsSet = legacyAtoms(legacyEncodings);
   for (const markLen of [2, 1]) {
     if (cluster.length <= markLen) continue;
     const baseKey = cluster.slice(0, -markLen);
     const markKey = cluster.slice(-markLen);
     const base = STROKE_LIBRARY[baseKey] ?? tryComposeStroke(baseKey, glyphData);
-    const baseGlyphEntry = resolveGhostEntry(baseKey, clusters, marks);
+    const baseGlyphEntry = resolveGhostEntry(baseKey, clusters, marks, legacyAtomsSet);
     if (!base?.strokes?.length || !baseGlyphEntry) continue;
 
     // See composeMark's chillu-base case: ൻറ (chillu + trailing റ) needs a
@@ -618,20 +757,20 @@ function tryComposeStroke(cluster, glyphData) {
     // `base.strokes` array (built by concatenating each character's own
     // strokes in order - see tryComposeFromCharacters/compose_per_glyph).
     let chilluSplit = null;
-    if (baseKey.length > 1 && CHILLU_ATOMS.has(baseKey[0]) && baseGlyphEntry.glyphs.length > 1) {
+    if (baseKey.length > 1 && legacyAtomsSet.has(baseKey[0]) && baseGlyphEntry.glyphs.length > 1) {
       const chilluEntry = STROKE_LIBRARY[baseKey[0]] ?? tryComposeStroke(baseKey[0], glyphData);
       if (chilluEntry?.strokes?.length) {
         chilluSplit = { strokeCount: chilluEntry.strokes.length, advance: baseGlyphEntry.glyphs[1].x };
       }
     }
 
-    const splitParts = markLen === 1 ? SPLIT_VOWEL_PARTS[markKey] : undefined;
+    const splitParts = markLen === 1 ? (splitVowelParts ?? {})[markKey] : undefined;
     const result = splitParts
       ? applySequentialMarkStrokes(base.strokes, baseGlyphEntry.advance, splitParts, marks, clusters)
       : tryDirectMarkStroke(base.strokes, baseGlyphEntry.advance, markKey, marks, clusters, chilluSplit);
 
     if (result) {
-      const entry = { strokes: result.strokes };
+      const entry = { strokes: nudgeMarkStrokes(result.strokes, clusters[cluster]?.markNudge, markKey, marks) };
       STROKE_LIBRARY[cluster] = entry;
       return entry;
     }
@@ -710,6 +849,76 @@ function tryComposeFromCharacters(cluster, glyphData) {
 }
 
 /**
+ * Compose a stroke for a "contextual form" cluster - a 3-character,
+ * 2-glyph cluster where one character (a virama) contributes no glyph of
+ * its own and the *other* two characters' real, already-shaped glyph
+ * positions (`glyphData.clusters[cluster].glyphs`) each resolve to a
+ * `STROKE_LIBRARY` key that isn't the literal character at that position.
+ * Devanagari half-forms and reph are the two known cases (see
+ * `docs/languages/hi/README.md`'s "headline finding" and
+ * `docs/languages/hi/README.md`) - neither fits
+ * {@link tryComposeStroke}'s mark-recipe model (the base itself changes
+ * shape, or the mark detaches from its own position) nor
+ * {@link tryComposeFromCharacters}'s `chars.length === glyphs.length` gate.
+ *
+ * Driven entirely by `glyphData.contextualForms` (absent/empty for any
+ * language without this quirk, Malayalam included - a guaranteed no-op via
+ * the first check below): each entry's key is a 2-character "trigger"
+ * (e.g. "क्", "र्") and its `role` says which glyph slot the trigger's own
+ * recorded atom (looked up in `STROKE_LIBRARY` under the literal trigger
+ * string - never a `clusters`/`marks` key, so this can never be picked up
+ * by {@link resolveSegments}'s segmentation, only by this function once
+ * segmentation already resolved the full 3-character cluster via its own,
+ * separately-existing `clusters` entry) fills:
+ *
+ * - `"halfForm"`: trigger's atom is glyph 0 (the substituted base shape),
+ *   the third character's own ordinary stroke is glyph 1.
+ * - `"reph"`: the third character's own ordinary stroke is glyph 0, the
+ *   trigger's atom (the reph hook) is glyph 1 - reph types first but
+ *   renders last, so the glyph order is swapped relative to half-forms.
+ *
+ * @param {string} cluster
+ * @param {{ clusters: Record<string, object>, contextualForms?: Record<string, object> }} glyphData
+ * @returns {{ strokes: {d: string}[] } | null}
+ */
+function tryComposeContextualForm(cluster, glyphData) {
+  const { clusters, contextualForms } = glyphData;
+  if (!contextualForms) return null;
+  const chars = [...cluster];
+  if (chars.length !== 3) return null;
+  const clusterEntry = clusters[cluster];
+  if (!clusterEntry || clusterEntry.glyphs.length !== 2) return null;
+
+  const trigger = chars[0] + chars[1];
+  const form = contextualForms[trigger];
+  if (!form) return null;
+
+  const atomStroke = STROKE_LIBRARY[trigger];
+  const otherChar = chars[2];
+  const otherStroke = STROKE_LIBRARY[otherChar] ?? tryComposeStroke(otherChar, glyphData);
+  if (!atomStroke?.strokes?.length || !otherStroke?.strokes?.length) return null;
+
+  const [g0, g1] = clusterEntry.glyphs;
+  const atomGlyph = form.role === "reph" ? g1 : g0;
+  const otherGlyph = form.role === "reph" ? g0 : g1;
+  // The atom's own recorded stroke is already anchored at x=0 by
+  // construction (tools/build_glyph_data.py's `_extract_ghost`) - no
+  // charDx correction needed, unlike otherChar's arbitrary standalone atom.
+  const atomStrokes = atomStroke.strokes.map((s) => ({
+    d: offsetSvgPath(s.d, atomGlyph.x, atomGlyph.y),
+  }));
+  const otherDx = charDx(otherChar, otherGlyph.x, clusters);
+  const otherStrokes = otherStroke.strokes.map((s) => ({
+    d: offsetSvgPath(s.d, otherDx, otherGlyph.y),
+  }));
+
+  const strokes = form.role === "reph" ? [...otherStrokes, ...atomStrokes] : [...atomStrokes, ...otherStrokes];
+  const entry = { strokes };
+  STROKE_LIBRARY[cluster] = entry;
+  return entry;
+}
+
+/**
  * Resolve `text` into an ordered list of `{ cluster, entry }` pairs.
  *
  * Tries a direct longest-match lookup first, but only at 4/3/2 chars
@@ -758,10 +967,12 @@ function tryComposeFromCharacters(cluster, glyphData) {
  * @param {string} text
  * @param {Record<string, unknown>} clusters - The `clusters` map from glyph-data.json.
  * @param {Record<string, unknown>} marks - The `marks` map from glyph-data.json.
+ * @param {Record<string, string>} [legacyEncodings] - glyph-data.json's `legacyEncodings`, if any.
  * @returns {{ cluster: string, entry: { glyphs: object[], advance: number } }[]}
  */
-function resolveSegments(text, clusters, marks) {
-  const normalized = normalizeChillus(text);
+function resolveSegments(text, clusters, marks, legacyEncodings = {}) {
+  const normalized = normalizeChillus(text, legacyEncodings);
+  const legacyAtomsSet = legacyAtoms(legacyEncodings);
   const segs = [];
   let i = 0;
   while (i < normalized.length) {
@@ -803,7 +1014,7 @@ function resolveSegments(text, clusters, marks) {
       if (!mark || !prev) continue;
       segs[segs.length - 1] = {
         cluster: prev.cluster + markCh,
-        entry: composeMark(prev.entry, mark, prev.cluster),
+        entry: composeMark(prev.entry, mark, prev.cluster, legacyAtomsSet),
       };
       i += markLen;
       composed = true;
@@ -918,24 +1129,26 @@ export function createStrokeWriter(container, options = {}) {
     // need the *same* tightened shifts to keep the animated ink aligned
     // with this ghost - can reuse it via `trace.glyphData` below.
     const tightenedGlyphData = { ...glyphData, marks: tightenMarks(marks ?? {}, tightenUnits) };
-    const segs = resolveSegments(text, clusters, tightenedGlyphData.marks);
+    const segs = resolveSegments(text, clusters, tightenedGlyphData.marks, tightenedGlyphData.legacyEncodings);
     if (!segs.length) return null;
 
     let penX = 0;
     const segGroups = [];
     for (const { cluster, entry } of segs) {
+      // Universal chars use their own fixed advance as-is - `tighten` only
+      // compensates for a font's own sidebearing looseness, which doesn't
+      // apply to a hand-picked width that was never font-shaped.
+      const advance = entry.universal
+        ? entry.advanceFraction * meta.unitsPerEm
+        : Math.max(0, entry.advance - tightenUnits);
       segGroups.push({
         cluster,
         components: entry.glyphs.map((g) => ({ d: g.d, x: penX + g.x, y: g.y })),
         groupX: penX,
+        advance,
         universal: !!entry.universal,
       });
-      // Universal chars use their own fixed advance as-is - `tighten` only
-      // compensates for a font's own sidebearing looseness, which doesn't
-      // apply to a hand-picked width that was never font-shaped.
-      penX += entry.universal
-        ? entry.advanceFraction * meta.unitsPerEm
-        : Math.max(0, entry.advance - tightenUnits);
+      penX += advance;
     }
 
     return {
@@ -946,6 +1159,110 @@ export function createStrokeWriter(container, options = {}) {
       segGroups,
       glyphData: tightenedGlyphData,
     };
+  }
+
+  /** Spans within this distance (font units) of each other are stitched
+   * into one continuous shirorekha run instead of drawn as separate
+   * strokes with a visible micro-gap - adjacent characters' own ink
+   * ranges rarely touch at an exact shared x (kerning/rounding), so
+   * without this a perfectly ordinary letter-to-letter boundary would
+   * incorrectly read as a gap.
+   */
+  const SHIROREKHA_MERGE_TOLERANCE = 12;
+
+  /**
+   * Compute the x-ranges a synthetic word-level shirorekha line should
+   * paint - never a Hindi-specific computation in this function's own
+   * logic, just whatever `glyphData.shirorekha.inkRanges` (if any) says.
+   *
+   * Reuses the font's own real outline instead of approximating: rather
+   * than guessing which letters have a headline gap,
+   * `tools/build_glyph_data.py`'s `_hi_cluster_ink_ranges()` mechanically
+   * rasterizes every *exact composed cluster*'s own glyphs (not just
+   * standalone base characters, so a matra-attached cluster like भा is
+   * correct automatically - no base-character lookup needed here) and
+   * records exactly where it has real ink at headline height, already
+   * positioned in that cluster's own coordinate frame. This function just
+   * looks each group's cluster up directly and stitches adjacent ranges
+   * together across the word. A cluster the build shaped but found no headline
+   * ink in (the numerals, a lone vowel sign) contributes nothing; a cluster
+   * built at runtime (a conjunct plus a vowel sign) gets its ranges assembled
+   * from its parts by {@link clusterInkRanges}. Only a group whose ranges can't
+   * be worked out at all falls back to its own full rendered width.
+   *
+   * @param {{ totalAdvance: number, segGroups: object[] }} trace
+   * @param {{ inkRanges?: Record<string, [number, number][]> }} shirorekha
+   * @returns {[number, number][]} Sorted, merged `[x0, x1]` spans to paint.
+   */
+  function shirorekhaSpans(trace, shirorekha) {
+    const real = trace.segGroups.filter((g) => !g.universal);
+    if (!real.length) return [];
+
+    const { clusters, marks } = trace.glyphData;
+    const raw = [];
+    for (const g of real) {
+      const found = clusterInkRanges(g.cluster, clusters, marks, shirorekha.inkRanges ?? {});
+      if (found) {
+        for (const [x0, x1] of found.ranges) raw.push([g.groupX + x0, g.groupX + x1]);
+      } else {
+        raw.push([g.groupX, g.groupX + g.advance]);
+      }
+    }
+    raw.sort((a, b) => a[0] - b[0]);
+
+    const spans = [];
+    for (const [x0, x1] of raw) {
+      const last = spans[spans.length - 1];
+      if (last && x0 <= last[1] + SHIROREKHA_MERGE_TOLERANCE) {
+        last[1] = Math.max(last[1], x1);
+      } else {
+        spans.push([x0, x1]);
+      }
+    }
+    return spans;
+  }
+
+  /**
+   * Build the synthetic word-level shirorekha glyph unit, if `glyphData`
+   * declares one - drawn last (appended after every real character's own
+   * unit), per docs/languages/hi/README.md's agreed sequencing.
+   *
+   * @param {{ totalAdvance: number, segGroups: object[] }} trace
+   * @param {{ shirorekha?: object }} traceGlyphData
+   * @param {SVGSVGElement} svg
+   * @param {number} sw - Stroke width (font units), same as every other stroke.
+   * @returns {{ gEl: null, subUnits: object[] } | null}
+   */
+  function buildShirorekhaUnit(trace, traceGlyphData, svg, sw) {
+    const shirorekha = traceGlyphData.shirorekha;
+    if (!shirorekha) return null;
+    const spans = shirorekhaSpans(trace, shirorekha);
+    if (!spans.length) return null;
+
+    const yMid = (shirorekha.y0 + shirorekha.y1) / 2;
+    const subUnits = spans
+      .filter(([x0, x1]) => x1 - x0 > 0)
+      .map(([x0, x1]) => {
+        const el = svgEl("path", {
+          d: `M ${x0} ${yMid} L ${x1} ${yMid}`,
+          class: "ms-stroke",
+          "stroke-width": sw,
+          "stroke-linecap": "round",
+          "stroke-linejoin": "round",
+        });
+        svg.appendChild(el);
+        const len = el.getTotalLength();
+        el.setAttribute("stroke-dasharray", `${len} ${len}`);
+        el.setAttribute("stroke-dashoffset", String(len));
+        return { strokeEl: el, len, tr: { x: 0, y: 0 } };
+      });
+    // isShirorekha: traceGlyph() skips its usual pen-lift pause between
+    // sub-units for this unit specifically - spans here are separated by a
+    // real font-outline gap (e.g. भ/अ/औ's own rounded loop not fusing
+    // flush against the headline bar), not an actual stroke boundary a
+    // real pen would pause at; a visible pause there reads as broken, not
+    // as handwriting (reported directly against औ's own shirorekha).
+    return subUnits.length ? { gEl: null, subUnits, isShirorekha: true } : null;
   }
 
   // ── Stage building ────────────────────────────────────────────────────
@@ -1009,6 +1326,7 @@ export function createStrokeWriter(container, options = {}) {
         ? null
         : (STROKE_LIBRARY[grp.cluster] ??
            tryComposeStroke(grp.cluster, traceGlyphData) ??
+           tryComposeContextualForm(grp.cluster, traceGlyphData) ??
            tryComposeFromCharacters(grp.cluster, traceGlyphData));
 
       // Only a genuine gap when outline-only wasn't explicitly requested -
@@ -1079,6 +1397,29 @@ export function createStrokeWriter(container, options = {}) {
       return { gEl: null, subUnits };
     });
 
+    // Synthetic word-level shirorekha, if this language's glyphData declares
+    // one - drawn last, after every real character's own unit above (see
+    // buildShirorekhaUnit's docstring for why).
+    const shirorekhaUnit = buildShirorekhaUnit(trace, traceGlyphData, svg, sw);
+    if (shirorekhaUnit) glyphUnits.push(shirorekhaUnit);
+
+    // In a script with a headline, dots (visarga, anusvara, nukta ...) are written last of all - after the
+    // headline - one after the other from top to bottom, and are not on the page before their turn.
+    // Gated on the same `shirorekha` data as the headline itself, so a script without one is unchanged.
+    if (traceGlyphData.shirorekha) {
+      const startOf = (sub) => {
+        const p = sub.strokeEl.getPointAtLength(0);
+        return { x: p.x + sub.tr.x, y: p.y + sub.tr.y };
+      };
+      const isDot = (sub) => isDotSized(sub.strokeEl.getBBox(), sub.len, unitsPerEm);
+      const dots = collectDotUnits(glyphUnits, isDot, startOf);
+      for (const dot of dots) {
+        dot.revealOnDraw = true;
+        dot.strokeEl.style.opacity = "0";
+      }
+      if (dots.length) glyphUnits.push({ gEl: null, subUnits: dots, isDots: true });
+    }
+
     return { glyphUnits, stylus, fallbackClusters };
   }
 
@@ -1094,7 +1435,8 @@ export function createStrokeWriter(container, options = {}) {
    */
   function traceSub(unit, stylus, token) {
     return new Promise((resolve) => {
-      const { strokeEl, len, tr, dMs } = unit;
+      const { strokeEl, len, tr, dMs, revealOnDraw } = unit;
+      if (revealOnDraw) strokeEl.style.opacity = "1"; // a dot is hidden until its turn (see buildStage)
       if (len <= 0) return resolve();
 
       const p0 = strokeEl.getPointAtLength(0);
@@ -1105,7 +1447,8 @@ export function createStrokeWriter(container, options = {}) {
       const t0 = performance.now();
       function frame(now) {
         if (token !== state.playToken) return resolve();
-        const t = Math.max(0, Math.min(1, (now - t0) / dMs));
+        const linear = Math.max(0, Math.min(1, (now - t0) / dMs));
+        const t = easeInOut(linear);
         strokeEl.setAttribute("stroke-dashoffset", String(len * (1 - t)));
         const pt = strokeEl.getPointAtLength(t * len);
         stylus.setAttribute("cx", String(pt.x + tr.x));
@@ -1124,9 +1467,10 @@ export function createStrokeWriter(container, options = {}) {
    * @param {SVGCircleElement} stylus
    * @param {number} dMs - Total duration for this glyph in milliseconds.
    * @param {number} token
+   * @param {number} [liftMs] - Pause between sub-units (default {@link PEN_LIFT_MS}).
    * @returns {Promise<void>}
    */
-  async function traceGlyph(unit, stylus, dMs, token) {
+  async function traceGlyph(unit, stylus, dMs, token, liftMs = PEN_LIFT_MS) {
     const totalLen = unit.subUnits.reduce((s, u) => s + u.len, 0) || 1;
     for (const sub of unit.subUnits) {
       sub.dMs = Math.max(80, dMs * (sub.len / totalLen));
@@ -1136,7 +1480,7 @@ export function createStrokeWriter(container, options = {}) {
       await traceSub(sub, stylus, token);
       if (i < unit.subUnits.length - 1) {
         stylus.style.opacity = "0";
-        await new Promise((r) => setTimeout(r, PEN_LIFT_MS));
+        if (liftMs > 0) await new Promise((r) => setTimeout(r, liftMs));
       }
     }
     stylus.style.opacity = "0";
@@ -1170,7 +1514,8 @@ export function createStrokeWriter(container, options = {}) {
         unit,
         stylus,
         Math.max(200, (totalLen / (SPEED * speedMul)) * 1000),
-        token
+        token,
+        unit.isShirorekha ? 0 : PEN_LIFT_MS
       );
     }
     if (token === state.playToken) stylus.style.opacity = "0";
@@ -1181,7 +1526,7 @@ export function createStrokeWriter(container, options = {}) {
    *
    * Calls `load()` automatically if glyph data has not been loaded yet.
    *
-   * @param {string} text - Malayalam (or any supported script) text.
+   * @param {string} text - Text in a supported script (Malayalam or Hindi so far).
    * @param {{ speed?: number, count?: number }} [playOptions]
    * @param {number} [playOptions.speed=1] - Speed multiplier (>1 = faster).
    * @param {number} [playOptions.count=1] - Number of times to trace `text` in a row,
@@ -1257,16 +1602,21 @@ export const _internal = {
   tightenMarks,
   resolveGhostEntry,
   offsetSvgPath,
-  SPLIT_VOWEL_PARTS,
   markContentAnchorX,
   applyMarkStroke,
   applySequentialMarkStrokes,
   tryDirectMarkStroke,
   tryComposeStroke,
   charDx,
+  tryComposeContextualForm,
   tryComposeFromCharacters,
   resolveSegments,
+  clusterInkRanges,
+  collectDotUnits,
+  isDotSized,
+  nudgeMarkStrokes,
   normalizeChillus,
+  legacyAtoms,
 };
 
 
