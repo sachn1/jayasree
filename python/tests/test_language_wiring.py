@@ -1,4 +1,4 @@
-"""Tests that each language with data is wired into the demo and site, and the agents are listed."""
+"""Tests that languages are wired into the demo and site, and the agent files are consistent."""
 
 from __future__ import annotations
 
@@ -63,3 +63,76 @@ def test_pipeline_agent_is_in_the_spec_and_the_skill(agent: str) -> None:
     )
     assert f"`{agent}`" in spec, f"{agent} is not in docs/LANGUAGE_ONBOARDING_AGENTS.md"
     assert f"`{agent}`" in skill, f"{agent} is not in the onboard-language skill"
+
+
+def _frontmatter(agent: str) -> dict[str, str]:
+    """Return an agent file's frontmatter as a flat dict of its `key: value` lines."""
+    head = AGENTS[agent].read_text(encoding="utf-8").split("---")[1]
+    return dict(re.findall(r"^(\w+): (.*)$", head, re.MULTILINE))
+
+
+def _tools(agent: str) -> set[str]:
+    """Return the tool names an agent is granted."""
+    return {t.strip() for t in _frontmatter(agent)["tools"].split(",")}
+
+
+@pytest.mark.parametrize("agent", sorted(AGENTS))
+def test_agent_declares_description_tools_and_model(agent: str) -> None:
+    """Ensure that each agent file has a description, a tools list and a model."""
+    fields = _frontmatter(agent)
+    assert {"description", "tools", "model"} <= fields.keys()
+    assert fields["description"].strip("\"'") != ""
+
+
+@pytest.mark.parametrize("agent", sorted(set(AGENTS) - NOT_PIPELINE))
+def test_pipeline_agent_only_runs_when_asked(agent: str) -> None:
+    """Ensure that a pipeline agent's description says it is used only when explicitly asked."""
+    assert "explicitly asked" in _frontmatter(agent)["description"]
+
+
+def test_reviewing_agent_cannot_write() -> None:
+    """Ensure that the read-only profile reviewer has no Write or Edit tool."""
+    assert not _tools("language-reviewer") & {"Write", "Edit"}
+
+
+@pytest.mark.parametrize("agent", ["atom-reducer", "language-publisher"])
+def test_agent_that_edits_existing_files_can_edit(agent: str) -> None:
+    """Ensure that agents which modify existing files (registry, demo, README) hold Edit."""
+    assert "Edit" in _tools(agent)
+
+
+def test_spec_has_the_sections_the_adapters_point_at() -> None:
+    """Ensure that every spec heading an adapter or the skill relies on exists."""
+    spec = (ROOT / "docs" / "LANGUAGE_ONBOARDING_AGENTS.md").read_text(encoding="utf-8")
+    for heading in (
+        "### Agent 1",
+        "### Agent 2",
+        "### Agent 3",
+        "### Stage 7 - wire up and document",
+        "### Stage 8 - freeze",
+        "### Post-recording gate (stage 5)",
+        "## Don't generalize from Malayalam",
+    ):
+        assert re.search(rf"^{re.escape(heading)}", spec, re.MULTILINE), heading
+
+
+def test_skill_names_every_stage_it_acts_on() -> None:
+    """Ensure that the skill mentions each stage in which an agent or command does the work."""
+    skill = (ROOT / ".claude" / "skills" / "onboard-language" / "SKILL.md").read_text(
+        encoding="utf-8"
+    )
+    for stage in (1, 2, 3, 4, 5, 7, 8):
+        assert f"Stage {stage}" in skill or f"**Stage {stage}**" in skill, f"Stage {stage}"
+
+
+def test_make_targets_named_in_the_pipeline_docs_exist() -> None:
+    """Ensure that every `make <target>` the spec, skill and adapters name is in the Makefile."""
+    makefile = (ROOT / "Makefile").read_text(encoding="utf-8")
+    targets = set(re.findall(r"^([a-z][\w-]*):", makefile, re.MULTILINE))
+    texts = [
+        ROOT / "docs" / "LANGUAGE_ONBOARDING_AGENTS.md",
+        ROOT / ".claude" / "skills" / "onboard-language" / "SKILL.md",
+        *AGENTS.values(),
+    ]
+    named = {t for f in texts for t in re.findall(r"`make ([a-z][\w-]*)", f.read_text("utf-8"))}
+    assert named <= targets, f"not in the Makefile: {sorted(named - targets)}"
