@@ -8,7 +8,7 @@ covers.
 
 ## What this repo is
 
-Jayasree animates Malayalam (soon: other Indic scripts) as handwriting -
+Jayasree animates Malayalam and Hindi (more Indic scripts planned) as handwriting -
 stroke by stroke, not just a static glyph. A committed, hand-traced
 `stroke-data.raw.json` is the actual content of the project; everything else
 (`glyph-data.json`, `stroke-data.json`) is generated from it plus a font.

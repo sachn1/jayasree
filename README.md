@@ -40,7 +40,7 @@ All options and examples: [`docs/JS_API.md`](docs/JS_API.md).
 | Language | Strokes | Status |
 |---|---|---|
 | Malayalam | 297 hand-recorded atoms, ~2050 clusters covered | production |
-| Hindi (Devanagari) | 183 atoms, all 2443 clusters covered | all strokes recorded; cleanup in progress |
+| Hindi (Devanagari) | 183 atoms, all 2443 clusters covered | production - all strokes recorded and cleaned against the font |
 | Tamil, Telugu, Kannada, Bengali, Sanskrit | - | planned, one at a time |
 
 ## How it works
