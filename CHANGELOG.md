@@ -3,11 +3,6 @@
 ### Feat
 
 - Hindi (Devanagari) - recorded, cleaned and frozen (#70)
-
-## v0.6.1 (2026-11-20)
-
-### Feat
-
 - **tools**: clean Hindi half-form and reph atoms (#61)
 - **tools**: clean Hindi half-form and reph atoms against their contextualForms outline
 - **py**: add an audit that ranks cleaned Hindi strokes by the bend the cleanup introduced (#59)
@@ -27,31 +22,6 @@
 - **demo**: show both wordmarks on the landing page and README, and match the colour in the demo
 - **demo**: add the Hindi wordmark in a soft red
 - **tools**: export a language's animated wordmark as one solid colour
-
-### Fix
-
-- **demo**: drop the cleanup-in-progress note from the Hindi tab
-- **py**: make the audit handle arcs, empty paths and added limbs, and word its output as candidates
-- **demo**: align the Hindi and Malayalam wordmarks (#55)
-- **demo**: regenerate the Hindi wordmark with the aligned framing
-- **tools**: frame the Hindi wordmark like the Malayalam one so the two line up
-- **py**: raise clear errors for empty input in the cleanup instead of numpy ones
-
-### Refactor
-
-- **tools**: drop the stem-last reorder for ख़ and ङ्ख (#65)
-- **tools**: drop the stem-last reorder for ख़ and ङ्ख, the recorded order is kept
-- **tools**: drop the cleanup flag; the language is the only switch
-- **js**: extract the dot-size test so its thresholds are unit-tested
-
-## v0.6.0 (2026-11-20)
-
-## v0.5.1 (2026-11-20)
-
-## v0.5.0 (2026-11-20)
-
-### Feat
-
 - **demo**: draw a live Devanagari wordmark on the Hindi tab
 - **demo**: one demo page with a tab per language
 - **demo**: add Hindi demo
@@ -79,6 +49,12 @@
 
 ### Fix
 
+- **demo**: drop the cleanup-in-progress note from the Hindi tab
+- **py**: make the audit handle arcs, empty paths and added limbs, and word its output as candidates
+- **demo**: align the Hindi and Malayalam wordmarks (#55)
+- **demo**: regenerate the Hindi wordmark with the aligned framing
+- **tools**: frame the Hindi wordmark like the Malayalam one so the two line up
+- **py**: raise clear errors for empty input in the cleanup instead of numpy ones
 - **demo**: fill the Hindi wordmark in its ink color
 - **tools**: handle an out_path outside ROOT in build_glyph_data's status print
 - **demo**: detect the actual outbound IP instead of the hostname's
@@ -87,6 +63,10 @@
 
 ### Refactor
 
+- **tools**: drop the stem-last reorder for ख़ and ङ्ख (#65)
+- **tools**: drop the stem-last reorder for ख़ and ङ्ख, the recorded order is kept
+- **tools**: drop the cleanup flag; the language is the only switch
+- **js**: extract the dot-size test so its thresholds are unit-tested
 - **tools**: share one per-cluster processing function between main and its tests
 
 ## v0.4.1 (2026-10-05)
