@@ -26,7 +26,8 @@ animate).
 | What's planned but not done | `docs/ROADMAP.md` |
 | Rules for contributing code or stroke data, commit conventions | `CONTRIBUTING.md` |
 | Onboarding a new Indic language: the agent sequence, gates, and Hindi's lessons | `docs/LANGUAGE_ONBOARDING_AGENTS.md` (or just `/onboard-language <name>`) |
-| Invokable subagents - both the onboarding pipeline's (`Agent(language-researcher, ...)` etc.) and general-purpose ones (`Agent(code-reviewer, ...)`) | `.claude/agents/` |
+| Invokable subagents - the onboarding pipeline's five (`language-researcher`, `language-reviewer`, `font-selector`, `atom-reducer`, `language-publisher`) and general-purpose ones (`code-reviewer`) | `.claude/agents/` |
+| A whole-repo health check (not a diff review) | `/repo-audit` (`.claude/skills/repo-audit/`) |
 
 `docs/ARCHITECTURE.md` in particular documents four real, shipped-and-fixed
 composition bugs (anchor correction, segmentation priority, tighten-trim on
@@ -46,15 +47,17 @@ reintroduce by "obvious" refactoring.
 - **Changing an already-recorded cluster requires `make update-snapshot`**
   in the same commit/PR - `python/tests/test_data_snapshot.py` fails
   otherwise, by design. New clusters don't need this.
-- **Malayalam's output is frozen.** `tests/malayalam-freeze.test.js` and
+- **A shipped language's output is frozen** (today only Malayalam; Hindi once the owner signs it off). `tests/malayalam-freeze.test.js` and
   `python/tests/test_malayalam_freeze.py` pin what its visitors see; shared code may change,
   Malayalam's letters/data may not. Never edit `tests/freeze/malayalam-golden.json` or Malayalam's
   data to make them pass - see `CONTRIBUTING.md`'s "The Malayalam freeze".
-- **A new language must not touch Malayalam's files.** No edits to
-  `python/src/jayasree/_chars.py`, `js/src/stroke-data.raw.json`, or
-  `python/tests/test_chars_malayalam.py`. If a change to shared/script-agnostic
-  code is genuinely needed, Malayalam's existing tests must still pass
-  unmodified - see `CONTRIBUTING.md`'s "Adding a new language".
+- **A new language must not touch a shipped one.** Once a language is frozen (today:
+  Malayalam - `python/src/jayasree/_chars.py`, `js/src/stroke-data.raw.json`,
+  `python/tests/test_chars_malayalam.py` and its freeze golden), nothing a later change
+  does may alter its letters, data or behaviour. If a change to shared/script-agnostic
+  code is genuinely needed, every frozen language's tests must still pass
+  unmodified - see `CONTRIBUTING.md`'s "Adding a new language". Freezing a language is the
+  last step of onboarding it (`docs/LANGUAGE_ONBOARDING_AGENTS.md`, stage 8), the owner's call.
 - **Whitespace/punctuation never gets a recorded stroke.** They're handled
   entirely outside the script pipeline (`UNIVERSAL_CHARS` in `index.js`);
   `tools/validate_data.py` fails CI if one ever appears as a cluster key.
@@ -83,7 +86,7 @@ reintroduce by "obvious" refactoring.
 make install         # poetry (python/) + npm ci (repo root)
 make lint             # ruff + interrogate + eslint
 make test              # pytest (+coverage) + vitest (+coverage)
-make validate-data      # structural check of the 3 committed JSON data files
+make validate-data      # structural check of every language's committed JSON data files
 make ci                  # everything CI runs, both languages, in one shot
 make build-glyph-data FONT=/path/to/Font.ttf   # regenerate glyph-data.json
 make process-strokes                            # regenerate stroke-data.json
@@ -168,7 +171,8 @@ the pre-commit hook runs it with bare `python3`, no guaranteed `uharfbuzz`).
 The onboarding sequence is research (`language-researcher` + `language-reviewer`)
 → human sign-off → ghost font (`font-selector`) → human sign-off → atom set
 (`atom-reducer`) → a human records strokes → process + `validate_data.py` +
-`tools/coverage_report.js` until 0 fallbacks. `/onboard-language <name>` runs
+`tools/coverage_report.js` until 0 fallbacks → wire up and document
+(`language-publisher`, stage 7) → the owner signs off and the language is frozen (stage 8). `/onboard-language <name>` runs
 it and enforces the gates; **never invoke Agent 2/3 without a real sign-off
 from the user in the conversation**. The roster still to onboard (Tamil,
 Telugu, Kannada, Bengali, Sanskrit, one at a time) and the full spec are in

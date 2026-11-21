@@ -1,13 +1,14 @@
 # Language Onboarding - Multi-Agent Pipeline
 
 A design for the agent pipeline that takes this project from "a language
-name" to "a human has a minimal, correct set of atoms to trace." This is
-**Phase 1 only**: research the script, pick a ghost font, and produce the
-reduced labeling set. It stops there, at the same handoff point
-`CONTRIBUTING.md`'s "Adding a new language" section already stops at -
-*"recording needs a native speaker/writer of that script."* Actually driving
-the recording session, triaging bug reports, and everything after is a
-separate, later design (see "Out of scope" below).
+name" to "a human has a minimal, correct set of atoms to trace." It
+covers the whole path, in eight stages (see "The sequence at a glance"):
+research the script, pick a ghost font, reduce the atom set, then a human
+records, the strokes are processed and checked, the language is wired into the
+demo and site, and finally the owner freezes it. Only the recording (stage 4),
+the sign-offs and the look in a browser need a human; "recording needs a native
+speaker/writer of that script" (`CONTRIBUTING.md`). Orchestrating the recording
+session itself and triaging bug reports are a later design (see "Out of scope").
 
 **Status.** Implemented and run once, end to end, on Hindi. The role specs
 below are the portable source of truth; `.claude/agents/*.md` are thin Claude
@@ -25,15 +26,23 @@ Run in this order, one language at a time. `/onboard-language <name>` does
 the stage detection and the gates for you; each agent can also be invoked
 directly, e.g. `Agent(language-researcher, "Tamil")`.
 
-| # | Stage | Who | Reads | Writes | Gate before the next stage |
-|---|---|---|---|---|---|
-| 1a | Research & profile the script | `language-researcher` (Agent 1) | the web, "Don't generalize from Malayalam" | `docs/languages/<code>/profile.md`, `chars.json` | - |
-| 1b | Adversarial review of the draft | `language-reviewer` (read-only; loops with 1a) | the draft profile | critique | **human sign-off** on the profile |
-| 2 | Ghost-font selection + HarfBuzz verification | `font-selector` (Agent 2) | the signed-off profile | `docs/languages/<code>/font-report.md` | **human sign-off** on one font; a falsified ligature/coverage claim goes back to stage 1 |
-| 3 | Reduced atom set | `atom-reducer` (Agent 3) | the signed-off font | `_chars_<code>.py`, the `LanguageSpec` registry entry, `glyph-data.<code>.json`, `labeling-worklist.md`, `reduced-atom-list*.txt`, a simulated coverage report | human spot-check of the worklist |
-| 4 | Record strokes | **a human** (no agent) - `tools/stroke-recorder.html` | the worklist | `js/src/stroke-data.<code>.raw.json` | the owner has traced every atom (or noted why one was skipped) |
-| 5 | Process + verify | **commands, not an agent** - see "Post-recording gate" | the raw strokes | `js/src/stroke-data.<code>.json` | `validate-data` OK and `coverage_report.js` at 100% / 0 fallbacks |
-| 6 | Inspect and clean up | a human, in a browser | the demo | follow-up fixes (a separate branch) | - |
+| # | Stage | Who does it | Trigger | Output | Who signs off | Status |
+|---|---|---|---|---|---|---|
+| 1a | Research the script | `language-researcher` (Agent 1) | the owner asks `/onboard-language <name>` | `docs/languages/<code>/profile.md`, `chars.json` | - (goes to 1b) | built |
+| 1b | Critique the draft | `language-reviewer` (read-only) | automatic, after 1a | critique, shown in chat | **the owner** approves the profile | built |
+| 2 | Ghost-font selection + HarfBuzz check | `font-selector` (Agent 2) | the profile is approved | `font-report.md` | **the owner** approves one font (a falsified claim goes back to 1a) | built |
+| 3 | Reduced atom set | `atom-reducer` (Agent 3) | the font is approved | `_chars_<code>.py`, its tests, the `LanguageSpec` entry, `glyph-data.<code>.json`, `labeling-worklist.md`, `reduced-atom-list*.txt`, a simulated coverage report | **the owner** spot-checks the worklist | built |
+| 4 | Record strokes | **the owner**, in `tools/stroke-recorder.html` | the worklist exists | `js/src/stroke-data.<code>.raw.json` | the owner says the recording is done | human |
+| 5 | Process + verify | a command, run by the skill (not an agent) - see "Post-recording gate" | the owner says the recording is done | `js/src/stroke-data.<code>.json` | gate: `validate-data` OK and coverage 0 fallbacks | command planned (an `onboard-gate` target) |
+| 7 | Wire up and document | `language-publisher` | the stage-5 gate passes | demo tab, wordmark, README and home-page mentions, `docs/languages/<code>/README.md` | `test_language_wiring.py` passes | built |
+| 6 | Inspect in a browser | **the owner** | stage 7 is done (it needs the demo tab) | follow-up fixes, each on its own branch | the owner says the letters are clean | human |
+| 8 | Freeze | a generator command, run by the skill | **only** the owner's "this ships" | a golden file + JS and Python freeze tests | the owner | tooling planned (per-language freeze) |
+
+Stage 7 runs before 6 because the browser check needs the demo tab. Every stage
+that changes the repo goes in as a branch and a PR; **the owner merging that PR
+is the sign-off**, so "the font report is on the language's branch" means the font
+was approved. Agents never merge. Before each PR, the `code-reviewer` agent runs
+on the branch.
 
 `code-reviewer` is **not** a stage of this pipeline - it reviews code diffs
 and is invoked separately.
@@ -283,7 +292,7 @@ folded into the shared tooling before that language's own onboarding
 continues - not deferred, and not generalized preemptively for languages
 not yet being worked on.
 
-## The three agents
+## The research, font and atom agents
 
 ### Agent 1 - Linguistic Research & Script Profiling
 
@@ -519,10 +528,11 @@ all because only one language has ever gone through it.
 This document is the portable specification of each role - deliberately
 tool-agnostic prose, usable by a human or any AI tool regardless of which
 one this project happens to use. `.claude/agents/language-researcher.md`,
-`language-reviewer.md`, `font-selector.md`, and `atom-reducer.md` are
+`language-reviewer.md`, `font-selector.md`, `atom-reducer.md`, and
+`language-publisher.md` are
 **thin adapters**, not a second copy of this spec: each one is a short
-pointer telling Claude Code "read this document's Agent N section and
-follow it," plus the mechanical bits only Claude Code needs (tool grants,
+pointer telling Claude Code "read this document's Agent N section (or, for
+`language-publisher`, the Stage 7 section) and follow it," plus the mechanical bits only Claude Code needs (tool grants,
 model choice). If this project ever uses a different AI tool alongside or
 instead of Claude Code, that tool gets its own thin adapter pointing at
 the same sections here - the actual process knowledge never needs
@@ -643,15 +653,71 @@ Commit the raw and processed strokes together as a one-line `data(<code>)`
 commit. A language's *first* data needs no `make update-snapshot`; a later
 change to an already-recorded cluster does.
 
-### Is a 6th agent needed?
+### Stage 7 - wire up and document
 
-Not yet. Everything after stage 3 is either a human task (recording,
-inspecting) or a fixed command sequence (the gate above) - neither is
-open-ended judgment, which is what agents are for here. The one plausible
-candidate is **coverage triage** (turn `coverage_report.js --verbose` into a
-"record these / fix this recipe" list); build it only if a second language
-shows the same recurring pattern. Visual QA of the animation needs a
-browser and is deliberately out of scope for this branch's work.
+A language is not finished when its strokes are processed: a visitor sees it
+only once the demo, the site and the docs know about it. This used to be done
+by hand (Hindi's lessons are the checklist), so a step could be forgotten.
+`language-publisher` does it, and `python/tests/test_language_wiring.py` fails
+until the demo tab, wordmark and README pieces are in (it does not check the
+language README, scope line or roadmap - review those). Do these in order; the owner reviews the result in a
+browser before anything goes to `master`.
+
+1. **Demo tab.** One entry in `demo/demo.js`'s `LANGUAGES` table (code, tab
+   label, tagline, default word, "Try:" words, letter browser, speech tag, the
+   three data paths, stroke width, `logo`).
+2. **Wordmark.** `tools/export_wordmark.py --lang <name> --output
+   demo/jayasree.<code>.svg --color <hex>`, in a colour no other language
+   uses. `DEFAULT_COLOR` in that tool is Hindi's red and is tied to it by a
+   test, so a new language passes `--color` and leaves the default alone.
+   `demo/demo.css` has one `#logo-live` colour rule (Hindi's): a second live
+   wordmark needs its own per-language rule there and in `demo.js`.
+3. **README and home page.** Show the wordmark beside the others in
+   `README.md` and `index.html` (the `<img>` and the home page's replay-script
+   entry), add the language to the status table, name it
+   in the one-line description.
+4. **Fold the working files** (see "Where artifacts live") into
+   `docs/languages/<code>/README.md`, using `docs/languages/hi/README.md` as the
+   template.
+5. **Scope line.** Update "Current scope" in `CLAUDE.md` and the roster in
+   `docs/ROADMAP.md`.
+6. **Gate.** `make ci` green, every already-frozen language's freeze tests
+   unmodified, `test_language_wiring.py` passing, and the `code-reviewer` agent
+   run on the branch before its PR.
+
+The font-geometry cleanup is not part of this stage: a language gets it by being
+added to the language check in `process_strokes.py` (stage 5's command), after its
+own review.
+
+### Stage 8 - freeze
+
+The last step, and the owner's: once the owner has looked at the language in a
+browser, says the letters are clean and it ships, **freeze it** - snapshot
+exactly what its visitors see (words, clusters, data) into a golden file, with a
+JS and a Python test that fail if any of it moves. From then on the language is
+*shipped*, and the rule for every later change, human or agent, is: **no
+previously shipped language's letters, data or behaviour may change**; shared
+code may change only if every frozen language's tests pass unmodified. A frozen
+language changes only by a deliberate, reviewed regeneration of its golden file
+(for example a later cleanup of Malayalam's strokes).
+
+Today Malayalam is frozen (`tests/malayalam-freeze.test.js`,
+`python/tests/test_malayalam_freeze.py`, a raw-data snapshot). Hindi is not yet:
+it has composition tests and a byte-for-byte pin on a sample of its processed
+atoms, but no freeze and no raw-data snapshot, because the owner has not signed
+off its letters. Making the freeze machinery per-language, then freezing Hindi at
+sign-off, is the next piece of work; the stage after that is the same for every
+language.
+
+### More agents
+
+Not yet. Everything else is a human task (recording, inspecting) or a fixed
+command sequence (the stage-5 gate). The plausible candidates, to build only
+once a second language shows the same recurring pattern: **coverage triage**
+(turn `coverage_report.js --verbose` into a "record these / fix this recipe"
+list) and, for the cleanup, a `stroke-auditor` that runs `tools/audit_strokes.py`
+and reports the worst strokes. Visual QA of the animation needs a browser and
+stays human.
 
 ## Open questions
 
@@ -681,11 +747,9 @@ browser and is deliberately out of scope for this branch's work.
 *(Hindi's first run did stages 4-5 by hand, so this list shrank - see "What
 Hindi's first run taught us". What is still deliberately not designed:)*
 
-Everything after `labeling-worklist.md` exists: actually orchestrating the
-native-speaker recording session, `docs/ROADMAP.md`'s "Bug-report → data
+Still not designed: actually orchestrating the native-speaker recording
+session, `docs/ROADMAP.md`'s "Bug-report → data
 pipeline" (diagnosing wrong renders, a coverage gate, a frictionless
 report→record loop), and any tooling to help a non-technical native speaker
 work through the worklist without needing to understand this pipeline. Not
-designed here on purpose - per the request that started this doc, Phase 1
-stops at "the requirement/labeling-set is well understood," and Phase 2
-should be scoped once Phase 1 has actually run once.
+designed here on purpose.

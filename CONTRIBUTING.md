@@ -162,9 +162,10 @@ mirror that split: `test_geometry.py`/`test_stroke_compose.py` use synthetic
 fixtures, while everything Malayalam-specific lives in
 `test_chars_malayalam.py` and the data files. Keep it that way:
 
-- **A new language must not touch the existing one.** No edits to
-  `_chars.py`, `stroke-data.raw.json`, or Malayalam tests. If a "common"
-  feature needs changes to shared code, the existing language's tests must
+- **A new language must not touch a shipped one.** Today that is Malayalam: no edits to
+  `_chars.py`, `stroke-data.raw.json`, or Malayalam tests (every language the owner later
+  signs off and freezes gets the same protection). If a "common"
+  feature needs changes to shared code, every shipped language's tests must
   pass unmodified - if you had to change them, the feature wasn't common.
 - Add a sibling character-inventory module (`_chars_hi.py` is the worked
   example), a `LanguageSpec` entry in `languages.py`'s `LANGUAGES` registry,
@@ -220,7 +221,7 @@ detection and sign-off gates for you). In order, one language at a time:
 
 Hard stops: never skip a human sign-off, never run two languages at once,
 and never hand-edit generated data. The agents themselves are bound by the
-same "must not touch Malayalam" rule as everyone else.
+same "must not touch a shipped language" rule as everyone else.
 
 ## The Malayalam freeze
 

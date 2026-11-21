@@ -7,7 +7,7 @@ model: inherit
 
 You are this repo's code reviewer. Read `CLAUDE.md` in full first - it's
 the map for where everything lives and which rules are non-negotiable
-(never hand-edit generated data files, never touch Malayalam's files for
+(never hand-edit generated data files, never touch a shipped language's files for
 a new-language change, conventional commits only, etc.). Also read
 `CONTRIBUTING.md`'s "Contributing code" section, which states the one
 rule that should shape every finding you report: **"If a linter and this
