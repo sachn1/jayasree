@@ -223,7 +223,32 @@ Hard stops: never skip a human sign-off, never run two languages at once,
 and never hand-edit generated data. The agents themselves are bound by the
 same "must not touch a shipped language" rule as everyone else.
 
-## The Malayalam freeze
+## Language freezes
+
+Once the owner signs a language off (the last onboarding step, `docs/LANGUAGE_ONBOARDING_AGENTS.md` stage 8)
+it is *frozen*: what its visitors see may not change as a side effect of other work. Shared code may
+change freely; a frozen language's *output* may not. Every frozen language has the same four things:
+
+| Language | JS test | Python test | Golden | Raw-data snapshot |
+|---|---|---|---|---|
+| Malayalam | `tests/malayalam-freeze.test.js` | `python/tests/test_malayalam_freeze.py` | `tests/freeze/malayalam-golden.json` | `python/tests/snapshots/stroke_data_raw_snapshot.json` |
+| Hindi | `tests/hindi-freeze.test.js` | `python/tests/test_hindi_freeze.py` | `tests/freeze/hindi-golden.json` | `python/tests/snapshots/stroke_data_raw_snapshot.hi.json` |
+
+All of them run in `make ci`. **Never edit a golden, a snapshot or a frozen language's data to make a
+freeze test pass.** If a frozen language is *meant* to change, do it in its own PR, say so in the
+description, get the owner's explicit sign-off, regenerate that language's golden with its generator
+(`tests/freeze/generate-<language>-golden.mjs`, labelled `approved change: <reason>`) and, for recorded
+strokes, `python3 tools/validate_data.py --update-snapshot --lang <code>`. Gate new behaviour on data a
+language opts into, never on a default a frozen language inherits. None of them covers the DOM and
+animation code (stroke order and timing, pen speed), the demo pages or the wordmark: check the demo by
+hand before a release.
+
+**Freezing a new language** (the owner's call, after "it ships"): copy the previous language's snapshot
+module, generator and two tests (`tests/freeze/hindi-*`, `tests/hindi-freeze.test.js`,
+`python/tests/test_hindi_freeze.py`), change the language, the word list, the data-file list and the
+golden's label (`owner sign-off: ...`), generate the golden and the raw snapshot, and add a row above.
+
+### The Malayalam freeze
 
 Malayalam is the published, human-approved language, so what a Malayalam visitor sees must not change
 as a side effect of work on anything else - another language, a refactor, a new feature. Shared code may
@@ -266,25 +291,21 @@ or removing an atom elsewhere does not change which ones are checked. It calls t
 re-derive: the `--expand` bake (`stroke_compose.py`), the other keys of `glyph-data.json`, and the
 atoms outside its sample - those are covered by the byte hashes in the JS test.
 
-## The Hindi freeze
+### The Hindi freeze
 
-Hindi shipped when the owner said so, and is frozen the same way as Malayalam: what a Hindi visitor sees
-may not change as a side effect of other work. The files are Hindi's own (Malayalam's are untouched):
+Frozen when the owner said "Hindi ships". Its files are its own; Malayalam's are untouched.
 
-- `tests/hindi-freeze.test.js` (runs in `make ci`) compares every one of Hindi's 4454 clusters and 40
-  real words (conjuncts, half-forms, reph, nukta, vowel signs, dots-last letters, digits, punctuation)
-  with `tests/freeze/hindi-golden.json`, taken at the owner's sign-off. It also hashes Hindi's data files
-  and **every top-level field** of `glyph-data.hi.json`, so a new field counts as a change.
-- `python/tests/test_hindi_freeze.py` pins the build side: the recorded strokes against
-  `python/tests/snapshots/stroke_data_raw_snapshot.hi.json`, and re-derives a sample of shaped clusters,
-  the marks table and processed atoms (cleanup included) from the font and recordings.
+- `tests/hindi-freeze.test.js` compares every one of Hindi's 4454 clusters and 40 real words (conjuncts,
+  half-forms, reph, nukta, vowel signs, dots-last letters, digits, punctuation) with the golden. It also
+  hashes Hindi's data files and **every top-level field** of `glyph-data.hi.json`, so a new field counts
+  as a change.
+- `python/tests/test_hindi_freeze.py` pins the recorded strokes against the raw snapshot and re-derives a
+  sample of shaped clusters, the marks table and processed atoms (cleanup included) from the font and
+  recordings. Shaping and marks are compared only on the fields a re-shape produces, because Hindi's
+  build adds more (`markNudge`); the JS test pins those.
 
-**Do not edit the golden, the snapshot or Hindi's data to make them pass.** If Hindi is *meant* to change
-(for example re-recording a letter), do it in its own PR with the owner's sign-off, regenerate the golden
-(`tests/freeze/generate-hindi-golden.mjs`), run `python3 tools/validate_data.py --update-snapshot --lang hi`,
-and label the golden `approved change: <reason>`. Run just these with
-`npx vitest run tests/hindi-freeze.test.js` and `cd python && poetry run pytest tests/test_hindi_freeze.py`.
-Like Malayalam's, it does not cover the DOM, animation, pen speed, the demo pages or the wordmark.
+Run just these with `npx vitest run tests/hindi-freeze.test.js` and
+`cd python && poetry run pytest tests/test_hindi_freeze.py`.
 
 ## Data integrity & governance
 

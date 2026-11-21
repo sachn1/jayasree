@@ -50,7 +50,7 @@ reintroduce by "obvious" refactoring.
 - **A shipped language's output is frozen** (today Malayalam and Hindi). `tests/<language>-freeze.test.js` and
   `python/tests/test_<language>_freeze.py` pin what its visitors see; shared code may change,
   a frozen language's letters/data may not. Never edit `tests/freeze/<language>-golden.json` or a frozen
-  language's data to make them pass - see `CONTRIBUTING.md`'s "The Malayalam freeze" and "The Hindi freeze".
+  language's data to make them pass - see `CONTRIBUTING.md`'s "Language freezes".
 - **A new language must not touch a shipped one.** Once a language is frozen (today:
   Malayalam - `python/src/jayasree/_chars.py`, `js/src/stroke-data.raw.json`,
   `python/tests/test_chars_malayalam.py` and its freeze golden - and Hindi, with the same files

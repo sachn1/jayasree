@@ -1,7 +1,7 @@
 # Development
 
 Repo layout, the `make` commands CI runs, deployment, and known limitations. Contributor rules (commit
-messages, the Malayalam freeze, how to add a language) are in [`CONTRIBUTING.md`](../CONTRIBUTING.md).
+messages, the Malayalam and Hindi freezes, how to add a language) are in [`CONTRIBUTING.md`](../CONTRIBUTING.md).
 
 ## Repo layout
 
