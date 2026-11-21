@@ -44,7 +44,9 @@ await writer.loadStrokes(new URL("stroke-data.hi.json", base));
 await writer.play("भारत");
 ```
 
-Every language on `master` ships in the package.
+Every language on `master` ships in the package. Use **one writer per language**: stroke data is shared by
+all writers on a page. A wrong URL fails silently (a missing stroke file falls back to outline tracing), so
+check `writer.getFallbackClusters()` if the pen looks like it is tracing outlines.
 
 Spaces and common punctuation (`.`, `,`, `!`, `?`, `;`, `:`, `-`, quotes,
 parens) work in `play()` text without any setup - they're rendered as
@@ -71,7 +73,7 @@ Both live in `js/` and should be committed to your repo:
 | `src/glyph-data.json`, `src/glyph-data.hi.json` | SVG outlines + advance widths for every cluster (Malayalam, Hindi) | Yes - re-run `tools/build_glyph_data.py` when you change fonts |
 | `src/stroke-data.json`, `src/stroke-data.hi.json` | Hand-authored centerline stroke paths (Malayalam, Hindi) | No - commit once, works across fonts |
 
-When `stroke-data.json` has coverage for a cluster, the pen follows those
+When the stroke data has coverage for a cluster, the pen follows those
 paths. Otherwise it falls back to tracing the outer contour of the font
 outline.
 
