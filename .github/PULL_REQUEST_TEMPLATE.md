@@ -10,9 +10,9 @@ smoothly. Delete lines that do not apply.
 - [ ] `make ci` passes locally (it runs exactly what CI runs)
 - [ ] New behavior has tests; a bug fix has a regression test that fails without the fix
 - [ ] Docs are updated where they describe what changed (README, `docs/`, CONTRIBUTING, docstrings)
-- [ ] **Malayalam is unchanged**: the freeze tests pass *unmodified*
-      (CONTRIBUTING, "The Malayalam freeze"). If Malayalam is meant to change, say so here, get the
-      owner's sign-off, and regenerate the golden in this PR
+- [ ] **Every frozen language (Malayalam, Hindi) is unchanged**: the freeze tests pass *unmodified*
+      (CONTRIBUTING, "Language freezes"). If one is meant to change, say so
+      here, get the owner's sign-off, and regenerate its golden in this PR
 - [ ] Generated data (`glyph-data*.json`, `stroke-data*.json`) was regenerated with the tools
       (`make build-glyph-data`, `make process-strokes`), never hand-edited
 - [ ] Recorded strokes (`stroke-data*.raw.json`) come from `tools/stroke-recorder.html`, drawn by a

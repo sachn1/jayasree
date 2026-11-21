@@ -133,8 +133,8 @@ tab and the wordmark in a browser, and says when the letters are clean.
 
 - Never touch a shipped (frozen) language's files: today Malayalam's
   (`python/src/jayasree/_chars.py`, `js/src/stroke-data.raw.json`,
-  `python/tests/test_chars_malayalam.py`), later every language the owner
-  has signed off. Freezing a language (spec stage 8) is the owner's call,
+  `python/tests/test_chars_malayalam.py`) and Hindi's `.hi` equivalents, later
+  every language the owner has signed off. Freezing a language (spec stage 8) is the owner's call,
   never this skill's.
 - Never hand-edit a generated data file; only the dedicated tools/agents
   regenerate them.

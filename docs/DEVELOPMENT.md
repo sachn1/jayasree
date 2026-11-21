@@ -1,7 +1,7 @@
 # Development
 
 Repo layout, the `make` commands CI runs, deployment, and known limitations. Contributor rules (commit
-messages, the Malayalam freeze, how to add a language) are in [`CONTRIBUTING.md`](../CONTRIBUTING.md).
+messages, the Malayalam and Hindi freezes, how to add a language) are in [`CONTRIBUTING.md`](../CONTRIBUTING.md).
 
 ## Repo layout
 
@@ -91,6 +91,13 @@ Playwright-driven check instead.
 The live site is deployed from this repo by `.github/workflows/pages.yml` on every push to
 `master` (one-time setup: repo Settings -> Pages -> Source: *GitHub Actions*). It does not wait for
 CI, so a PR must be green before it is merged.
+
+## Releases
+
+Versions come from commit history (`feat` minor, `fix` patch, a `BREAKING CHANGE` footer major); never edit
+one by hand. Merging to `master` runs `release-on-merge.yml`, which bumps, tags and updates the changelog
+only if the PR has a `feat`, `fix` or breaking commit. `publish.yml` publishes to npm only if `js/src/`
+changed since the previous tag. The workflows document the details.
 
 ## Status and known limitations
 

@@ -78,8 +78,8 @@ export default [
     },
   },
   {
-    // tests/freeze/*.mjs: Node ES modules run directly by `node` (the Malayalam freeze's snapshot
-    // logic and its generator CLI).
+    // tests/freeze/*.mjs: Node ES modules run directly by `node` (the freeze tests' snapshot
+    // logic and generator CLIs, Malayalam's and Hindi's).
     files: ["tests/freeze/*.mjs"],
     languageOptions: {
       ecmaVersion: 2022,

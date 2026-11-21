@@ -47,13 +47,14 @@ reintroduce by "obvious" refactoring.
 - **Changing an already-recorded cluster requires `make update-snapshot`**
   in the same commit/PR - `python/tests/test_data_snapshot.py` fails
   otherwise, by design. New clusters don't need this.
-- **A shipped language's output is frozen** (today only Malayalam; Hindi once the owner signs it off). `tests/malayalam-freeze.test.js` and
-  `python/tests/test_malayalam_freeze.py` pin what its visitors see; shared code may change,
-  Malayalam's letters/data may not. Never edit `tests/freeze/malayalam-golden.json` or Malayalam's
-  data to make them pass - see `CONTRIBUTING.md`'s "The Malayalam freeze".
+- **A shipped language's output is frozen** (today Malayalam and Hindi). `tests/<language>-freeze.test.js` and
+  `python/tests/test_<language>_freeze.py` pin what its visitors see; shared code may change,
+  a frozen language's letters/data may not. Never edit `tests/freeze/<language>-golden.json` or a frozen
+  language's data to make them pass - see `CONTRIBUTING.md`'s "Language freezes".
 - **A new language must not touch a shipped one.** Once a language is frozen (today:
   Malayalam - `python/src/jayasree/_chars.py`, `js/src/stroke-data.raw.json`,
-  `python/tests/test_chars_malayalam.py` and its freeze golden), nothing a later change
+  `python/tests/test_chars_malayalam.py` and its freeze golden - and Hindi, with the same files
+  suffixed `.hi`/`_hi`), nothing a later change
   does may alter its letters, data or behaviour. If a change to shared/script-agnostic
   code is genuinely needed, every frozen language's tests must still pass
   unmodified - see `CONTRIBUTING.md`'s "Adding a new language". Freezing a language is the
