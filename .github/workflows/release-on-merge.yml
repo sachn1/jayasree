@@ -9,7 +9,7 @@ name: Release on PR merge
 # PR) → push the bump commit + tag to master. That single push is what
 # cascades everything else automatically, with no further steps needed
 # here: pages.yml already redeploys on any push to master, and publish.yml
-# already publishes to npm on any `v*` tag push.
+# publishes to npm on a `v*` tag push (unless held via NPM_PUBLISH_ENABLED).
 #
 # Requires a repo secret named RELEASE_PAT (a token with push access to
 # this protected branch) for two independent reasons: (1) the default

@@ -51,6 +51,12 @@ jobs:
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
 
+      # Publishing is off until the repository variable NPM_PUBLISH_ENABLED is set to "true"
+      # (Settings -> Secrets and variables -> Actions -> Variables). It is held while the npm package is
+      # being split into an engine plus one data package per language; the tag, changelog and site
+      # deploy still happen without it.
       - name: Publish js/ to npm
-        if: github.event_name == 'workflow_dispatch' || steps.pkg-diff.outputs.changed == 'true'
+        if: >-
+          vars.NPM_PUBLISH_ENABLED == 'true' &&
+          (github.event_name == 'workflow_dispatch' || steps.pkg-diff.outputs.changed == 'true')
         run: cd js && npm publish --access public --provenance

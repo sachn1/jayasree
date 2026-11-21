@@ -18,7 +18,7 @@ npm install jayasree
 
 Published at [npmjs.com/package/jayasree](https://www.npmjs.com/package/jayasree).
 `.github/workflows/publish.yml` publishes future version bumps automatically
-on a version tag push (or a manual run), authenticated via npm Trusted
+on a version tag push (or a manual run), once the repository variable `NPM_PUBLISH_ENABLED` is `true`, authenticated via npm Trusted
 Publishing (OIDC) - no token stored in this repo. Until the trusted publisher
 is configured on npmjs.com, cut releases with `npm publish --access public`
 from `js/`. You can still copy `js/src/` into your project or serve it
