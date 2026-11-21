@@ -402,10 +402,7 @@ one after the other from top to bottom (`collectDotUnits`). A stroke counts as
 a dot when its bounding box (larger side) is below
 `DOT_MAX_EXTENT_FRACTION` of the em *and* its length is below
 `DOT_MAX_LENGTH_FRACTION` of it (`isDotSized`), so this is by size, not a list
-of letters. Separately, `process_strokes.py`'s `_hi_stem_last` reorders the
-recorded strokes of two atoms (ख़ and ङ्ख) so the vertical stem is drawn after
-the rest of the letter (a "vertical" being a long, straight, near-vertical
-stroke); it can be removed once those two are re-recorded in that order.
+of letters.
 
 ### Last resort: per-character fallback
 

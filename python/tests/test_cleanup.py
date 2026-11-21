@@ -393,8 +393,6 @@ def test_committed_hindi_strokes_are_what_the_cleanup_produces() -> None:
     stale = []
     for atom in sample:
         strokes = process_strokes._process_cluster_strokes(atom, raw[atom], glyph_data, args, "hi")
-        if atom in process_strokes._HI_STEM_LAST_ATOMS:
-            strokes = process_strokes._hi_stem_last(strokes)
         if strokes != committed[atom]["strokes"]:
             stale.append(atom)
     assert stale == [], "committed Hindi strokes are out of date: run make process-strokes"
