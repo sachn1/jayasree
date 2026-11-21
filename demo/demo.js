@@ -68,8 +68,8 @@ const LANGUAGES = [
     tabLabel: "हिन्दी · Hindi",
     tagline: "Devanagari (Hindi) handwriting, animated stroke by stroke",
     sub:
-      "All of Hindi's strokes are recorded; cleaning them up is still in progress, " +
-      "so expect some wobble. The letter browser below traces one letter at a time.",
+      "All of Hindi's strokes are recorded and cleaned against the font. " +
+      "The letter browser below traces one letter at a time.",
     defaultWord: "भारत",
     words: [
       { word: "भारत", label: "भारत (India)" },
@@ -87,9 +87,8 @@ const LANGUAGES = [
     glyphData: "../js/src/glyph-data.hi.json",
     strokeData: "../js/src/stroke-data.hi.json",
     strokeDataRaw: "../js/src/stroke-data.hi.raw.json",
-    // Slightly thicker than index.js's default (0.022, unchanged there): a
-    // mitigation for small centering wobble being more visible while Hindi's
-    // cleanup is in progress, not a fix for it (docs/CENTERING_EXPERIMENTS.md).
+    // Slightly thicker than index.js's default (0.022, unchanged there), to suit
+    // Noto Sans Devanagari's heavier ink.
     strokeWidth: 0.03,
     // A quarter of index.js's default pen speed (6000, unchanged there):
     // some strokes were too fast to watch, especially single letters. The
