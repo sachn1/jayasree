@@ -220,7 +220,7 @@ the multi-language onboarding pipeline specifically. Still open:
   custom cluster" (no ghost, no reduced-set prompt for it since it isn't in
   `clusters` - true for every subjoined mark, not just ്ര), record, export,
   merge into `stroke-data.json`, regenerate `glyph-data.json` +
-  `stroke-recorder-standalone.html`. `tools/coverage_report.js --verbose`
+  `stroke-recorder-standalone.html` (local, untracked). `tools/coverage_report.js --verbose`
   above could end with "run this to jump straight to recording it" instead
   of the reporter (or whoever triages) having to reconstruct those steps.
 - **Catch embedded-data staleness**, not just source staleness.

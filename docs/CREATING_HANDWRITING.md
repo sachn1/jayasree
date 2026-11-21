@@ -35,8 +35,9 @@ clusters" to browse the full ~2050 (useful for spot-checking a composed
 result against its ghost).
 
 ```bash
-make build-recorder                # the offline copy: tools/stroke-recorder-standalone.html (not tracked in git)
-open tools/stroke-recorder.html    # or the standalone version, offline
+make build-recorder                # builds the offline copy, untracked: tools/stroke-recorder-standalone.html
+                                   # (PROJECT_LANG=hindi -> stroke-recorder-standalone.hi.html)
+open tools/stroke-recorder.html    # or open the standalone copy built above, offline
 ```
 
 **With a ghost font (the normal case)** - the character is already one of

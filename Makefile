@@ -26,7 +26,7 @@ help:
 	@echo "                      its printed URLs) at :8000 - alias: make record"
 	@echo "  make build-glyph-data [FONT=/path/to/Font.ttf] [PROJECT_LANG=malayalam]   regenerate glyph-data.json"
 	@echo "  make process-strokes [PROJECT_LANG=malayalam]              regenerate stroke-data.json"
-	@echo "  make build-recorder                                        bundle the standalone recorder"
+	@echo "  make build-recorder [PROJECT_LANG=malayalam]             build the offline recorder (untracked)"
 	@echo "  make update-snapshot [PROJECT_LANG=malayalam]              re-approve the data snapshot"
 	@echo "  make validate-data [PROJECT_LANG=malayalam]                (PROJECT_LANG only affects --update-snapshot)"
 	@echo "  make coverage-report                                       per-cluster direct/composed/fallback report"
