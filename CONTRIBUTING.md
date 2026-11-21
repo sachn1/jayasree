@@ -220,7 +220,7 @@ detection and sign-off gates for you). In order, one language at a time:
 
 Hard stops: never skip a human sign-off, never run two languages at once,
 and never hand-edit generated data. The agents themselves are bound by the
-same "must not touch Malayalam" rule as everyone else.
+same "must not touch a shipped language" rule as everyone else.
 
 ## The Malayalam freeze
 
