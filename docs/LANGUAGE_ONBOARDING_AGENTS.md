@@ -680,7 +680,8 @@ browser before anything goes to `master`.
    `docs/languages/<code>/README.md`, using `docs/languages/hi/README.md` as the
    template.
 5. **Scope line.** Update "Current scope" in `CLAUDE.md` and the roster in
-   `docs/ROADMAP.md`.
+   `docs/ROADMAP.md`. The npm package needs no edit: `js/package.json`'s `files`
+   globs already ship every `*.<code>.json` (and `test_language_wiring.py` checks it).
 6. **Gate.** `make ci` green, every already-frozen language's freeze tests
    unmodified, `test_language_wiring.py` passing, and the `code-reviewer` agent
    run on the branch before its PR.

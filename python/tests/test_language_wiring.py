@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import fnmatch
+import json
 import re
 from pathlib import Path
 
@@ -39,6 +41,20 @@ def test_language_has_a_wordmark_shown_on_the_readme_and_site(name: str) -> None
     for page in ("README.md", "index.html"):
         shown = f'<img src="{path}"' in (ROOT / page).read_text(encoding="utf-8")
         assert shown, f"{page} does not show {path}"
+
+
+@pytest.mark.parametrize("name", sorted(WITH_DATA))
+def test_language_data_ships_in_the_npm_package(name: str) -> None:
+    """Ensure that a language's processed data ships in npm and its raw recordings do not."""
+    package = json.loads((ROOT / "js" / "package.json").read_text(encoding="utf-8"))
+    include = [f for f in package["files"] if not f.startswith("!")]
+    exclude = [f[1:] for f in package["files"] if f.startswith("!")]
+    paths = data_paths(WITH_DATA[name])
+    for file in (paths.glyph_data, paths.stroke_data):
+        rel = file.relative_to(ROOT / "js").as_posix()
+        assert any(fnmatch.fnmatch(rel, pattern) for pattern in include), f"{rel} is not shipped"
+    raw = paths.stroke_data_raw.relative_to(ROOT / "js").as_posix()
+    assert any(fnmatch.fnmatch(raw, pattern) for pattern in exclude), f"{raw} would be shipped"
 
 
 @pytest.mark.parametrize("name", sorted(WITH_DATA))

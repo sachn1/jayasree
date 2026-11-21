@@ -8,8 +8,9 @@
   "files": [
     "src/index.js",
     "src/style.css",
-    "src/glyph-data.json",
-    "src/stroke-data.json",
+    "src/glyph-data*.json",
+    "src/stroke-data*.json",
+    "!src/*.raw.json",
     "README.md",
     "LICENSE"
   ],
