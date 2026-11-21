@@ -26,17 +26,23 @@ Run in this order, one language at a time. `/onboard-language <name>` does
 the stage detection and the gates for you; each agent can also be invoked
 directly, e.g. `Agent(language-researcher, "Tamil")`.
 
-| # | Stage | Who | Reads | Writes | Gate before the next stage |
-|---|---|---|---|---|---|
-| 1a | Research & profile the script | `language-researcher` (Agent 1) | the web, "Don't generalize from Malayalam" | `docs/languages/<code>/profile.md`, `chars.json` | - |
-| 1b | Adversarial review of the draft | `language-reviewer` (read-only; loops with 1a) | the draft profile | critique | **human sign-off** on the profile |
-| 2 | Ghost-font selection + HarfBuzz verification | `font-selector` (Agent 2) | the signed-off profile | `docs/languages/<code>/font-report.md` | **human sign-off** on one font; a falsified ligature/coverage claim goes back to stage 1 |
-| 3 | Reduced atom set | `atom-reducer` (Agent 3) | the signed-off font | `_chars_<code>.py`, the `LanguageSpec` registry entry, `glyph-data.<code>.json`, `labeling-worklist.md`, `reduced-atom-list*.txt`, a simulated coverage report | human spot-check of the worklist |
-| 4 | Record strokes | **a human** (no agent) - `tools/stroke-recorder.html` | the worklist | `js/src/stroke-data.<code>.raw.json` | the owner has traced every atom (or noted why one was skipped) |
-| 5 | Process + verify | **commands, not an agent** - see "Post-recording gate" | the raw strokes | `js/src/stroke-data.<code>.json` | `validate-data` OK and `coverage_report.js` at 100% / 0 fallbacks |
-| 6 | Inspect and clean up | a human, in a browser | the demo | follow-up fixes (a separate branch) | - |
-| 7 | Wire up and document | `language-publisher` | the processed data | demo tab, wordmark, README and home-page mentions, `docs/languages/<code>/README.md` | `python/tests/test_language_wiring.py` passes; the owner confirms the letters look clean |
-| 8 | Freeze | **the owner** decides; a freeze test is added | the shipped language | a golden file + JS and Python freeze tests | from here on the language is shipped and must never change |
+| # | Stage | Who does it | Trigger | Output | Who signs off | Status |
+|---|---|---|---|---|---|---|
+| 1a | Research the script | `language-researcher` (Agent 1) | the owner asks `/onboard-language <name>` | `docs/languages/<code>/profile.md`, `chars.json` | - (goes to 1b) | built |
+| 1b | Critique the draft | `language-reviewer` (read-only) | automatic, after 1a | critique, shown in chat | **the owner** approves the profile | built |
+| 2 | Ghost-font selection + HarfBuzz check | `font-selector` (Agent 2) | the profile is approved | `font-report.md` | **the owner** approves one font (a falsified claim goes back to 1a) | built |
+| 3 | Reduced atom set | `atom-reducer` (Agent 3) | the font is approved | `_chars_<code>.py`, its tests, the `LanguageSpec` entry, `glyph-data.<code>.json`, `labeling-worklist.md`, `reduced-atom-list*.txt`, a simulated coverage report | **the owner** spot-checks the worklist | built |
+| 4 | Record strokes | **the owner**, in `tools/stroke-recorder.html` | the worklist exists | `js/src/stroke-data.<code>.raw.json` | the owner says the recording is done | human |
+| 5 | Process + verify | a command, run by the skill (not an agent) - see "Post-recording gate" | the owner says the recording is done | `js/src/stroke-data.<code>.json` | gate: `validate-data` OK and coverage 0 fallbacks | command planned (an `onboard-gate` target) |
+| 7 | Wire up and document | `language-publisher` | the stage-5 gate passes | demo tab, wordmark, README and home-page mentions, `docs/languages/<code>/README.md` | `test_language_wiring.py` passes | built |
+| 6 | Inspect in a browser | **the owner** | stage 7 is done (it needs the demo tab) | follow-up fixes, each on its own branch | the owner says the letters are clean | human |
+| 8 | Freeze | a generator command, run by the skill | **only** the owner's "this ships" | a golden file + JS and Python freeze tests | the owner | tooling planned (per-language freeze) |
+
+Stage 7 runs before 6 because the browser check needs the demo tab. Every stage
+that changes the repo goes in as a branch and a PR; **the owner merging that PR
+is the sign-off**, so "the font report is on the language's branch" means the font
+was approved. Agents never merge. Before each PR, the `code-reviewer` agent runs
+on the branch.
 
 `code-reviewer` is **not** a stage of this pipeline - it reviews code diffs
 and is invoked separately.
