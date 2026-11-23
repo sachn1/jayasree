@@ -7,9 +7,12 @@ name: Deploy GitHub Pages
 #
 # One-time repo setup: Settings → Pages → Source: "GitHub Actions".
 
+# Runs once per merged PR, after "Release on PR merge" has finished, so the site is built from the final master
+# (the version bump included). Triggering on the push to master instead deployed twice: the merge, then the bump.
 on:
-  push:
-    branches: [master]
+  workflow_run:
+    workflows: ["Release on PR merge"]
+    types: [completed]
   workflow_dispatch:
 
 permissions:
@@ -17,13 +20,15 @@ permissions:
   pages: write
   id-token: write
 
-# Never run two deploys concurrently; latest push wins.
-concurrency:
-  group: pages
-  cancel-in-progress: true
-
 jobs:
   deploy:
+    # A release run that was skipped or cancelled (a PR closed without merging) deploys nothing.
+    if: github.event_name == 'workflow_dispatch' || contains(fromJSON('["success", "failure"]'), github.event.workflow_run.conclusion)
+    # Never run two deploys concurrently; the latest run wins. Set on the job, not the workflow, so a skipped
+    # run (the `if` above) never joins the group and cancels a deploy in flight.
+    concurrency:
+      group: pages
+      cancel-in-progress: true
     runs-on: ubuntu-latest
     environment:
       name: github-pages
