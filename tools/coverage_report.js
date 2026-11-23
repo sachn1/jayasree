@@ -4,9 +4,7 @@
  * it resolves to a real traced/composed stroke or falls back to the
  * outline trace - and why, for the fallback case.
  *
- * This is the general-purpose version of the "one-command diagnostic" /
- * "standing coverage gate" docs/ROADMAP.md's "Bug-report -> data pipeline"
- * section describes and flags as not-yet-built. Reuses the exact runtime
+ * This is the one-command diagnostic and the standing coverage gate. Reuses the exact runtime
  * composition functions (`_internal.tryComposeStroke`/
  * `tryComposeContextualForm`/`tryComposeFromCharacters`) js/src/index.js's
  * `buildStage` calls - this script is not a reimplementation of that logic,

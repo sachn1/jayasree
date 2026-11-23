@@ -16,15 +16,15 @@ The character inventory lives in `python/src/jayasree/_chars_hi.py`.
 
 | Stage | Outcome |
 |---|---|
-| 1 Research | Agent 1 draft reviewed by the reviewer agent; the project owner resolved all open questions on 2026-09-04 (below). No single "approved" line was recorded for the profile as a whole. |
-| 2 Font | **Noto Sans Devanagari** (static Regular), approved by the project owner 2026-09-06; supersedes Annapurna SIL. |
+| 1 Research | Agent 1 draft reviewed by the reviewer agent; all open questions resolved on 2026-09-04 (below). No single "approved" line was recorded for the profile as a whole. |
+| 2 Font | **Noto Sans Devanagari** (static Regular), approved 2026-09-06; supersedes Annapurna SIL. |
 | 3 Atom set | **183 atoms**, derived against Noto; simulated coverage 100% (2443/2443). |
 | 4 Recording | All 183 recorded by the owner (`js/src/stroke-data.hi.raw.json`). |
 | 5 Process + verify | `stroke-data.hi.json`: 2782 clusters; real coverage 2443/2443, 0 outline fallbacks; strokes cleaned against the font (`jayasree.cleanup`). |
 | 6 Inspect | owner has checked the letters and half-forms in the demo. |
 | 8 Freeze | frozen at the owner's "Hindi ships": `tests/hindi-freeze.test.js`, `python/tests/test_hindi_freeze.py`, `tests/freeze/hindi-golden.json`, `stroke_data_raw_snapshot.hi.json`. |
 
-## Scope decisions (project owner, 2026-09-04)
+## Scope decisions (2026-09-04)
 
 Governing principle: **coverage is bounded by the font, not by linguistic
 minimalism** - animate whatever the user types, as long as the chosen font
@@ -113,9 +113,9 @@ driven by `glyphData.contextualForms` (see `docs/ARCHITECTURE.md`). The
 half-form exception list is `_HI_HALFFORM_EXCLUDED_PAIRS` in
 `tools/build_glyph_data.py` (Annapurna had 2 pairs, Noto has 6).
 
-## Shirorekha (headline) - decided, not yet built
+## Shirorekha (headline)
 
-Raised by the owner during font review. A composed word stitched from
+A composed word stitched from
 per-character hand-traced headline segments would be uneven, so the agreed
 approach (2026-09-04) is a **synthetic word-level stroke**: tracers skip the
 top line; the renderer draws it programmatically over the word's width.
@@ -149,7 +149,6 @@ top line; the renderer draws it programmatically over the word's width.
 ## Still open
 
 - Constant pen speed (the shared ease-in/out is slow-fast-slow); see `docs/ROADMAP.md`.
-- Implement and verify the shirorekha design above.
 - The profile has no recorded final sign-off (see Status).
 
 ## Reproducing

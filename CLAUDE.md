@@ -22,7 +22,7 @@ animate).
 |---|---|
 | How do I use this / record strokes / run it | `README.md` |
 | How does the pipeline work internally, file by file | `docs/ARCHITECTURE.md` |
-| Why does centering/smoothing/straightening work this way | `docs/CENTERING_EXPERIMENTS.md` |
+| Why does centering/smoothing/straightening (or Hindi's cleanup) work this way | `docs/CENTERING_EXPERIMENTS.md`, `docs/HINDI_CLEANUP_EXPERIMENTS.md` |
 | What's planned but not done | `docs/ROADMAP.md` |
 | Rules for contributing code or stroke data, commit conventions | `CONTRIBUTING.md` |
 | Onboarding a new Indic language: the agent sequence, gates, and Hindi's lessons | `docs/LANGUAGE_ONBOARDING_AGENTS.md` (or just `/onboard-language <name>`) |
@@ -155,30 +155,15 @@ agent doesn't have to re-derive it each time.
 
 ## Current scope
 
-Two languages have data: **Malayalam** (`_chars.py`, `glyph-data.json`,
-`stroke-data(.raw).json` - the original, unsuffixed) and **Hindi**
-(`_chars_hi.py`, `glyph-data.hi.json`, `stroke-data.hi(.raw).json` - first
-language onboarded through the agent pipeline, 183 recorded atoms, 100%
-cluster coverage). The tooling is language-parametrized (Phase 0 of `docs/LANGUAGE_ONBOARDING_AGENTS.md`,
-done): `python/src/jayasree/languages.py`'s `LANGUAGES` registry is the
-single source of truth mapping a language name to its character-inventory
-module and its data-file paths (unsuffixed for Malayalam, `.{code}`-suffixed
-for anything else). `build_glyph_data.py`, `cli.py alphabet`, and
-`process_strokes.py` all take `--lang`/`Makefile`'s `PROJECT_LANG=`; `validate_data.py`
-auto-discovers whichever languages' files exist under `js/src/` (and stays
-dependency-free/stdlib-only on purpose - see its module docstring - since
-the pre-commit hook runs it with bare `python3`, no guaranteed `uharfbuzz`).
+Two languages have data, both frozen: **Malayalam** (`_chars.py`, `glyph-data.json`, `stroke-data(.raw).json`,
+unsuffixed) and **Hindi** (`_chars_hi.py`, `glyph-data.hi.json`, `stroke-data.hi(.raw).json`; 183 recorded atoms,
+100% cluster coverage). `python/src/jayasree/languages.py`'s `LANGUAGES` registry maps a language name to its
+character module and data paths (unsuffixed for Malayalam, `.{code}` for the rest); the build, process and CLI
+tools all take `--lang` / `PROJECT_LANG=`. `validate_data.py` auto-discovers every language's files and stays
+stdlib-only on purpose (the pre-commit hook runs it with bare `python3`).
 
-The onboarding sequence is research (`language-researcher` + `language-reviewer`)
-→ human sign-off → ghost font (`font-selector`) → human sign-off → atom set
-(`atom-reducer`) → a human records strokes → process + `validate_data.py` +
-`tools/coverage_report.js` until 0 fallbacks → wire up and document
-(`language-publisher`, stage 7) → the owner signs off and the language is frozen (stage 8). `/onboard-language <name>` runs
-it and enforces the gates; **never invoke Agent 2/3 without a real sign-off
-from the user in the conversation**. The roster still to onboard (Tamil,
-Telugu, Kannada, Bengali, Sanskrit, one at a time) and the full spec are in
-`docs/LANGUAGE_ONBOARDING_AGENTS.md` - including an explicit
-caution against generalizing from Malayalam's Dravidian-specific quirks
-(chillu, its particular conjunct/ligature set) when profiling a
-structurally different script like Devanagari, Tamil, Telugu, Kannada, or
-Bengali.
+Onboarding a language is research (`language-researcher` + `language-reviewer`) → sign-off → font
+(`font-selector`) → sign-off → atom set (`atom-reducer`) → a human records → process and verify → wire up
+(`language-publisher`) → the owner freezes it. `/onboard-language <name>` runs it and enforces the gates;
+**never invoke Agent 2/3 without a real sign-off from the user in the conversation**. The spec, the roster still
+to do and the caution against generalizing from Malayalam are in `docs/LANGUAGE_ONBOARDING_AGENTS.md`.

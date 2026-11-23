@@ -120,6 +120,12 @@ data(ml): record the remaining chillu letters
 Group commits by logical unit, not by file. Never edit a version number by hand: merging to `master`
 bumps it from the commit history. How releases work: [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md#releases).
 
+## Documentation
+
+Keep docs short and in the right place: one home per fact (link, don't repeat), script-specific behaviour in
+`docs/languages/<code>/` not in the engine docs, open work in `docs/ROADMAP.md`, history in git and PRs. Write for a stranger: state the fact, with no personal or process notes. A new
+doc must say who reads it. The `code-reviewer` agent checks this.
+
 ## Pull requests
 
 - Branch from `master` as `feature/<short-description>`; never commit to `master` directly.

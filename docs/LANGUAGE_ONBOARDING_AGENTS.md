@@ -1,24 +1,12 @@
 # Language Onboarding - Multi-Agent Pipeline
 
-A design for the agent pipeline that takes this project from "a language
-name" to "a human has a minimal, correct set of atoms to trace." It
-covers the whole path, in eight stages (see "The sequence at a glance"):
-research the script, pick a ghost font, reduce the atom set, then a human
-records, the strokes are processed and checked, the language is wired into the
-demo and site, and finally the owner freezes it. Only the recording (stage 4),
-the sign-offs and the look in a browser need a human; "recording needs a native
-speaker/writer of that script" (`CONTRIBUTING.md`). Orchestrating the recording
-session itself and triaging bug reports are a later design (see "Out of scope").
+How a language goes from a name to shipped handwriting, in eight stages (the table below). Only recording
+(stage 4), the sign-offs and the look in a browser need a human: recording needs a native writer of the
+script (`CONTRIBUTING.md`). Run it with `/onboard-language <name>`, which detects the stage and enforces the
+gates. It has run once end to end, on Hindi.
 
-**Status.** Implemented and run once, end to end, on Hindi. The role specs
-below are the portable source of truth; `.claude/agents/*.md` are thin Claude
-Code adapters over them and `.claude/skills/onboard-language/SKILL.md` is the
-single entry point that runs them in order and enforces the human sign-offs
-(see "The sequence at a glance" and "Making this actually invokable"). Phase 0
-(the prerequisite code parametrization) is done too. Hindi's first run is
-written up in "What Hindi's first run taught us" - read that before running
-the pipeline for a second language, since it changed some of this doc's
-original assumptions.
+This file is the portable spec of each role; `.claude/agents/*.md` are thin adapters over it. If you change
+what a role does, change it here first.
 
 ## The sequence at a glance
 
@@ -47,250 +35,34 @@ on the branch.
 `code-reviewer` is **not** a stage of this pipeline - it reviews code diffs
 and is invoked separately.
 
-## Target languages
-
-Hindi is the first language onboarded after Malayalam (all stages above done
-as of this writing, with visual cleanup still open - see ROADMAP); everything
-else here is planned. The intended roster, onboarded **one language at a
-time** (never several in flight at once - see "Design principles" below), in
-the order given to this plan:
-
-1. Hindi (Devanagari)
-2. Tamil (Tamil script)
-3. Telugu (Telugu script)
-4. Kannada (Kannada script)
-5. Bengali (Bengali script)
-6. Sanskrit (Devanagari, historically also written in others)
-7. more, beyond that, unscoped for now
-
-Note Hindi and Sanskrit share a script (Devanagari) but are different
-languages with different scope pressures - Sanskrit needs Vedic-era
-characters/marks a modern Hindi profile has no reason to include. Whether
-that means one shared `_chars_devanagari.py` with a language-specific
-extension, or two independent profiles that happen to overlap heavily, is
-an open question for whichever of the two is onboarded first (see "Open
-questions").
-
-**Read "Don't generalize from Malayalam" immediately below before running
-Agent 1 for any of these** - none of them are Dravidian scripts, and
-several of this doc's worked examples (chillu, subjoined-conjunct tails,
-the specific split-vowel decomposition) are Malayalam/Dravidian-specific
-findings, not general Indic-script facts.
-
 ## Don't generalize from Malayalam
 
-Every concrete example in this document - chillu letters, the ്യ/്വ/്ല/്ര
-subjoined-conjunct tails, the ൊ/ോ/ൌ split-vowel decomposition, the "~108
-true ligatures" figure - is a **Malayalam finding**, cited because it's the
-one worked example this project has. It is not a claim that Devanagari,
-Tamil, Telugu, Kannada, or Bengali work the same way, and an agent (or a
-person) running this pipeline for one of them should actively expect
-differences, not surprise at them:
-
-- **Devanagari (Hindi, Sanskrit) has no chillu-equivalent** bare-consonant
-  form, but has its own well-known complexity Malayalam's pipeline has
-  never had to handle: a large, productive set of consonant-conjunct
-  ligatures (many formed via a visible half-form + the following
-  consonant, some via a horizontal "reph" mark, some via genuinely fused
-  ligature glyphs) - likely *more* true ligatures than Malayalam's ~108,
-  not fewer.
-- **Tamil** has a comparatively small consonant inventory and very few true
-  ligatures (conjuncts are rare in native Tamil vocabulary) - Agent 2's
-  font-verification step may find *most* consonant clusters decompose
-  cleanly, the opposite emphasis from Malayalam's profile.
-- **Telugu and Kannada** (a closely related script pair) have their own
-  vowel-sign-fusion and conjunct ("vattu") conventions, structurally
-  different from both Malayalam's and Devanagari's.
-- **Bengali** has its own conjunct system (many genuinely fused, some
-  Unicode-standard "ref"/"ya-phala" forms) distinct from all of the above.
-
-Agent 1's job for each of these is to *discover* that script's actual
-structure from scratch (sourced research, verified by Agent 2's real
-HarfBuzz shaping) - not to fill in Malayalam's category names with a new
-script's characters and assume the categories themselves transfer. Where
-this document's "Job" descriptions below list Malayalam-shaped examples in
-parentheses, read them as *"here is what this looked like for Malayalam"*,
-never as *"here is what you should expect to find."*
-
-## Why this isn't starting from zero
-
-This project already solved the exact problem step 3 below is about -
-"reduce thousands of combinations to the minimum a human must hand-label" -
-for Malayalam, and documented both the solution and the mistakes made
-building it:
-
-- `tools/build_glyph_data.py`'s `marks` table gives every composable mark
-  (virama, every matra, subjoined conjunct tails) a `{shift, prefix, suffix,
-  trailingWidth}` recipe, derived by shaping the mark *alone* against
-  HarfBuzz's real dotted-circle placeholder - not by guessing from a
-  representative character.
-- `tools/stroke-recorder.html` already filters its dropdown to the reduced
-  atom set (~290 for Malayalam, out of ~2050 total clusters) using that
-  table, with a "show all clusters" toggle for spot-checking.
-- `tools/process_strokes.py --expand` (`stroke_compose.py`) and
-  `js/src/index.js`'s runtime composer (`tryComposeStroke`) build everything
-  else from those atoms, recursively, with the mark recipe.
-- `docs/ARCHITECTURE.md`'s "Composition" section documents four real bugs
-  this approach hit and fixed (placeholder-circle anchor correction,
-  segmentation priority, tighten-trim on mark shifts, multi-glyph-base
-  composition) - a checklist for what a *generic*, multi-script version of
-  this machinery needs to keep handling correctly.
-
-This machinery (`marks` table, `--expand`, `tryComposeStroke`) is already
-described in the README/ARCHITECTURE as script-agnostic in its geometry and
-composition logic; what's Malayalam-specific is only the *character
-inventory* it's fed (`_chars.py`) and the *data it's fed to* (the two
-committed JSON files). Agent 3 below is designed to feed that same generic
-machinery a new script's inventory, not to reimplement it. (For the concrete
-danger of reimplementing it instead, see the "duplicate scratch tooling"
-note in `CLAUDE.md` - that's exactly what a shortcut version of Agent 3
-would produce.)
+Every worked example in the repo (chillu letters, subjoined conjunct tails, the ൊ/ോ/ൌ split vowels, "~108
+true ligatures") is a **Malayalam finding**, not a fact about Indic scripts. Expect each script to differ:
+Devanagari has no chillu but many half-form, reph and fused conjuncts; Tamil has few conjuncts; Telugu and
+Kannada have their own vattu and vowel-fusion rules; Bengali has its own conjunct system. Agent 1 *discovers*
+the script's structure from sources, verified by Agent 2's real HarfBuzz shaping; read a Malayalam example in
+this spec as "what it looked like for Malayalam", never as what to expect.
 
 ## Design principles
 
-1. **Reuse the existing pipeline; extend, don't fork.** Every output this
-   pipeline produces should be shaped to slot into `build_glyph_data.py` /
-   `process_strokes.py` / `stroke-recorder.html` as they already exist
-   (post-parametrization - see Phase 0), not a parallel set of scripts.
-2. **Human sign-off is mandatory at every stage, not just at the end.**
-   `CONTRIBUTING.md` already draws this line for stroke data - *"strokes
-   drawn by someone who doesn't write it daily are worse than no strokes."*
-   The same bar applies to the linguistic profile (Agent 1) and the font
-   choice (Agent 2): a wrong character inventory or a wrong font poisons
-   everything built on top of it, and an agent has no way to *know* it's
-   wrong the way a native speaker or a font's license terms can be wrong in
-   ways only a human safely confirms. Each agent's output is a proposal for
-   a human to approve, not a final artifact.
-3. **Verification is structural, not just self-reported.** Every claim an
-   agent makes that's checkable by running code (does this font actually
-   have a glyph for this character; does this cluster actually render as one
-   fused glyph or several) gets checked by actually shaping it through
-   HarfBuzz, not asserted from a font's metadata or a research summary.
-4. **No script's onboarding touches another script's files** - this is
-   already a hard rule (`CONTRIBUTING.md`), and the pipeline's outputs are
-   scoped per-language from the start (`_chars_<lang>.py`,
-   `glyph-data.<lang>.json`, ...) to make violating it structurally awkward,
-   not just discouraged.
-5. **One language in flight at a time.** The target roster (see "Target
-   languages" above) is deliberately worked sequentially, not in parallel -
-   each run of this pipeline should reach its human sign-off gates (and
-   ideally get through some real recording) before the next language
-   starts, so lessons from one (a quirk Agent 1 missed, a font that turned
-   out to have gaps) can inform the next rather than several languages
-   independently repeating the same mistake.
-6. **Coverage is bounded by the font, not by linguistic minimalism.**
-   (Project owner, resolving Hindi's open questions - `docs/languages/hi/README.md`.) The objective is to animate whatever the user actually
-   types, so scope questions default to inclusion within "does the chosen
-   font support this," not "is this common/standard enough to bother
-   with." This governs judgment calls like which nukta letters or which
-   loan vowels are in scope - it does *not* extend to pulling in a
-   different *language's* characters just because they share a Unicode
-   block or a font's coverage (Sanskrit's Vedic accents are still excluded
-   from Hindi's own profile, per "one language at a time" above and "Don't
-   generalize from Malayalam") - the font bounds *how much of this
-   language* to include, not *which language*.
+1. **Extend the existing pipeline, never fork it.** Outputs slot into `build_glyph_data.py`,
+   `process_strokes.py` and `stroke-recorder.html` (Phase 0 below).
+2. **A human signs off at every stage.** An agent's output is a proposal; a native writer or the font's licence
+   terms can be wrong in ways an agent cannot know. Strokes from someone who doesn't write the script daily are
+   worse than none.
+3. **Verify by running code**, not from metadata or a summary: shape it through HarfBuzz.
+4. **One language in flight at a time, and none touches another's files** (`CONTRIBUTING.md`).
+5. **Coverage is bounded by the font, not by minimalism.** Scope questions default to "include it if the chosen
+   font supports it", but never another language's characters (Sanskrit's Vedic marks stay out of Hindi). Rare
+   or archaic forms are a flagged judgment call; Malayalam's `RARE_*` sets are the precedent. "No good font"
+   is a valid Agent 2 result and blocks the pipeline.
 
-## Phase 0 - prerequisite code changes (done)
+## Phase 0 - the language registry
 
-The pipeline below produces a language's *data*. Before that data had
-anywhere correct to land, a handful of Malayalam-only assumptions needed to
-become parameters. This was ordinary refactoring work, not agent work -
-done once, generically, ahead of the first new-language run rather than
-under pressure during it. What changed:
-
-- **`python/src/jayasree/languages.py` (new)** - the single registry
-  mapping a language name to its `LanguageSpec` (`code`, its
-  `chars_module`, a `carrier_consonant` for shaping marks in isolation, and
-  an optional bundled `default_font`). `data_paths(lang)` derives that
-  language's `glyph-data`/`stroke-data(.raw)`/snapshot paths from its
-  `code` - unsuffixed for `PRIMARY_LANGUAGE` (Malayalam, for backward
-  compatibility with the published npm package and GitHub Pages site,
-  which fetch `glyph-data.json`/`stroke-data.json` by that exact name),
-  `.{code}`-suffixed for everything else. `char_tuple(module, name)` reads
-  an inventory category off a language module and falls back to `()` if
-  that module doesn't define it - see "Don't generalize from Malayalam"
-  above for why nothing is assumed present.
-- **`tools/build_glyph_data.py`** - takes `--lang` (default: `malayalam`),
-  looks up the `LanguageSpec`, and builds its input-cluster list generically
-  from whichever inventory categories that language's module actually
-  defines. Malayalam's own hand-curated quirks (the ്യ/്വ/്ല/്ര
-  subjoined-conjunct marks, the ൻറ/്ര extra ghosts, the ൊ/ോ/ൌ split-vowel
-  exclusion) are gated behind `lang.code == "ml"`, not applied to every
-  language - a new script's equivalent quirks (if any) get their own gated
-  block once Agent 1/2 actually find them, per "Don't generalize from
-  Malayalam." Verified to produce byte-identical output for Malayalam
-  before/after this change.
-- **`python/src/jayasree/cli.py`** - the `alphabet` sub-command takes
-  `--lang` (default: `malayalam`) and builds its standalone-run/matra-
-  syllable lists from the registry instead of a hardcoded Malayalam import.
-- **`tools/process_strokes.py`** - takes `--lang` to select default
-  `--input`/`--glyph-data`/`--output` paths (still overridable
-  individually); `--preset=full` is a new script-agnostic alias for
-  `--preset=malayalam` (kept working, since it's referenced elsewhere in
-  the docs) - the four stages it names were always script-agnostic, only
-  the preset's *name* wasn't.
-- **`tools/validate_data.py`** - discovers every `glyph-data*.json` under
-  `js/src/` and validates each language's triple, rather than hardcoding
-  Malayalam's three filenames. Deliberately does **not** import
-  `jayasree.languages` (or anything else from the `jayasree` package): the
-  pre-commit hook `.pre-commit-config.yaml` defines for it runs via
-  `language: system` on every commit touching a data file, using whatever
-  bare `python3` is on the committer's PATH - there's no guarantee
-  `uharfbuzz` (a transitive dependency of the full `jayasree` package) is
-  importable there. It re-derives the same suffix convention locally from a
-  single duplicated literal (`_PRIMARY_CODE = "ml"`), documented in its
-  module docstring as the trade-off this constraint forces.
-- **`python/tests/test_data_snapshot.py` - deliberately unchanged.**
-  `CONTRIBUTING.md`'s existing convention is that a new language gets its
-  *own* sibling test module (mirroring `test_chars_malayalam.py`), not an
-  edit to the shared one - a new language's snapshot test should import
-  `validate_data.build_snapshot` (already a pure, language-agnostic
-  function) against its own `paths_for("<code>").snapshot`, following that
-  same pattern, when it's actually onboarded.
-- **`js/src/index.js` - audited, no changes needed.** `resolveSegments` and
-  the rest of the composition engine look up whatever `clusters`/`marks`
-  keys the loaded `glyph-data.json` happens to contain - there is no
-  Malayalam Unicode-range regex or hardcoded cluster-length bound anywhere
-  in the file (checked directly against the source, not assumed).
-  `LEGACY_CHILLU` and `SPLIT_VOWEL_PARTS` are the only Malayalam-specific
-  lookup tables, and both are inert (never matched) against text in any
-  other script. `docs/ROADMAP.md`'s older note about auditing "segmentation
-  regex bounds in index.js" turned out not to describe anything that
-  actually exists there.
-- **Makefile** - `build-glyph-data`, `process-strokes`, `update-snapshot`
-  now accept `PROJECT_LANG=<name>`, defaulting to `malayalam` everywhere
-  (`make build-glyph-data` behaves exactly as before if `PROJECT_LANG` is
-  omitted). Named `PROJECT_LANG`, not `LANG` - the latter was tried first
-  and silently broken on any machine where the shell's own locale `LANG`
-  env var is set (nearly all of them), since make inherits environment
-  variables of the same name ahead of a Makefile's own default; renamed to
-  avoid that collision entirely rather than document around it.
-  `validate-data` (plain, no `--update-snapshot`) always checks every
-  language found on disk regardless of `PROJECT_LANG`.
-- **Tests** - `python/tests/test_languages.py` (new) and additions to
-  `test_validate_data.py`/`test_cli.py` cover the registry, the
-  discovery/path logic, and the new `--lang` argument's error handling.
-  `make ci` (both `ci-py` and `ci-js`) passes; Malayalam's
-  `glyph-data.json`/`stroke-data.json` were regenerated and diffed
-  byte-identical against the pre-refactor committed versions.
-
-Adding a real second language from here means: registering its
-`LanguageSpec` in `languages.py`, writing its `_chars_<code>.py` (Agent 1's
-job below), and running `build_glyph_data.py --lang <name>` against its
-chosen font (Agent 2/3's job) - no further plumbing changes anticipated,
-though Agent 1/2 may still surface a script-specific quirk that needs its
-own small, gated extension the way Malayalam's do.
-
-**Already borne out**: Hindi's Agent 1 pass (`docs/languages/hi/`) needed
-three category names Malayalam never had - `CANDRABINDU`, `NUKTA`,
-`NATIVE_PUNCTUATION` - and `languages.py`/`build_glyph_data.py` were
-extended to recognize them (still fully optional, still zero effect on
-Malayalam's output - verified byte-identical after the change). This is
-the pattern going forward: a language's profile can reveal a genuinely new
-*infrastructure* category, not just new character data, and that gets
-folded into the shared tooling before that language's own onboarding
-continues - not deferred, and not generalized preemptively for languages
-not yet being worked on.
+`python/src/jayasree/languages.py`'s `LANGUAGES` maps a language name to its `LanguageSpec` (code, character
+module, carrier consonant, default font) and derives its data paths: unsuffixed for Malayalam, `.{code}` for the
+rest. `build_glyph_data.py`, `process_strokes.py`, `cli.py` and `validate_data.py` all take `--lang`.
 
 ## The research, font and atom agents
 
@@ -476,16 +248,12 @@ is sufficient - verify it, mechanically, using the exact composition code
 - **Post-recording (real).** Once real strokes exist -
   `coverage_report.js --stroke-data <real stroke-data(.raw).json>` - run
   the identical check against real data. This is the standing coverage
-  gate `docs/ROADMAP.md`'s "Bug-report → data pipeline" section flagged as
-  missing; `--min-coverage N` makes it usable as a CI gate once a
+  gate; `--min-coverage N` makes it usable as a CI gate once a
   language's recording work has stabilized enough that regressions, not
   in-progress gaps, are the thing worth failing a build over.
 - `--verbose` lists every fallback cluster with a specific reason (missing
   base stroke, a mark recipe that exists but didn't apply, a
-  character-count/glyph-count mismatch, ...) - the actual diagnostic depth
-  `docs/ROADMAP.md`'s `tools/diagnose.py` idea wanted, generalized from
-  "one reported word" to the whole cluster set and to any language, not
-  written twice.
+  character-count/glyph-count mismatch, ...), for the whole cluster set of any language.
 
 **The worklist opens with a writing-rules brief.** Before the first atom, copy
 in `writing-rules.md`'s rules as a short table (rule, confidence, source tier), so the
@@ -519,52 +287,15 @@ substitutes for the other.
 
 ## Orchestration
 
-Sequential with feedback edges, not a strict one-way pipeline:
+Sequential, with human approval as a hard stop after each agent, and feedback edges: a falsified ligature or
+coverage claim from Agent 2 goes back to Agent 1; a font change re-runs Agent 3.
 
 ```
-Agent 1 (research) ⇄ Agent 1-reviewer (critique)
-        │  human approval
-        ▼
-Agent 2 (font search + HarfBuzz verification) ──┐
-        │  human approval               │ falsified ligature/coverage
-        ▼                                │ claim → back to Agent 1
-Agent 3 (drives build_glyph_data.py,     │
-         derives reduced atom set)  ◄────┘
-        │  human spot-check
-        ▼
-labeling-worklist.md  →  (Phase 2: recording workflow, out of scope here)
+Agent 1 (research) <-> reviewer -> human -> Agent 2 (font) -> human -> Agent 3 (atoms) -> human -> worklist
 ```
 
-Each arrow with "human approval" is a hard stop, not a suggestion - this
-mirrors `CONTRIBUTING.md`'s existing "Data integrity & governance" layering
-(structural validation, content snapshot, generated-vs-source separation,
-review + history, read-only runtime) applied one stage earlier, to the
-research and font-selection stages that layer doesn't currently cover at
-all because only one language has ever gone through it.
-
-### Making this actually invokable
-
-This document is the portable specification of each role - deliberately
-tool-agnostic prose, usable by a human or any AI tool regardless of which
-one this project happens to use. `.claude/agents/language-researcher.md`,
-`language-reviewer.md`, `font-selector.md`, `atom-reducer.md`, and
-`language-publisher.md` are
-**thin adapters**, not a second copy of this spec: each one is a short
-pointer telling Claude Code "read this document's Agent N section (or, for
-`language-publisher`, the Stage 7 section) and follow it," plus the mechanical bits only Claude Code needs (tool grants,
-model choice). If this project ever uses a different AI tool alongside or
-instead of Claude Code, that tool gets its own thin adapter pointing at
-the same sections here - the actual process knowledge never needs
-rewriting, and the two copies can't drift out of sync because there's only
-ever one real copy. If you edit what a role does, edit it here first; the
-adapter files should almost never need a matching edit unless the tool
-grants themselves change.
-
-Invoke them explicitly (e.g. `Agent(language-researcher, "Tamil")`) -
-they're deliberately scoped to *not* auto-trigger on unrelated prompts
-(each `description` says "use only when explicitly asked"), matching this
-pipeline's own insistence on deliberate, human-gated steps rather than
-silent automation.
+The five agents are explicit-use only (each `description` says "use only when explicitly asked"), so they never
+auto-trigger on unrelated prompts.
 
 ## Where artifacts live
 
@@ -613,43 +344,7 @@ and a `default_font` once Agent 2 has picked one) - this is what makes
 Tamil, etc.), matching the `data(ml)`/`data(ta)` commit-scope convention
 `CONTRIBUTING.md` already uses and the `LanguageSpec.code` field above.
 
-## What Hindi's first run taught us
-
-Hindi was the first full run of stages 1-5. Things the original plan did not
-anticipate, in the order they bit:
-
-- **The font choice can change after Agent 3 has already run.** Hindi's
-  ghost font moved from Annapurna SIL to **Noto Sans Devanagari** once a
-  re-evaluation found Noto fuses a different set of conjuncts. That
-  invalidates Agent 3's output (the atom set went from 174 to **183**: 15
-  pairs started fusing, 9 stopped). The feedback edge is therefore
-  *font -> Agent 3 re-run*, not only *font -> Agent 1*. A 4th font-selection
-  criterion came out of this (see `docs/languages/hi/README.md` and
-  `.claude/agents/font-selector.md`). The true-ligature set is
-  font-specific and must be re-swept per font, never hand-curated.
-- **Devanagari needed a composition primitive Malayalam never did.**
-  Half-forms and reph are "contextual forms": the base consonant changes
-  shape, or the mark detaches from its own position, so neither a mark
-  recipe nor per-character composition fits. They are carried by
-  `glyph-data.<code>.json`'s `contextualForms` table and composed by
-  `tryComposeContextualForm` / `stroke_compose.py` (see
-  `docs/ARCHITECTURE.md`). Malayalam has no such table, which makes that
-  path a guaranteed no-op for it.
-- **The worklist is the contract, and a first recording pass is rarely
-  complete.** The owner recorded the ~113 standalone letters first; the
-  remaining 70 atoms (nukta consonants, true ligatures, half-form
-  exceptions, ॉ, ङ्/ड् half-forms) came second. Until they existed, real
-  coverage was 88.5% with 280 clusters on the outline fallback - and
-  `coverage_report.js --verbose` named exactly which atoms were missing.
-  With all 183 recorded: 2443/2443 clusters, 0 fallbacks.
-- **Skipping an atom on purpose is legitimate** - something derivable from
-  others - but should be recorded in the recorder's remarks field, so the
-  gap is a decision, not an accident.
-- **Naming pitfalls.** `--lang` / `PROJECT_LANG=` take the *registry name*
-  (`hindi`), not the code (`hi`); the code is for file suffixes and commit
-  scopes (`data(hi)`). The Python tools import `uharfbuzz`, so run them
-  inside the Poetry environment - a bare `python3 tools/process_strokes.py`
-  fails with `No module named 'uharfbuzz'`.
+## After recording
 
 ### Post-recording gate (stage 5)
 
@@ -724,7 +419,7 @@ language changes only by a deliberate, reviewed regeneration of its golden file
 Today Malayalam and Hindi are frozen: each has `tests/<language>-freeze.test.js`,
 `python/tests/test_<language>_freeze.py`, a golden file in `tests/freeze/` and a
 raw-data snapshot (`CONTRIBUTING.md`, "Language freezes" and "The Hindi
-freeze"). Hindi was frozen when the owner said "Hindi ships". For the next
+freeze"). Hindi was frozen when it shipped. For the next
 language, copy Hindi's files (`tests/freeze/hindi-snapshot.mjs`,
 `generate-hindi-golden.mjs`, `tests/hindi-freeze.test.js`,
 `python/tests/test_hindi_freeze.py`), then change the language, the words, the
@@ -732,47 +427,13 @@ file list and the label. A shared, language-parametrized freeze is a worthwhile
 cleanup once a third language needs it; it would touch Malayalam's frozen
 tests, so it needs the owner's approval.
 
-### More agents
+## What Hindi's first run taught us
 
-Not yet. Everything else is a human task (recording, inspecting) or a fixed
-command sequence (the stage-5 gate). The plausible candidates, to build only
-once a second language shows the same recurring pattern: **coverage triage**
-(turn `coverage_report.js --verbose` into a "record these / fix this recipe"
-list) and, for the cleanup, a `stroke-auditor` that runs `tools/audit_strokes.py`
-and reports the worst strokes. Visual QA of the animation needs a browser and
-stays human.
-
-## Open questions
-
-- **Scope of "old/archaic characters."** Agent 1 will surface a judgment
-  call (include Sanskrit-loanword-only rare vowels/consonants? historical
-  orthography?) that has no purely mechanical answer - Malayalam's own
-  `_chars.py` already makes this call (`RARE_VOWELS`/`RARE_CONSONANTS`/
-  `RARE_MATRAS`, included; deprecated pre-reform-only forms, not) and that
-  precedent is worth deferring to unless the human reviewer says otherwise.
-- **Cost/budget for the research stage.** Web-research + multi-round
-  critique loops are the most open-ended (least bounded-cost) part of this
-  pipeline; worth capping rounds and being explicit that the human gate,
-  not agent consensus, is what actually closes this stage.
-- **Font licensing edge cases.** Not every script has a Manjari-equivalent
-  (an actively-maintained, clearly-OFL-licensed, HarfBuzz-friendly font);
-  Agent 2 may come back with "no good candidate" as a legitimate result,
-  which should block the pipeline rather than settle for a worse license.
-- **Shared-script languages** (Hindi and Sanskrit both use Devanagari):
-  whether that means one `_chars_devanagari.py` covering both, with
-  Sanskrit's Vedic-only additions layered on somehow, or two independent
-  profiles that happen to overlap - genuinely open, and not worth deciding
-  until one of the two is actually being onboarded and the other isn't yet
-  (per "one language at a time" above).
-
-## Out of scope (deferred - "Phase 2")
-
-*(Hindi's first run did stages 4-5 by hand, so this list shrank - see "What
-Hindi's first run taught us". What is still deliberately not designed:)*
-
-Still not designed: actually orchestrating the native-speaker recording
-session, `docs/ROADMAP.md`'s "Bug-report → data
-pipeline" (diagnosing wrong renders, a coverage gate, a frictionless
-report→record loop), and any tooling to help a non-technical native speaker
-work through the worklist without needing to understand this pipeline. Not
-designed here on purpose.
+- **A font change after Agent 3 invalidates its output.** Hindi moved from Annapurna SIL to Noto Sans Devanagari
+  and the atom set went from 174 to 183. Re-sweep true ligatures per font; never hand-curate them.
+- **Devanagari needed a composition primitive Malayalam did not**: half-forms and reph (`contextualForms`,
+  `tryComposeContextualForm`). Malayalam has no such table, so that path is a no-op for it.
+- **The worklist is the contract.** A first recording pass is rarely complete; `coverage_report.js --verbose`
+  names the missing atoms. Skipping one on purpose is fine if the recorder's remarks field says so.
+- **`--lang` / `PROJECT_LANG=` take the registry name** (`hindi`), not the code (`hi`). The Python tools need the
+  Poetry environment (`uharfbuzz`).
