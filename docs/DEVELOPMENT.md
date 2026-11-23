@@ -88,9 +88,10 @@ Playwright-driven check instead.
 
 ## Deployment
 
-The live site is deployed from this repo by `.github/workflows/pages.yml` on every push to
-`master` (one-time setup: repo Settings -> Pages -> Source: *GitHub Actions*). It does not wait for
-CI, so a PR must be green before it is merged.
+The live site is deployed from this repo by `.github/workflows/pages.yml` once after each merged PR,
+when the release workflow finishes (one-time setup: repo Settings -> Pages -> Source: *GitHub Actions*). It does not
+wait for CI, so a PR must be green before it is merged. A push straight to `master` does not deploy; run the
+workflow by hand (`workflow_dispatch`) for that, or to recover from a cancelled release run.
 
 ## Releases
 
