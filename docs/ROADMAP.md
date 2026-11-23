@@ -123,6 +123,15 @@ tuning pass on already-shipped, already-working smoothing, not a bug fix.
   strokes with their source character so the tooltip can highlight which
   strokes belong to which part.
 
+- **Learn-the-letters add-on from the Central Hindi Directorate standard** (idea, not scoped). The 2024
+  *Devanagari lipi evam Hindi vartani ka manakikaran*
+  ([PDF](https://chd.education.gov.in/sites/default/files/devanagarilipiandhindivartanikamankikaran.pdf))
+  has an official stroke-by-stroke build chart for every Hindi letter (section 2.5), the standard alphabet
+  and barakhadi tables, and spelling rules (anusvara vs chandrabindu, conjunct formation, nukta use).
+  Possible uses: replay a letter as the chart's steps, spelling hints or quizzes, a trace mode that compares
+  the learner's stroke order with the recorded one. Check the publication's reuse terms before copying any of
+  its images. See `docs/languages/hi/writing-rules.md`.
+
 ## Multi-language support
 
 See **`docs/LANGUAGE_ONBOARDING_AGENTS.md`** for the multi-agent pipeline

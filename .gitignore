@@ -14,3 +14,12 @@ tools/stroke-recorder-standalone*.html
 # generated outputs - re-create with build_glyph_data.py / alphabet CLI
 alphabet-trace.json
 python/alphabet-trace.json
+
+# Local-only review page for stroke order, and the decisions it exports
+tools/stroke-review.*
+stroke-review.*.json
+docs/languages/*/writing-rules.json
+
+# Personal notebooks and review work
+notebooks/
+reviews/
