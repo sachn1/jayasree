@@ -212,19 +212,40 @@ function svgEl(tag, attrs) {
 /**
  * Cubic ease-in-out: slow start, fast middle, slow end.
  *
- * A real pen accelerates into a stroke and decelerates at its end, not a
- * constant-velocity sweep - {@link traceSub} applies this to its
- * frame-progress fraction instead of using the raw linear `t`, which reads
- * as mechanical ("robotic") rather than handwritten. Standard shape
- * (equivalent to CSS `ease-in-out`); not tunable per-stroke on purpose -
- * this is a fixed property of how pens move, not a per-language or
- * per-glyph concern.
+ * A real pen accelerates into a stroke and decelerates at its end, so this is
+ * the default pen profile (see {@link penProgress}; a writer can opt into a
+ * constant speed with `steadyPen`). Standard shape (equivalent to CSS
+ * `ease-in-out`); not tunable per stroke.
  *
  * @param {number} t - Linear progress, 0-1.
  * @returns {number} Eased progress, 0-1.
  */
 function easeInOut(t) {
   return t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2;
+}
+
+/**
+ * How far along its path the pen is, given how much of the stroke's time has passed.
+ *
+ * @param {number} t - Linear progress, 0-1.
+ * @param {boolean} steady - True for a constant pen speed (the pen covers equal distance in equal time),
+ *   false for {@link easeInOut}'s slow-fast-slow.
+ * @returns {number} Progress along the path, 0-1.
+ */
+function penProgress(t, steady) {
+  return steady ? t : easeInOut(t);
+}
+
+/**
+ * Whether the pen moves at a constant speed: the `steadyPen` option if given, else on for a script with a
+ * headline (its glyph data has `shirorekha`) and off otherwise.
+ *
+ * @param {boolean | undefined} option - The writer's `steadyPen` option.
+ * @param {{ shirorekha?: object } | null} glyphData
+ * @returns {boolean}
+ */
+function isSteadyPen(option, glyphData) {
+  return option ?? Boolean(glyphData?.shirorekha);
 }
 
 /**
@@ -1027,8 +1048,11 @@ function resolveSegments(text, clusters, marks, legacyEncodings = {}) {
  * Create a stroke-writer bound to `container`.
  *
  * @param {HTMLElement} container - The DOM element that will hold the SVG stage.
- * @param {{ speed?: number, glyphData?: object, tighten?: number, strokeWidth?: number }} [options]
+ * @param {{ speed?: number, glyphData?: object, tighten?: number, strokeWidth?: number, steadyPen?: boolean }} [options]
  * @param {number} [options.speed=6000] - Nominal pen speed in font-units per second.
+ * @param {boolean} [options.steadyPen] - Keep the pen speed constant along every stroke, with no slow start
+ *   or end. Defaults to true for a script with a headline (Devanagari) and false otherwise. Very short
+ *   strokes (dots) keep a minimum duration so they stay visible, so they move slower than the rest.
  * @param {object} [options.glyphData=null] - Pre-loaded glyph data object (skips `load()`).
  * @param {number} [options.tighten=0.06] - Inter-cluster tightening, as a fraction of
  *   unitsPerEm trimmed from each cluster's advance. 0 reproduces the font's raw spacing;
@@ -1043,6 +1067,7 @@ function resolveSegments(text, clusters, marks, legacyEncodings = {}) {
  */
 export function createStrokeWriter(container, options = {}) {
   const SPEED = options.speed ?? 6000;
+  const STEADY_PEN = options.steadyPen;
   const TIGHTEN = options.tighten ?? DEFAULT_TIGHTEN_FRACTION;
   const STROKE_WIDTH_FRACTION = options.strokeWidth ?? DEFAULT_STROKE_WIDTH_FRACTION;
   const OUTLINE_ONLY = options.outlineOnly ?? false;
@@ -1426,7 +1451,8 @@ export function createStrokeWriter(container, options = {}) {
       function frame(now) {
         if (token !== state.playToken) return resolve();
         const linear = Math.max(0, Math.min(1, (now - t0) / dMs));
-        const t = easeInOut(linear);
+        // Resolved per frame, not at construction: glyph data may not be loaded when the writer is created.
+        const t = penProgress(linear, isSteadyPen(STEADY_PEN, glyphData));
         strokeEl.setAttribute("stroke-dashoffset", String(len * (1 - t)));
         const pt = strokeEl.getPointAtLength(t * len);
         stylus.setAttribute("cx", String(pt.x + tr.x));
@@ -1595,6 +1621,8 @@ export const _internal = {
   nudgeMarkStrokes,
   normalizeChillus,
   legacyAtoms,
+  penProgress,
+  isSteadyPen,
 };
 
 
