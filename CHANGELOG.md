@@ -1,3 +1,15 @@
+## v0.8.0 (2026-11-23)
+
+### Feat
+
+- **js**: keep the pen at a constant speed for a headline script (#76)
+- **js**: keep the pen at a constant speed for a headline script
+
+### Fix
+
+- **js**: draw a headline script's dots with their own letter and the headline last (#73)
+- **js**: draw a headline script's dots with their own letter and the headline last
+
 ## v0.7.0 (2026-11-21)
 
 ### Feat
