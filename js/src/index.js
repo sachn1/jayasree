@@ -212,19 +212,40 @@ function svgEl(tag, attrs) {
 /**
  * Cubic ease-in-out: slow start, fast middle, slow end.
  *
- * A real pen accelerates into a stroke and decelerates at its end, not a
- * constant-velocity sweep - {@link traceSub} applies this to its
- * frame-progress fraction instead of using the raw linear `t`, which reads
- * as mechanical ("robotic") rather than handwritten. Standard shape
- * (equivalent to CSS `ease-in-out`); not tunable per-stroke on purpose -
- * this is a fixed property of how pens move, not a per-language or
- * per-glyph concern.
+ * A real pen accelerates into a stroke and decelerates at its end, so this is
+ * the default pen profile (see {@link penProgress}; a writer can opt into a
+ * constant speed with `steadyPen`). Standard shape (equivalent to CSS
+ * `ease-in-out`); not tunable per stroke.
  *
  * @param {number} t - Linear progress, 0-1.
  * @returns {number} Eased progress, 0-1.
  */
 function easeInOut(t) {
   return t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2;
+}
+
+/**
+ * How far along its path the pen is, given how much of the stroke's time has passed.
+ *
+ * @param {number} t - Linear progress, 0-1.
+ * @param {boolean} steady - True for a constant pen speed (the pen covers equal distance in equal time),
+ *   false for {@link easeInOut}'s slow-fast-slow.
+ * @returns {number} Progress along the path, 0-1.
+ */
+function penProgress(t, steady) {
+  return steady ? t : easeInOut(t);
+}
+
+/**
+ * Whether the pen moves at a constant speed: the `steadyPen` option if given, else on for a script with a
+ * headline (its glyph data has `shirorekha`) and off otherwise.
+ *
+ * @param {boolean | undefined} option - The writer's `steadyPen` option.
+ * @param {{ shirorekha?: object } | null} glyphData
+ * @returns {boolean}
+ */
+function isSteadyPen(option, glyphData) {
+  return option ?? Boolean(glyphData?.shirorekha);
 }
 
 /**
@@ -665,34 +686,18 @@ function tryDirectMarkStroke(baseStrokes, baseAdvance, markKey, marks, clusters,
 }
 
 /**
- * Take every dot-like stroke (per `isDot`) out of its glyph unit and return them as one ordered list:
- * word order first (the cluster each came from), then top to bottom, then left to right. So a visarga's two dots
- * come out upper dot, lower dot, and a word with several dotted clusters keeps them in reading order.
+ * The dot-like strokes (per `isDot`) of every glyph unit, left where they are.
  *
- * Mutates each unit's `subUnits` (the dots are removed); a shirorekha unit is left alone.
+ * A dot is written with its own letter, so it keeps its place in the drawing order; the caller only needs to
+ * know which strokes they are, to keep each one hidden until its turn (a tiny stroke would otherwise show as
+ * a dot on the page before it is drawn). A shirorekha unit is skipped.
  *
  * @param {{ subUnits: object[], isShirorekha?: boolean }[]} glyphUnits
  * @param {(sub: object) => boolean} isDot - Whether a stroke is a dot.
- * @param {(sub: object) => { x: number, y: number }} startOf - Where a stroke starts, in the stage's frame.
- * @returns {object[]} The dot sub-units, in the order they should be drawn.
+ * @returns {object[]} The dot sub-units, in drawing order.
  */
-function collectDotUnits(glyphUnits, isDot, startOf) {
-  const dots = [];
-  glyphUnits.forEach((unit, order) => {
-    if (unit.isShirorekha) return;
-    const keep = [];
-    for (const sub of unit.subUnits) {
-      if (isDot(sub)) {
-        const { x, y } = startOf(sub);
-        dots.push({ sub, order, x, y });
-      } else {
-        keep.push(sub);
-      }
-    }
-    unit.subUnits = keep;
-  });
-  dots.sort((a, b) => a.order - b.order || a.y - b.y || a.x - b.x);
-  return dots.map((d) => d.sub);
+function findDotUnits(glyphUnits, isDot) {
+  return glyphUnits.flatMap((unit) => (unit.isShirorekha ? [] : unit.subUnits.filter(isDot)));
 }
 
 /**
@@ -1043,8 +1048,11 @@ function resolveSegments(text, clusters, marks, legacyEncodings = {}) {
  * Create a stroke-writer bound to `container`.
  *
  * @param {HTMLElement} container - The DOM element that will hold the SVG stage.
- * @param {{ speed?: number, glyphData?: object, tighten?: number, strokeWidth?: number }} [options]
+ * @param {{ speed?: number, glyphData?: object, tighten?: number, strokeWidth?: number, steadyPen?: boolean }} [options]
  * @param {number} [options.speed=6000] - Nominal pen speed in font-units per second.
+ * @param {boolean} [options.steadyPen] - Keep the pen speed constant along every stroke, with no slow start
+ *   or end. Defaults to true for a script with a headline (Devanagari) and false otherwise. Very short
+ *   strokes (dots) keep a minimum duration so they stay visible, so they move slower than the rest.
  * @param {object} [options.glyphData=null] - Pre-loaded glyph data object (skips `load()`).
  * @param {number} [options.tighten=0.06] - Inter-cluster tightening, as a fraction of
  *   unitsPerEm trimmed from each cluster's advance. 0 reproduces the font's raw spacing;
@@ -1059,6 +1067,7 @@ function resolveSegments(text, clusters, marks, legacyEncodings = {}) {
  */
 export function createStrokeWriter(container, options = {}) {
   const SPEED = options.speed ?? 6000;
+  const STEADY_PEN = options.steadyPen;
   const TIGHTEN = options.tighten ?? DEFAULT_TIGHTEN_FRACTION;
   const STROKE_WIDTH_FRACTION = options.strokeWidth ?? DEFAULT_STROKE_WIDTH_FRACTION;
   const OUTLINE_ONLY = options.outlineOnly ?? false;
@@ -1403,21 +1412,15 @@ export function createStrokeWriter(container, options = {}) {
     const shirorekhaUnit = buildShirorekhaUnit(trace, traceGlyphData, svg, sw);
     if (shirorekhaUnit) glyphUnits.push(shirorekhaUnit);
 
-    // In a script with a headline, dots (visarga, anusvara, nukta ...) are written last of all - after the
-    // headline - one after the other from top to bottom, and are not on the page before their turn.
-    // Gated on the same `shirorekha` data as the headline itself, so a script without one is unchanged.
+    // In a script with a headline, a dot (nukta, anusvara, the dots of ङ ...) is written with its own letter, in
+    // the order it was composed; only the headline comes after everything. A dot is not on the page before its
+    // turn. Gated on the same `shirorekha` data as the headline itself, so a script without one is unchanged.
     if (traceGlyphData.shirorekha) {
-      const startOf = (sub) => {
-        const p = sub.strokeEl.getPointAtLength(0);
-        return { x: p.x + sub.tr.x, y: p.y + sub.tr.y };
-      };
       const isDot = (sub) => isDotSized(sub.strokeEl.getBBox(), sub.len, unitsPerEm);
-      const dots = collectDotUnits(glyphUnits, isDot, startOf);
-      for (const dot of dots) {
+      for (const dot of findDotUnits(glyphUnits, isDot)) {
         dot.revealOnDraw = true;
         dot.strokeEl.style.opacity = "0";
       }
-      if (dots.length) glyphUnits.push({ gEl: null, subUnits: dots, isDots: true });
     }
 
     return { glyphUnits, stylus, fallbackClusters };
@@ -1448,7 +1451,8 @@ export function createStrokeWriter(container, options = {}) {
       function frame(now) {
         if (token !== state.playToken) return resolve();
         const linear = Math.max(0, Math.min(1, (now - t0) / dMs));
-        const t = easeInOut(linear);
+        // Resolved per frame, not at construction: glyph data may not be loaded when the writer is created.
+        const t = penProgress(linear, isSteadyPen(STEADY_PEN, glyphData));
         strokeEl.setAttribute("stroke-dashoffset", String(len * (1 - t)));
         const pt = strokeEl.getPointAtLength(t * len);
         stylus.setAttribute("cx", String(pt.x + tr.x));
@@ -1612,11 +1616,13 @@ export const _internal = {
   tryComposeFromCharacters,
   resolveSegments,
   clusterInkRanges,
-  collectDotUnits,
+  findDotUnits,
   isDotSized,
   nudgeMarkStrokes,
   normalizeChillus,
   legacyAtoms,
+  penProgress,
+  isSteadyPen,
 };
 
 
