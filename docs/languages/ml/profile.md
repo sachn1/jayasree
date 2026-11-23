@@ -172,21 +172,6 @@ project's starting choice. See `README.md`'s "License & credit" section and
 `LICENSE-DATA` for the exact attribution terms this project already commits
 to honoring.
 
-## Why this document exists
-
-Every other file under `docs/languages/` is a *pipeline artifact*: a
-proposal an agent produced, gated on human sign-off, for a language not yet
-shipped. This one is different on purpose - it exists so that `docs/
-languages/hi/profile.md` (and Tamil's, Telugu's, ... whichever comes next)
-has something to be compared against beyond just prose descriptions in
-`docs/LANGUAGE_ONBOARDING_AGENTS.md`'s "Don't generalize from Malayalam"
-section: a real, structured, same-shaped profile for the one language this
-project has actually finished. If `_chars.py` or the generated data files
-change after 2026-09-04, treat any mismatch with this document as this
-document being stale, not the code being wrong - it is not regenerated or
-kept in sync automatically, and nothing in the pipeline depends on it being
-current the way `glyph-data.json`/`stroke-data.json` are depended on.
-
 ## Sources
 
 Everything above is reconstructed from this repository's own already-

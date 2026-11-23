@@ -33,7 +33,7 @@ await writer.play("നന്ദി");
 
 The npm package bundles Malayalam's data. Hindi's lives in `js/src/*.hi.json` and is shown in the demo.
 
-All options and examples: [`docs/JS_API.md`](docs/JS_API.md).
+All options and examples: [`js/README.md`](js/README.md).
 
 ## Languages
 

@@ -47,22 +47,20 @@ The half and conjunct atoms built on these (क् क्ष ज्ञ ...) have
 
 **Look again:** ख, घ (the chart's step order is hard to read for them).
 
-**Owner's judgment:** छ is recorded with its small tick last, before the headline. The chart draws a tick
-first, but the owner holds that the tick comes last, so this is left as recorded.
+**Accepted as recorded:** छ has its small tick last, before the headline. The chart draws a tick first; the
+recording keeps the tick last.
 
-**Owner's decision (2026-11-23):** all of the above, including क ज ल त and ऋ ॠ, are approved as recorded.
-Nothing is re-recorded. The chart is a recommended teaching order, not a rule of the script.
+**Decision:** all of the above, including क ज ल त and ऋ ॠ, are accepted as recorded. Nothing is re-recorded.
+The chart is a recommended teaching order, not a rule of the script.
 
 Whether this matters: the order only changes how the animation looks, not what is drawn. A native reader may find
-a stem-first क odd. That is the owner's call, and the strokes are re-recorded by the owner, never by an agent.
+a stem-first क odd. Strokes are re-recorded by a native writer, never by an agent.
 
 ## Runtime behaviour (changed)
 
-The runtime used to draw small marks last, after the letter **and** the headline. The owner confirmed that a
-nukta, matras and the other marks are written with their letter, and that the headline comes last. The runtime
-now does that: marks keep their composed place after their letter,
-and the headline is drawn once at the end of the word. The recorded strokes were not changed; the owner
-approved all of them as recorded (2026-11-23).
+A nukta, matras and the other marks are written with their letter, and the headline comes last. The runtime
+does that: marks keep their composed place after their letter, and the headline is drawn once, at the end of the
+word. The recorded strokes are unchanged.
 
 ## Questions for the native writer
 

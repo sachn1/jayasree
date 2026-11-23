@@ -1,4 +1,4 @@
-# Jayasree - Centering/Smoothing/Straightening Experiments Log
+# Centering, smoothing and straightening: what was tried
 
 For how the pipeline works end to end - including what centering, smoothing,
 and straightening each *do* and how they fit together - see
@@ -95,38 +95,9 @@ the reverse of what a calligrapher does, and is not injective:
 
 ---
 
-## Possible Forward Paths
-
-### A - Accept the human stroke as authoritative; only smooth it
-Use `snap_strokes.py` (cubic B-spline fit). The stroke is already roughly
-centred if the labeller was careful. This is the current production path.
-
-### B - Per-point projection onto the *nearest outline edge* (not skeleton)
-Instead of pulling toward the skeleton, project each stroke point onto the
-nearest point on the glyph *outline contour*. Then pull inward by half the
-local stroke width (estimated from the distance transform at that point).
-This is a local operation with no branch ambiguity.
-
-### C - Thin-plate spline warp
-Manually or automatically identify a sparse set of anchor points where the
-human stroke clearly deviates from the skeleton branch it belongs to, then
-fit a thin-plate spline that maps stroke points to corrected positions while
-preserving the overall topology.
-
-### D - Train a small model
-Given enough (stroke, glyph) pairs, a sequence model could learn to map raw
-stroke point sequences to corrected ones. Requires labelled data.
-
-### E - Better labelling tooling
-Add a live skeleton overlay to `stroke-recorder.html` so the labeller can see
-the medial axis while drawing and aim for it directly. Removes the need for
-post-processing correction entirely.
-
----
-
 ## Resolution - Gradient Ascent (adopted)
 
-A variant of B that turned out to work: rather than snapping to the
+What worked: rather than snapping to the
 skeleton or projecting onto the outline, walk each stroke point a small,
 fixed number of steps *up the gradient* of the distance-transform field
 (toward higher "depth inside the ink"). Following the local gradient from a

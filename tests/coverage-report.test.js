@@ -175,8 +175,7 @@ describe("real-data sanity", () => {
   it("Malayalam's real committed data has full (100%) coverage", () => {
     // Guards this file's own synthetic fixtures against silently drifting
     // from what the real classify()/computeCoverage() logic actually does
-    // against real data - and is itself a real, meaningful regression gate
-    // (see docs/ROADMAP.md's "Bug-report -> data pipeline"): if a future
+    // against real data - and is itself a real, meaningful regression gate: if a future
     // change ever regresses real coverage below 100%, this test catches it.
     populateStrokeLibrary({ simulateAtoms: null, strokeData: null });
     Object.assign(STROKE_LIBRARY, strokeData);
