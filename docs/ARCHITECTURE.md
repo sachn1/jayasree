@@ -397,13 +397,9 @@ assembled from its parts (`clusterInkRanges`), using the offset between the
 standalone and the composed glyph. A known cluster with no ink range - the
 numerals - gets no headline at all, not a full-width fallback line.
 
-**Dots come last.** For a script with a headline, small marks (nukta,
-anusvara, the dots of ऊ, घ ...) are drawn after the letter and the headline,
-one after the other from top to bottom (`collectDotUnits`). A stroke counts as
-a dot when its bounding box (larger side) is below
-`DOT_MAX_EXTENT_FRACTION` of the em *and* its length is below
-`DOT_MAX_LENGTH_FRACTION` of it (`isDotSized`), so this is by size, not a list
-of letters.
+**Marks come with their letter; the headline comes last.** In a script with a headline, a vowel sign, nukta,
+anusvara or dot is drawn right after its letter, in composed order; the headline is drawn once, last. Tiny
+strokes (`isDotSized`: small bounding box *and* short) stay hidden until their turn, found by `findDotUnits`.
 
 ### Last resort: per-character fallback
 

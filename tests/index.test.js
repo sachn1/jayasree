@@ -37,7 +37,7 @@ const {
   legacyAtoms,
   clusterInkRanges,
   nudgeMarkStrokes,
-  collectDotUnits,
+  findDotUnits,
   isDotSized,
 } = _internal;
 
@@ -688,6 +688,33 @@ describe("nudgeMarkStrokes / markNudge", () => {
   });
 });
 
+describe("penProgress", () => {
+  it("is exactly linear when steady, so equal time covers equal distance", () => {
+    for (const t of [0, 0.1, 0.25, 0.5, 0.75, 1]) expect(_internal.penProgress(t, true)).toBe(t);
+  });
+  it("eases in and out when not steady: slow at the ends, faster in the middle", () => {
+    const p = _internal.penProgress;
+    expect(p(0, false)).toBe(0);
+    expect(p(1, false)).toBe(1);
+    expect(p(0.1, false)).toBeLessThan(0.1);
+    expect(p(0.9, false)).toBeGreaterThan(0.9);
+    expect(p(0.5, false) - p(0.4, false)).toBeGreaterThan(p(0.1, false) - p(0, false));
+  });
+});
+
+describe("isSteadyPen", () => {
+  const isSteadyPen = _internal.isSteadyPen;
+  it("defaults to steady for glyph data with a headline and eased without one", () => {
+    expect(isSteadyPen(undefined, { shirorekha: { y0: -622, y1: -551 } })).toBe(true);
+    expect(isSteadyPen(undefined, {})).toBe(false);
+    expect(isSteadyPen(undefined, null)).toBe(false);
+  });
+  it("lets the option override the default in both directions", () => {
+    expect(isSteadyPen(false, { shirorekha: {} })).toBe(false);
+    expect(isSteadyPen(true, {})).toBe(true);
+  });
+});
+
 describe("isDotSized", () => {
   const EM = 1000;
   it("accepts a compact, short stroke (a nukta, an anusvara)", () => {
@@ -706,51 +733,36 @@ describe("isDotSized", () => {
   });
 });
 
-describe("collectDotUnits", () => {
-  const at = (len, x, y, dot = len < 60) => ({ len, x, y, dot });
+describe("findDotUnits", () => {
+  const at = (len, dot = len < 60) => ({ len, dot });
   const isDot = (sub) => sub.dot;
-  const startOf = (sub) => ({ x: sub.x, y: sub.y });
 
-  it("moves dot strokes out of their units and keeps the letter strokes", () => {
-    const letter = at(500, 0, 0);
-    const dot = at(7, 10, 5);
+  it("finds the dot strokes and leaves every unit as it was", () => {
+    const letter = at(500);
+    const dot = at(7);
     const units = [{ subUnits: [letter, dot] }];
-    const dots = collectDotUnits(units, isDot, startOf);
-    expect(dots).toEqual([dot]);
-    expect(units[0].subUnits).toEqual([letter]);
+    expect(findDotUnits(units, isDot)).toEqual([dot]);
+    expect(units[0].subUnits).toEqual([letter, dot]);
   });
 
   it("decides by the predicate, not by length: a long, compact dot (a little loop) still counts", () => {
-    const loop = at(95, 0, 0, true);
-    const line = at(40, 0, 0, false);
-    const units = [{ subUnits: [loop, line] }];
-    expect(collectDotUnits(units, isDot, startOf)).toEqual([loop]);
-    expect(units[0].subUnits).toEqual([line]);
+    const loop = { len: 95, dot: true };
+    const line = { len: 40, dot: false };
+    expect(findDotUnits([{ subUnits: [loop, line] }], isDot)).toEqual([loop]);
   });
 
-  it("orders a visarga's dots top to bottom, whatever order they were recorded in", () => {
-    const lower = at(28, 600, 450);
-    const upper = at(7, 600, 140);
-    const dots = collectDotUnits([{ subUnits: [at(400, 0, 0), lower, upper] }], isDot, startOf);
-    expect(dots).toEqual([upper, lower]);
+  it("keeps drawing order across clusters", () => {
+    const a = at(5);
+    const b = at(5);
+    expect(findDotUnits([{ subUnits: [a] }, { subUnits: [at(300), b] }], isDot)).toEqual([a, b]);
   });
 
-  it("keeps word order across clusters, then top to bottom within each", () => {
-    const a2 = at(5, 0, 300);
-    const a1 = at(5, 0, 100);
-    const b1 = at(5, 900, 50);
-    const dots = collectDotUnits([{ subUnits: [a2, a1] }, { subUnits: [b1] }], isDot, startOf);
-    expect(dots).toEqual([a1, a2, b1]);
-  });
-
-  it("leaves the shirorekha unit alone", () => {
-    const bar = at(10, 0, 0);
-    const units = [{ subUnits: [bar], isShirorekha: true }, { subUnits: [at(300, 0, 0)] }];
-    expect(collectDotUnits(units, isDot, startOf)).toEqual([]);
-    expect(units[0].subUnits).toEqual([bar]);
+  it("skips the shirorekha unit", () => {
+    const bar = at(10);
+    expect(findDotUnits([{ subUnits: [bar], isShirorekha: true }, { subUnits: [at(300)] }], isDot)).toEqual([]);
   });
 
   it("returns nothing when no stroke is a dot", () => {
-    expect(collectDotUnits([{ subUnits: [at(300, 0, 0)] }, { subUnits: [] }], isDot, startOf)).toEqual([]);
+    expect(findDotUnits([{ subUnits: [at(300)] }, { subUnits: [] }], isDot)).toEqual([]);
   });
 });
