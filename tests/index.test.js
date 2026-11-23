@@ -688,6 +688,33 @@ describe("nudgeMarkStrokes / markNudge", () => {
   });
 });
 
+describe("penProgress", () => {
+  it("is exactly linear when steady, so equal time covers equal distance", () => {
+    for (const t of [0, 0.1, 0.25, 0.5, 0.75, 1]) expect(_internal.penProgress(t, true)).toBe(t);
+  });
+  it("eases in and out when not steady: slow at the ends, faster in the middle", () => {
+    const p = _internal.penProgress;
+    expect(p(0, false)).toBe(0);
+    expect(p(1, false)).toBe(1);
+    expect(p(0.1, false)).toBeLessThan(0.1);
+    expect(p(0.9, false)).toBeGreaterThan(0.9);
+    expect(p(0.5, false) - p(0.4, false)).toBeGreaterThan(p(0.1, false) - p(0, false));
+  });
+});
+
+describe("isSteadyPen", () => {
+  const isSteadyPen = _internal.isSteadyPen;
+  it("defaults to steady for glyph data with a headline and eased without one", () => {
+    expect(isSteadyPen(undefined, { shirorekha: { y0: -622, y1: -551 } })).toBe(true);
+    expect(isSteadyPen(undefined, {})).toBe(false);
+    expect(isSteadyPen(undefined, null)).toBe(false);
+  });
+  it("lets the option override the default in both directions", () => {
+    expect(isSteadyPen(false, { shirorekha: {} })).toBe(false);
+    expect(isSteadyPen(true, {})).toBe(true);
+  });
+});
+
 describe("isDotSized", () => {
   const EM = 1000;
   it("accepts a compact, short stroke (a nukta, an anusvara)", () => {
