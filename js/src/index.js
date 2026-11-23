@@ -665,34 +665,18 @@ function tryDirectMarkStroke(baseStrokes, baseAdvance, markKey, marks, clusters,
 }
 
 /**
- * Take every dot-like stroke (per `isDot`) out of its glyph unit and return them as one ordered list:
- * word order first (the cluster each came from), then top to bottom, then left to right. So a visarga's two dots
- * come out upper dot, lower dot, and a word with several dotted clusters keeps them in reading order.
+ * The dot-like strokes (per `isDot`) of every glyph unit, left where they are.
  *
- * Mutates each unit's `subUnits` (the dots are removed); a shirorekha unit is left alone.
+ * A dot is written with its own letter, so it keeps its place in the drawing order; the caller only needs to
+ * know which strokes they are, to keep each one hidden until its turn (a tiny stroke would otherwise show as
+ * a dot on the page before it is drawn). A shirorekha unit is skipped.
  *
  * @param {{ subUnits: object[], isShirorekha?: boolean }[]} glyphUnits
  * @param {(sub: object) => boolean} isDot - Whether a stroke is a dot.
- * @param {(sub: object) => { x: number, y: number }} startOf - Where a stroke starts, in the stage's frame.
- * @returns {object[]} The dot sub-units, in the order they should be drawn.
+ * @returns {object[]} The dot sub-units, in drawing order.
  */
-function collectDotUnits(glyphUnits, isDot, startOf) {
-  const dots = [];
-  glyphUnits.forEach((unit, order) => {
-    if (unit.isShirorekha) return;
-    const keep = [];
-    for (const sub of unit.subUnits) {
-      if (isDot(sub)) {
-        const { x, y } = startOf(sub);
-        dots.push({ sub, order, x, y });
-      } else {
-        keep.push(sub);
-      }
-    }
-    unit.subUnits = keep;
-  });
-  dots.sort((a, b) => a.order - b.order || a.y - b.y || a.x - b.x);
-  return dots.map((d) => d.sub);
+function findDotUnits(glyphUnits, isDot) {
+  return glyphUnits.flatMap((unit) => (unit.isShirorekha ? [] : unit.subUnits.filter(isDot)));
 }
 
 /**
@@ -1403,21 +1387,15 @@ export function createStrokeWriter(container, options = {}) {
     const shirorekhaUnit = buildShirorekhaUnit(trace, traceGlyphData, svg, sw);
     if (shirorekhaUnit) glyphUnits.push(shirorekhaUnit);
 
-    // In a script with a headline, dots (visarga, anusvara, nukta ...) are written last of all - after the
-    // headline - one after the other from top to bottom, and are not on the page before their turn.
-    // Gated on the same `shirorekha` data as the headline itself, so a script without one is unchanged.
+    // In a script with a headline, a dot (nukta, anusvara, the dots of ङ ...) is written with its own letter, in
+    // the order it was composed; only the headline comes after everything. A dot is not on the page before its
+    // turn. Gated on the same `shirorekha` data as the headline itself, so a script without one is unchanged.
     if (traceGlyphData.shirorekha) {
-      const startOf = (sub) => {
-        const p = sub.strokeEl.getPointAtLength(0);
-        return { x: p.x + sub.tr.x, y: p.y + sub.tr.y };
-      };
       const isDot = (sub) => isDotSized(sub.strokeEl.getBBox(), sub.len, unitsPerEm);
-      const dots = collectDotUnits(glyphUnits, isDot, startOf);
-      for (const dot of dots) {
+      for (const dot of findDotUnits(glyphUnits, isDot)) {
         dot.revealOnDraw = true;
         dot.strokeEl.style.opacity = "0";
       }
-      if (dots.length) glyphUnits.push({ gEl: null, subUnits: dots, isDots: true });
     }
 
     return { glyphUnits, stylus, fallbackClusters };
@@ -1612,7 +1590,7 @@ export const _internal = {
   tryComposeFromCharacters,
   resolveSegments,
   clusterInkRanges,
-  collectDotUnits,
+  findDotUnits,
   isDotSized,
   nudgeMarkStrokes,
   normalizeChillus,
