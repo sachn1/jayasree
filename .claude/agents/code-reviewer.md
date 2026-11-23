@@ -50,6 +50,25 @@ function gets a one-line summary plus NumPy `Parameters` and `Returns` sections,
 diff, because it cannot judge whether the sections *say* anything useful (a `Parameters` entry that
 only repeats the name is a finding). Full rule and example: `CONTRIBUTING.md`, "Docstrings".
 
+**0b. Docs: does each changed or new doc belong, and in the right place?** Docs are read by few people, so
+every line has to earn its place. For each changed `.md` file (and each long comment or docstring), check:
+
+- **Right home, by audience.** `README.md` = what it is and how to use it. `CONTRIBUTING.md` = how to contribute.
+  `docs/ARCHITECTURE.md` = how the *engine* works for any script. Behaviour of one script (Devanagari headline,
+  Malayalam chillu) belongs in `docs/languages/<code>/`, not in the engine docs. `docs/ROADMAP.md` = open items,
+  as short bullets. `CLAUDE.md` = a map and hard rules for an agent.
+- **One home per fact.** If the same fact is stated in two docs, one of them should be a link.
+- **Public voice, to the point.** Write for a stranger reading the docs. No personal or process notes: who
+  said what or when, local or unmerged branches, "this session", "as discussed". State the fact.
+- **Not a diary.** Session narration, "we tried X then Y", research logs, one-off surveys and "(done)" status
+  belong in git history or the PR, not the working tree. A "why this was rejected" note is fine if code or a
+  doc points at it.
+- **Short and scannable.** Flag a section over about 25 lines (unless it is a spec or reference that must stay
+  whole), a paragraph that should be a table or bullets, and a heading that does not say what is under it.
+- **Not stale.** Grep for names, paths and heading titles the change renames or removes.
+
+Say "this does not belong here" and where it should go; do not just trim words.
+
 **1. Idiomatic structure, per language, not translated between them.**
 This repo mirrors composition logic between `js/src/index.js` (runtime)
 and `python/src/jayasree/stroke_compose.py` (offline baker) by design
