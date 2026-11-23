@@ -401,7 +401,7 @@ anusvara or the dots of ङ are drawn with the letter they belong to, in compose
 last thing drawn, once for the word. A stroke counts as a dot when its bounding box (larger side) is below
 `DOT_MAX_EXTENT_FRACTION` of the em *and* its length is below `DOT_MAX_LENGTH_FRACTION` of it (`isDotSized`),
 so this is by size, not a list of letters; `findDotUnits` finds them so each stays hidden until its turn.
-Source: the Central Hindi Directorate's letter chart, and the owner (`docs/languages/hi/writing-rules.md`).
+Source: the Central Hindi Directorate's letter chart (section 2.5 of its 2024 standard), and the owner.
 
 ### Last resort: per-character fallback
 
