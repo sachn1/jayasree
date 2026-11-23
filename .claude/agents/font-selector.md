@@ -61,8 +61,8 @@ rather than the textbook form.
 
 For each candidate give: repo URL, script(s), licence, where the stroke
 sources are (exact path), what you opened to verify, and a verdict
-(`strokes` / `outlines-only` / `could-not-verify`). Write the result to
-`docs/fonts/stroke-source-survey.md`. A search that finds nothing for a
+(`strokes` / `outlines-only` / `could-not-verify`). Put the result in your
+report; do not commit a survey file. A search that finds nothing for a
 script is a valid result - say so rather than padding the list.
 
 Do not proceed to generating glyph-data.json or driving the recorder -

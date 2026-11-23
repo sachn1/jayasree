@@ -38,9 +38,9 @@ jayasree/
 ├── docs/
 │   ├── ARCHITECTURE.md            # canonical pipeline + composition reference
 │   ├── CENTERING_EXPERIMENTS.md   # centering/smoothing/straightening experiments log
+│   ├── HINDI_CLEANUP_EXPERIMENTS.md   # what was tried for Hindi's stroke cleanup
 │   ├── LANGUAGE_ONBOARDING_AGENTS.md   # the multi-agent onboarding pipeline (spec + lessons)
 │   ├── languages/<code>/          # per-language profile, font report, worklist (ml, hi)
-│   ├── fonts/stroke-source-survey.md   # survey of fonts with pen-path data
 │   ├── centering-example/         # before/after SVGs referenced from those docs
 │   └── ROADMAP.md                 # planned/not-yet-done work
 ├── tests/index.test.js             # vitest - index.js's composition/segmentation engine
@@ -115,9 +115,5 @@ Early. Two languages have data:
   (`jayasree.cleanup`, see "Cleanup (Hindi)" in [`ARCHITECTURE.md`](ARCHITECTURE.md)),
   which is Hindi-only.
 
-`glyph-data.json` currently pre-shapes
-every consonant+vowel-sign and conjunct combination via HarfBuzz rather
-than pruning to only combinations that occur in real Malayalam - fine at
-this prototyping stage, but a planned cleanup once there's a real-word
-corpus to prune against. See **`docs/ROADMAP.md`** for this and other
-not-yet-done work (multi-language support, Git LFS, deployment, ...).
+`glyph-data.json` pre-shapes every consonant+vowel-sign and conjunct combination HarfBuzz can produce. Pruning
+that, and the rest of the open work, is in [`ROADMAP.md`](ROADMAP.md).

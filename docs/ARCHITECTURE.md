@@ -130,7 +130,8 @@ then reports it and writes nothing, so a regression cannot quietly produce a hal
 `ink`, `primitives`, `shape`, `stroke`); `python/tests/test_cleanup.py` tests each part on
 synthetic glyphs and pins a sample of the committed Hindi strokes to what the code produces, so
 the data cannot drift from the code. A letter that still looks unclean after cleanup is a case to
-fix in this module, with a test, not to patch in the data.
+fix in this module, with a test, not to patch in the data. What was tried to get here:
+`docs/HINDI_CLEANUP_EXPERIMENTS.md`.
 
 To see which strokes to look at first, `tools/audit_strokes.py --lang hindi` compares the
 recordings with the shipped strokes and ranks them by the bend the cleanup *introduced* beyond what

@@ -11,7 +11,7 @@ Read `docs/LANGUAGE_ONBOARDING_AGENTS.md` in full first - specifically its
 Agent 1 "Review gate" paragraph, which is the actual specification of this
 role. This file is a thin pointer to that spec, not a duplicate of it.
 
-You will be given the path to a draft `profile.md`/`chars.json` pair. Your
+You will be given the path to a draft `profile.md`/`chars.json`/`writing-rules.md` set. Your
 job is to interrogate it, not restate it:
 
 - Check every non-obvious factual claim against a real source
@@ -22,6 +22,9 @@ job is to interrogate it, not restate it:
   instead of discovering the target script's own (see the plan doc's
   "Don't generalize from Malayalam" section for the exact failure mode to
   watch for).
+- Challenge `writing-rules.md` the same way: look for "always" claims, rules that
+  come from a lower source tier when a higher one exists, missing or inflated
+  confidence labels, and rules that silently generalize from another script.
 - Check that every "open question" the draft raised is a real, unresolved
   decision - and separately, check for judgment calls the draft resolved
   silently that should have been flagged as open questions instead.

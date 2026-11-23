@@ -21,14 +21,17 @@ Agent 1 section:
    sources (Unicode's own code charts, W3C internationalization notes,
    academic/orthographic references) - never assume it works like
    Malayalam or any other already-onboarded script.
-2. Produce two files in `docs/languages/<iso-code>/` (create the directory
+2. Produce three files in `docs/languages/<iso-code>/` (create the directory
    if needed): `profile.md` (narrative, fully sourced, with an explicit
    "agent-reviewed, not human-verified" status banner at the top) and
    `chars.json` (structured inventory mirroring `_chars.py`'s categories
    where they genuinely apply - see `python/src/jayasree/languages.py`'s
    module docstring for the current category list, which is explicitly
    not closed - introduce a new category name if this script genuinely
-   needs one, and say so).
+   needs one, and say so), and `writing-rules.md` (how the script is written
+   by hand; follow the spec's "writing rules" bullet: sources ranked with the
+   highest tier winning, a confidence and a link on every rule, "no standard
+   exists" stated plainly, and a list of questions for a native writer).
 3. Flag every non-mechanical judgment call as an explicit open question
    for the human reviewer - do not silently resolve it yourself.
 4. Cite a source for every non-obvious claim.

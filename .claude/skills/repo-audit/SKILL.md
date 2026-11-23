@@ -124,6 +124,9 @@ The checker is already green if `make lint` is. What it cannot judge, check by h
 - `docs/ROADMAP.md` - any item marked open that's actually already done
   (or vice versa)?
 - Any `docs/*.md` no longer linked from anywhere (orphaned)?
+- Does every doc belong in the repo, in the right place? Script-specific behaviour in an engine doc, history or
+  research logs in the working tree, the same fact in two docs, a section over about 25 lines, a heading that
+  does not say what is under it. Same checklist as the code-reviewer agent's "0b".
 
 ## Report format
 
