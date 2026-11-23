@@ -28,10 +28,10 @@ directly, e.g. `Agent(language-researcher, "Tamil")`.
 
 | # | Stage | Who does it | Trigger | Output | Who signs off | Status |
 |---|---|---|---|---|---|---|
-| 1a | Research the script | `language-researcher` (Agent 1) | the owner asks `/onboard-language <name>` | `docs/languages/<code>/profile.md`, `chars.json` | - (goes to 1b) | built |
+| 1a | Research the script | `language-researcher` (Agent 1) | the owner asks `/onboard-language <name>` | `docs/languages/<code>/profile.md`, `chars.json`, `writing-rules.md` | - (goes to 1b) | built |
 | 1b | Critique the draft | `language-reviewer` (read-only) | automatic, after 1a | critique, shown in chat | **the owner** approves the profile | built |
 | 2 | Ghost-font selection + HarfBuzz check | `font-selector` (Agent 2) | the profile is approved | `font-report.md` | **the owner** approves one font (a falsified claim goes back to 1a) | built |
-| 3 | Reduced atom set | `atom-reducer` (Agent 3) | the font is approved | `_chars_<code>.py`, its tests, the `LanguageSpec` entry, `glyph-data.<code>.json`, `labeling-worklist.md`, `reduced-atom-list*.txt`, a simulated coverage report | **the owner** spot-checks the worklist | built |
+| 3 | Reduced atom set | `atom-reducer` (Agent 3) | the font is approved | `_chars_<code>.py`, its tests, the `LanguageSpec` entry, `glyph-data.<code>.json`, `labeling-worklist.md` (opens with the writing-rules brief), `reduced-atom-list*.txt`, a simulated coverage report | **the owner** spot-checks the worklist | built |
 | 4 | Record strokes | **the owner**, in `tools/stroke-recorder.html` | the worklist exists | `js/src/stroke-data.<code>.raw.json` | the owner says the recording is done | human |
 | 5 | Process + verify | a command, run by the skill (not an agent) - see "Post-recording gate" | the owner says the recording is done | `js/src/stroke-data.<code>.json` | gate: `validate-data` OK and coverage 0 fallbacks | command planned (an `onboard-gate` target) |
 | 7 | Wire up and document | `language-publisher` | the stage-5 gate passes | demo tab, wordmark, README and home-page mentions, `docs/languages/<code>/README.md` | `test_language_wiring.py` passes | built |
@@ -326,6 +326,18 @@ directly:
   "Compound vowel signs" in `docs/ARCHITECTURE.md`) vs. any with no clean
   decomposition (Malayalam's ൈ is the model for that exception).
 - Unicode block, code points, and citations for every non-obvious claim.
+- **writing rules**, in their own file (`writing-rules.md`): how the script is
+  actually written by hand - stroke order and direction per letter group, where the
+  headline/baseline stroke falls in a letter and in a word, and when each mark (vowel
+  sign, nukta-equivalent, anusvara, virama) is written relative to its base and to the
+  headline. Sources are ranked and the **highest tier wins**: (1) an official or
+  community-accepted standard (a government or language-board writing guide, the national
+  curriculum's primers, Unicode/W3C notes); (2) university courses and published
+  handwriting manuals; (3) learner sites and apps. Every rule carries a **confidence**
+  (high / medium / low / unknown), its source tier, and a link; where the sources conflict
+  or no standard exists, say so instead of choosing. Many scripts have no fixed stroke
+  order - record that as a finding, not a gap. Rules that need a native writer's
+  confirmation go in a "Questions for the native writer" list.
 
 **Tools:** web search/fetch for linguistic references, Unicode's own
 script/block charts and proposals, academic/orthographic sources; no code
@@ -350,6 +362,8 @@ well-organized, not to replace it.
   questions, sources, anything the reviewer flagged.
 - `chars.json` (or directly a draft `_chars_<lang>.py`) - the structured
   inventory, machine-readable for Agent 2/3.
+- `writing-rules.md` - the writing rules above, with confidence and sources.
+  The reviewer interrogates it like the rest, hunting especially for "always" claims.
 
 ### Agent 2 - Ghost Font Selection & Coverage Verification
 
@@ -473,6 +487,11 @@ is sufficient - verify it, mechanically, using the exact composition code
   "one reported word" to the whole cluster set and to any language, not
   written twice.
 
+**The worklist opens with a writing-rules brief.** Before the first atom, copy
+in `writing-rules.md`'s rules as a short table (rule, confidence, source tier), so the
+person recording sees what the research found - and how sure it is - before drawing
+anything. Low or unknown confidence rules are listed as questions, not instructions.
+
 **Output artifacts:**
 
 - `glyph-data.<lang-code>.json` (generated, committed - same convention as
@@ -553,6 +572,7 @@ silent automation.
 docs/languages/<lang-code>/
 ├── profile.md              # Agent 1 - narrative + sources
 ├── chars.json               # Agent 1 - structured inventory
+├── writing-rules.md          # Agent 1 - how it is written by hand, with confidence + sources
 ├── font-report.md            # Agent 2 - candidates, license, coverage
 ├── labeling-worklist.md       # Agent 3 - what a human traces, in order
 ├── reduced-atom-list.txt       # Agent 3 - the atom set, grouped/commented
