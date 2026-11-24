@@ -20,7 +20,8 @@ is done, delete it here.
 - **Clean Malayalam the same way as Hindi.** Hindi's strokes are rebuilt from the font's geometry
   (`jayasree.cleanup`). Doing the same for Malayalam would change its published output, so it needs the owner's
   approval, a visual review of every letter and a regenerated freeze golden (`CONTRIBUTING.md`, "Language
-  freezes"). The cleanup was tuned on Noto Sans Devanagari, so Manjari needs its own check.
+  freezes"). The cleanup was tuned on Noto Sans Devanagari; an attempt on Manjari and what blocks it are in
+  `docs/MALAYALAM_CLEANUP_EXPERIMENTS.md`.
 
 ## Learning features
 
