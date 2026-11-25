@@ -19,19 +19,21 @@ locally with `make install && make demo` and open <http://127.0.0.1:8000/demo/>.
 ## Use it
 
 ```bash
-npm install jayasree
+npm install jayasree @jayasree-stroke/ml
 ```
 
 ```js
 import { createStrokeWriter } from "jayasree";
+import { glyphData, strokeData } from "@jayasree-stroke/ml";
 
 const writer = createStrokeWriter(document.getElementById("stage"));
-await writer.load();          // fetches glyph-data.json once
-await writer.loadStrokes();   // fetches stroke-data.json (optional)
+await writer.load(glyphData);          // fetches the glyph outlines once
+await writer.loadStrokes(strokeData);  // fetches the strokes (optional)
 await writer.play("നന്ദി");
 ```
 
-The npm package bundles Malayalam's data. Hindi's lives in `js/src/*.hi.json` and is shown in the demo.
+`jayasree` is the engine; each language's data is its own package, and each stands alone. The packages, their
+licences and the other languages and stroke types are in [`js/README.md`](js/README.md).
 
 All options and examples: [`js/README.md`](js/README.md).
 
@@ -39,7 +41,7 @@ All options and examples: [`js/README.md`](js/README.md).
 
 | Language | Strokes | Status |
 |---|---|---|
-| Malayalam | 297 hand-recorded atoms, ~2050 clusters covered | production |
+| Malayalam | ~2050 clusters, as 297 hand-recorded atoms or as the pen strokes of three SMC fonts ([how](docs/languages/ml/font-strokes.md)); switch in the demo | production |
 | Hindi (Devanagari) | 183 atoms, all 2443 clusters covered | production - all strokes recorded and cleaned against the font |
 | Tamil, Telugu, Kannada, Bengali, Sanskrit | - | planned, one at a time |
 

@@ -61,7 +61,7 @@ export default [
     // tools/coverage_report.js: Node ES module, run via `node`, not loaded
     // by a browser - more specific than the tools/*.js block above, so its
     // settings win for this one file.
-    files: ["tools/coverage_report.js"],
+    files: ["tools/coverage_report.js", "tools/build_npm_packages.js"],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: "module",

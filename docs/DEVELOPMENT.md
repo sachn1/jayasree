@@ -98,10 +98,13 @@ workflow by hand (`workflow_dispatch`) for that, or to recover from a cancelled 
 Versions come from commit history (`feat` minor, `fix` patch, a `!` breaking commit or `BREAKING CHANGE` footer on
 a `feat`/`fix` major); never edit one by hand. Merging to `master` runs `release-on-merge.yml`, which bumps, tags
 and updates the changelog only if the merge has a `feat`, `fix`, `refactor`, `perf` or breaking commit (what the
-changelog lists, so no release has an empty entry). `publish.yml` publishes to npm only if `js/src/`
-changed since the previous tag, and only while the repository variable `NPM_PUBLISH_ENABLED` is `true`
-(held for now: setting it does not publish a tag already pushed, so run `publish.yml` by hand
-(`workflow_dispatch`) to publish the held release). The workflows document the details.
+changelog lists, so no release has an empty entry). `publish.yml` publishes the engine (`js/`) and the data
+packages (`tools/build_npm_packages.js` builds them into `dist-npm/`; one entry per package in its
+`DATA_PACKAGES`, all sharing one version) to npm only if `js/src/`
+(or the data licences or the package builder) changed since the previous tag, and only while the repository
+variable `NPM_PUBLISH_ENABLED` is `true`. Setting it does not publish a tag already pushed: run `publish.yml`
+by hand (`workflow_dispatch`) for that. Each package needs its own trusted publisher on npmjs.com (workflow
+`publish.yml`); a brand-new package may need one manual `npm publish` first.
 
 ## Status and known limitations
 

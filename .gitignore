@@ -11,6 +11,12 @@ build/
 # generated offline recorder bundles - `make build-recorder` (PROJECT_LANG=hindi for Hindi)
 tools/stroke-recorder-standalone*.html
 
+# the chooser's export drop; the committed copy is tools/font-stroke-choices.ml.json
+/font-stroke-choices.*.json
+
+# generated npm data packages - `node tools/build_npm_packages.js`
+dist-npm/
+
 # generated outputs - re-create with build_glyph_data.py / alphabet CLI
 alphabet-trace.json
 python/alphabet-trace.json
