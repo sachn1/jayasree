@@ -115,11 +115,15 @@ export const UNIVERSAL_CHARS = {
   ")": 0.15,
 };
 
-/** Default URL for the bundled glyph data. */
-const GLYPH_DATA_URL = new URL("./glyph-data.json", import.meta.url);
+// The default data files sit beside this file in the repository but are not in the npm package. The base
+// is a variable so that bundlers (Vite, webpack) don't try to resolve the files while building an app.
+const HERE = import.meta.url;
 
-/** Default URL for the bundled stroke data. */
-const STROKE_DATA_URL = new URL("./stroke-data.json", import.meta.url);
+/** Default URL for the glyph data (repository only; the npm data packages export their own). */
+const GLYPH_DATA_URL = new URL("./glyph-data.json", HERE);
+
+/** Default URL for the stroke data (repository only). */
+const STROKE_DATA_URL = new URL("./stroke-data.json", HERE);
 
 /**
  * Per-cluster start-point overrides.
@@ -1040,6 +1044,19 @@ function resolveSegments(text, clusters, marks, legacyEncodings = {}) {
   return segs;
 }
 
+/**
+ * Decide how a cluster is drawn: with its authored strokes, as an outline trace, or not at all.
+ *
+ * @param {{ strokes?: object[] }|null|undefined} authored - The strokes found for the cluster, if any.
+ * @param {boolean} outlineOnly - Trace outlines for every cluster, ignoring authored strokes.
+ * @param {boolean} outlineFallback - Whether a cluster with no strokes may be traced as an outline.
+ * @returns {"strokes"|"outline"|"blank"}
+ */
+function drawMode(authored, outlineOnly, outlineFallback) {
+  if (authored?.strokes?.length) return "strokes";
+  return outlineOnly || outlineFallback ? "outline" : "blank";
+}
+
 // ---------------------------------------------------------------------------
 // Public factory
 // ---------------------------------------------------------------------------
@@ -1063,6 +1080,9 @@ function resolveSegments(text, clusters, marks, legacyEncodings = {}) {
  *   always animate the outer-contour outline fallback, even for clusters with authored
  *   strokes. Useful for a consistent tracing style independent of authoring coverage
  *   (e.g. a wordmark mixing authored and not-yet-authored clusters).
+ * @param {boolean} [options.outlineFallback=true] - Trace a cluster's outline when it has no strokes.
+ *   With `false` no pen stroke is drawn for such a cluster (it is still listed by
+ *   `getFallbackClusters`; the faint ghost letter remains), so only authored strokes ever appear.
  * @returns {{ load: Function, loadStrokes: Function, play: Function, replay: Function, cancel: Function, destroy: Function, getFallbackClusters: Function }}
  */
 export function createStrokeWriter(container, options = {}) {
@@ -1071,6 +1091,7 @@ export function createStrokeWriter(container, options = {}) {
   const TIGHTEN = options.tighten ?? DEFAULT_TIGHTEN_FRACTION;
   const STROKE_WIDTH_FRACTION = options.strokeWidth ?? DEFAULT_STROKE_WIDTH_FRACTION;
   const OUTLINE_ONLY = options.outlineOnly ?? false;
+  const OUTLINE_FALLBACK = options.outlineFallback ?? true;
   const state = { playToken: 0, lastFallbackClusters: [] };
   let glyphData = options.glyphData ?? null;
   let lastText = null;
@@ -1080,13 +1101,20 @@ export function createStrokeWriter(container, options = {}) {
   /**
    * Fetch and cache glyph-data.json (idempotent).
    *
-   * @param {string | URL} [url] - Defaults to the bundled glyph-data.json.
+   * @param {string | URL} [url] - A language's glyph data, e.g. `glyphData` from
+   *   `@jayasree-stroke/ml`. Defaults to the glyph-data.json beside this file, which
+   *   exists in the repository but not in the npm package.
    * @returns {Promise<void>}
    */
   async function load(url = GLYPH_DATA_URL) {
     if (glyphData) return;
     const resp = await fetch(url);
-    if (!resp.ok) throw new Error(`Failed to load glyph data: ${resp.status}`);
+    if (!resp.ok) {
+      throw new Error(
+        `Failed to load glyph data from ${url}: ${resp.status}. ` +
+          "Install a data package (e.g. @jayasree-stroke/ml) and pass its glyphData URL to load().",
+      );
+    }
     glyphData = await resp.json();
   }
 
@@ -1097,7 +1125,8 @@ export function createStrokeWriter(container, options = {}) {
    * simply falls back to outline-based animation for unrecognised clusters.
    * Existing keys are never overwritten so multiple calls are safe.
    *
-   * @param {string | URL} [url] - Defaults to the bundled stroke-data.json.
+   * @param {string | URL} [url] - A language's strokes, e.g. `strokeData` from
+   *   `@jayasree-stroke/ml`. Defaults to the stroke-data.json beside this file.
    * @returns {Promise<void>}
    */
   async function loadStrokes(url = STROKE_DATA_URL) {
@@ -1343,8 +1372,11 @@ export function createStrokeWriter(container, options = {}) {
       // something to flag as missing handwriting data.
       if (!OUTLINE_ONLY && !authored?.strokes?.length) fallbackClusters.push(grp.cluster);
 
+      const mode = drawMode(authored, OUTLINE_ONLY, OUTLINE_FALLBACK);
+      if (mode === "blank") return { gEl: null, subUnits: [] };
+
       // Authored path: one group element translated to the cluster origin.
-      if (authored?.strokes?.length) {
+      if (mode === "strokes") {
         const gEl = svgEl("g", { transform: `translate(${grp.groupX},0)` });
         svg.appendChild(gEl);
         const tr = { x: grp.groupX, y: 0 };
@@ -1507,7 +1539,8 @@ export function createStrokeWriter(container, options = {}) {
     state.lastFallbackClusters = fallbackClusters;
     if (fallbackClusters.length) {
       console.warn(
-        `jayasree: no handwriting data for ${fallbackClusters.map((c) => JSON.stringify(c)).join(", ")} in ${JSON.stringify(text)} - showing an approximated outline trace instead`
+        `jayasree: no handwriting data for ${fallbackClusters.map((c) => JSON.stringify(c)).join(", ")} in ${JSON.stringify(text)} - ` +
+          (OUTLINE_FALLBACK ? "showing an approximated outline trace instead" : "drawing nothing for them")
       );
     }
 
@@ -1602,6 +1635,7 @@ export function createStrokeWriter(container, options = {}) {
  * disappear without notice. Use {@link createStrokeWriter} for real usage.
  */
 export const _internal = {
+  drawMode,
   composeMark,
   tightenMarks,
   resolveGhostEntry,

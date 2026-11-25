@@ -7,4 +7,5 @@
 # The committed data files are the project's crown jewels (see
 # CONTRIBUTING.md's "Data integrity & governance") - always owner-reviewed.
 /js/src/*.json @sachn1
+/tools/font-stroke-choices.*.json @sachn1
 /python/tests/snapshots/ @sachn1
