@@ -22,7 +22,7 @@ animate).
 |---|---|
 | How do I use this / record strokes / run it | `README.md` |
 | How does the pipeline work internally, file by file | `docs/ARCHITECTURE.md` |
-| Why does centering/smoothing/straightening (or Hindi's cleanup) work this way | `docs/CENTERING_EXPERIMENTS.md`, `docs/HINDI_CLEANUP_EXPERIMENTS.md` |
+| Why does centering/smoothing/straightening (or Hindi's cleanup) work this way | `docs/CENTERING_EXPERIMENTS.md`, `docs/HINDI_CLEANUP_EXPERIMENTS.md`, `docs/MALAYALAM_CLEANUP_EXPERIMENTS.md` |
 | What's planned but not done | `docs/ROADMAP.md` |
 | Rules for contributing code or stroke data, commit conventions | `CONTRIBUTING.md` |
 | Onboarding a new Indic language: the agent sequence, gates, and Hindi's lessons | `docs/LANGUAGE_ONBOARDING_AGENTS.md` (or just `/onboard-language <name>`) |

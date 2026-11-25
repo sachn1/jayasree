@@ -39,6 +39,7 @@ jayasree/
 │   ├── ARCHITECTURE.md            # canonical pipeline + composition reference
 │   ├── CENTERING_EXPERIMENTS.md   # centering/smoothing/straightening experiments log
 │   ├── HINDI_CLEANUP_EXPERIMENTS.md   # what was tried for Hindi's stroke cleanup
+│   ├── MALAYALAM_CLEANUP_EXPERIMENTS.md   # the same attempt on Malayalam, and what blocks it
 │   ├── LANGUAGE_ONBOARDING_AGENTS.md   # the multi-agent onboarding pipeline (spec + lessons)
 │   ├── languages/<code>/          # per-language profile, font report, worklist (ml, hi)
 │   ├── centering-example/         # before/after SVGs referenced from those docs
