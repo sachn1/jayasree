@@ -4,33 +4,50 @@
 Animates Indic-script text (Malayalam and Hindi so far) as handwriting - a pen traces each letter left to right,
 over a faint ghost of the complete letterform.
 
-Self-contained. No server. No font file at runtime. Glyph shapes are
-pre-computed and bundled in `glyph-data.json`.
+No server and no font file at runtime: glyph shapes are pre-computed. This package is the engine; a script's
+letters come from a data package installed beside it.
 
 ## Install
 
 ```bash
-npm install jayasree
+npm install jayasree @jayasree-stroke/ml      # Malayalam handwriting
+npm install jayasree @jayasree-stroke/hi      # Hindi handwriting
+npm install jayasree @jayasree-stroke/ml-font # Malayalam strokes from fonts
 ```
 
-Published at [npmjs.com/package/jayasree](https://www.npmjs.com/package/jayasree).
-You can also copy `js/src/` into your project or serve it locally instead -
-it's plain ES modules, no build step required.
+| Package | Contents | Licence |
+| --- | --- | --- |
+| `jayasree` | the engine | MIT |
+| `@jayasree-stroke/ml` | Malayalam glyph outlines and handwriting strokes | CC BY-SA 4.0 (strokes) + OFL 1.1 (outlines) |
+| `@jayasree-stroke/hi` | Hindi glyph outlines and handwriting strokes | CC BY-SA 4.0 (strokes) + OFL 1.1 (outlines) |
+| `@jayasree-stroke/ml-font` | Malayalam glyph outlines and strokes from the Chilanka, Manjari and Nupuram fonts | SIL OFL 1.1 |
+
+Published at [npmjs.com/package/jayasree](https://www.npmjs.com/package/jayasree) and
+[npmjs.com/org/jayasree-stroke](https://www.npmjs.com/org/jayasree-stroke). You can also copy `js/src/` into your
+project or serve it locally instead - it's plain ES modules, no build step required.
 
 ## Usage
 
 ```js
 import { createStrokeWriter } from "jayasree";
+import { glyphData, strokeData } from "@jayasree-stroke/ml";
 
 const writer = createStrokeWriter(document.getElementById("stage"));
-await writer.load();          // fetches glyph-data.json once
-await writer.loadStrokes();   // fetches stroke-data.json (no-op if absent)
+await writer.load(glyphData);          // fetches the glyph outlines once
+await writer.loadStrokes(strokeData);  // fetches the strokes (no-op if absent)
 await writer.play("നന്ദി");   // any text in a supported script, e.g. Malayalam or Hindi
 
 writer.replay();   // play the same text again
 writer.cancel();   // stop mid-animation
 writer.destroy();  // cancel + clear the container
 ```
+
+For Hindi, import from `@jayasree-stroke/hi` instead. For Malayalam strokes taken from the fonts, import from
+`@jayasree-stroke/ml-font` and create the writer with its `writerOptions` (`outlineFallback: false`, below). Each
+data package stands alone; use **one writer per language**, and never load the handwriting and font strokes into
+the same page: stroke data is shared by all writers on a page and the first loaded wins. A wrong URL fails
+silently for strokes (outline tracing takes over), so check `writer.getFallbackClusters()` if the pen looks like
+it is tracing outlines.
 
 Spaces and common punctuation (`.`, `,`, `!`, `?`, `;`, `:`, `-`, quotes,
 parens) work in `play()` text without any setup - they're rendered as
@@ -58,6 +75,7 @@ the same stroke; you never need to normalize input yourself. See
 | `tighten` | `0.06` | Inter-cluster spacing tightening, as a fraction of `unitsPerEm` trimmed from each cluster's advance - the font's own advance widths read as a little loose for a handwriting UI. `0` reproduces the font's raw spacing. |
 | `strokeWidth` | `0.022` | Ink line thickness, as a fraction of `unitsPerEm`. |
 | `outlineOnly` | `false` | Ignore authored strokes entirely and always animate the outer-contour outline fallback - useful for a consistent tracing style independent of authoring coverage (e.g. a wordmark mixing authored and not-yet-authored clusters). |
+| `outlineFallback` | `true` | Draw the outline trace for a letter that has no strokes. `false` draws no pen stroke for it (the ghost letter stays) - for the font-based Malayalam strokes, where nothing from the handwriting set may appear. |
 | `glyphData` | `null` | Pre-loaded glyph data object, skipping `load()`'s own fetch. |
 
 ```js
@@ -98,18 +116,18 @@ if (writer.getFallbackClusters().length) {
 }
 ```
 
-## Two data files
+## The data
 
-Both live in `js/` and should be committed to your repo:
+A language's data is two files, which the data packages above carry (in the repository they sit in `js/src/`,
+one pair per language):
 
 | File | What it contains | Font-specific? |
 |---|---|---|
-| `src/glyph-data.json` | SVG outlines + advance widths for every cluster | Yes - re-run `tools/build_glyph_data.py` when you change fonts |
+| `glyph-data.json` | SVG outlines + advance widths for every cluster | Yes - re-run `tools/build_glyph_data.py` when you change fonts |
 | `stroke-data.json` | Hand-authored centerline stroke paths | No - commit once, works across fonts |
 
-When `stroke-data.json` has coverage for a cluster, the pen follows those
-paths. Otherwise it falls back to tracing the outer contour of the font
-outline.
+When the stroke data covers a cluster, the pen follows those paths. Otherwise it falls back to tracing the
+outer contour of the font outline (see `outlineFallback`).
 
 ## Regenerating glyph-data.json for a different font
 

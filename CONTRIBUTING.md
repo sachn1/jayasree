@@ -45,7 +45,11 @@ Open the [stroke recorder](tools/stroke-recorder.html) (or build an offline copy
   fails CI if one appears in any data file.
 - **Changing an already-recorded character is deliberate.** The snapshot test fails until you run
   `make update-snapshot` and commit the result in the same PR. New characters don't need this.
-- **Licence:** stroke data for every language is CC BY-SA 4.0 ([LICENSE-DATA](LICENSE-DATA)). You are
+- **Font-based strokes (Malayalam)** are chosen per letter from the SMC fonts and built into
+  `js/src/stroke-data.font.json`; both it and `font-strokes.ml.json` are generated. The workflow is in
+  [`docs/languages/ml/font-strokes.md`](docs/languages/ml/font-strokes.md).
+- **Licence:** stroke data for every language is CC BY-SA 4.0 ([LICENSE-DATA](LICENSE-DATA)), except the
+  font-derived strokes above, which keep their fonts' OFL (`third-party/`). You are
   credited in git history; ask in the PR for more prominent credit. There is no private or premium tier.
   The engine code stays MIT.
 
@@ -153,6 +157,7 @@ Rules:
 - **A new language must not touch a shipped one.** Today that is Malayalam and Hindi: no edits to their
   `_chars*.py`, `stroke-data*.raw.json` or `test_chars_*.py`. If shared code must change, every shipped
   language's tests must pass *unmodified*; if you had to change them, the feature wasn't common.
+- Add its data package to `DATA_PACKAGES` in `tools/build_npm_packages.js` (a test fails until you do).
 - Add `_chars_<code>.py` (`_chars_hi.py` is the worked example), a `LanguageSpec` in `languages.py`'s
   `LANGUAGES`, its own data files, and a `test_chars_<code>.py`.
 - Recording needs a native writer; strokes from someone who doesn't write the script daily are worse than

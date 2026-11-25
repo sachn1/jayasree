@@ -25,7 +25,8 @@ opening a PR that adds or changes a language's `stroke-data*.raw.json`/
 it's explicitly listed above yet), a contributor agrees it is released
 under these same terms. The list above will simply grow as new languages
 are onboarded; a language's absence from it just means its onboarding
-hasn't landed yet, not that different terms apply.
+hasn't landed yet, not that different terms apply. The one exception is the font-derived
+stroke data described under "Third-party letterforms" below, which keeps its fonts' license.
 
 What CC BY-SA 4.0 means in practice: you may copy, redistribute, remix, and
 build on this content - including commercially - as long as you (a) give
@@ -45,11 +46,30 @@ js/src/glyph-data.json, and the letterform outlines that appear inside the
 generated SVGs above, are derived from the Manjari typeface by Santhosh
 Thottingal / Swathanthra Malayalam Computing (https://smc.org.in/fonts/manjari),
 licensed under the SIL Open Font License 1.1. Manjari's copyright remains
-with its authors.
+with its authors. Its licence text is
+in third-party/OFL-Manjari.txt and travels with the npm packages that carry that data.
 
 js/src/glyph-data.hi.json is derived from Noto Sans Devanagari (The Noto
-Project Authors), also licensed under the SIL Open Font License 1.1 - see
-docs/languages/hi/README.md for the selection rationale.
+Project Authors), also licensed under the SIL Open Font License 1.1 (third-party/
+OFL-NotoSansDevanagari.txt) - see docs/languages/hi/README.md for the selection rationale.
+
+js/src/font-strokes.ml.json, and js/src/stroke-data.font.json built from it, are the pen
+strokes in the sources of three fonts by Swathanthra Malayalam Computing (SMC), moved onto
+Manjari's outlines (a few letters are put together from other letters' strokes, moved the same way):
+
+  - Chilanka, Copyright 2023 The Chilanka Project Authors
+  - Manjari,  Copyright 2023 The Manjari Project Authors
+    (both designed by Santhosh Thottingal; see each font's AUTHORS file)
+  - Nupuram,  Copyright 2023 The Nupuram Project Authors (its centre lines come from its MetaPost
+    glyph sources, whose folder also carries an MIT notice; the font itself is under the OFL)
+
+They are a derived work of those fonts' sources and stay under the SIL Open Font License 1.1,
+not CC BY-SA 4.0. The license text and copyright notices are in third-party/OFL-Chilanka.txt,
+third-party/OFL-Manjari.txt and third-party/OFL-Nupuram.txt and must travel with any copy of this data. Under the OFL:
+keep that notice and license with every copy; do not sell the data by itself; do not use the
+authors' names to promote or endorse anything built on it (the names here only acknowledge
+their work); a modified copy stays under the OFL. The authors do not support or endorse
+Jayasree - please do not send them support requests about it.
 
 If you regenerate a language's glyph-data.json from a different font, that
 font's own license applies to your output instead.

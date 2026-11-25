@@ -766,3 +766,27 @@ describe("findDotUnits", () => {
     expect(findDotUnits([{ subUnits: [at(300)] }, { subUnits: [] }], isDot)).toEqual([]);
   });
 });
+
+describe("drawMode", () => {
+  const strokes = { strokes: [{ d: "M0 0 L1 1" }] };
+
+  it("draws a cluster's authored strokes whenever it has them", () => {
+    expect(_internal.drawMode(strokes, false, true)).toBe("strokes");
+    expect(_internal.drawMode(strokes, false, false)).toBe("strokes");
+  });
+
+  it("traces an outline for a cluster with no strokes by default", () => {
+    expect(_internal.drawMode(null, false, true)).toBe("outline");
+    expect(_internal.drawMode({ strokes: [] }, false, true)).toBe("outline");
+  });
+
+  it("draws nothing for a cluster with no strokes when the outline fallback is off", () => {
+    expect(_internal.drawMode(null, false, false)).toBe("blank");
+    expect(_internal.drawMode(undefined, false, false)).toBe("blank");
+    expect(_internal.drawMode({ strokes: [] }, false, false)).toBe("blank");
+  });
+
+  it("still traces outlines when outline-only was asked for", () => {
+    expect(_internal.drawMode(null, true, false)).toBe("outline");
+  });
+});

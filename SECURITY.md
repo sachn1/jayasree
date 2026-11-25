@@ -2,8 +2,8 @@
 
 ## Supported versions
 
-Only the latest release of the `jayasree` npm package (and the `master` branch it is cut from) is
-supported. Fixes are released as a new version; older versions are not patched.
+Only the latest release of the `jayasree` npm package and its data packages (`@jayasree-stroke/*`), and the
+`master` branch they are cut from, is supported. Fixes are released as a new version; older versions are not patched.
 
 ## Reporting a vulnerability
 
@@ -17,7 +17,7 @@ us reasonable time before disclosing publicly; we are happy to credit you in the
 
 ## What is in scope
 
-- **The JS runtime** (`js/`, published as `jayasree`): for example script injection through the
+- **The JS runtime** (`js/`, published as `jayasree`; its data is the `@jayasree-stroke/*` packages): for example script injection through the
   text it is given or the data files it loads, or anything that would run in a visitor's browser.
 - **The build tooling** (`python/`, `tools/`): for example unsafe handling of file paths or of
   untrusted font or data files.

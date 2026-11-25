@@ -24,18 +24,10 @@ jobs:
       - name: Ensure npm CLI supports trusted publishing
         run: npm install -g npm@11
 
-      # A shared version number covers the npm package, the (unpublished)
-      # Python build-tool package, and the site's version badge together -
-      # see CONTRIBUTING.md's "Commit messages & versioning" for why one
-      # number is worth keeping despite this. That means plenty of tagged
-      # releases don't touch anything npm actually ships (js/src/*,
-      # js/README.md, js/LICENSE - js/package.json is deliberately excluded
-      # here since its version line always changes on every bump regardless
-      # of real content). Skip the actual publish for those - re-publishing
-      # byte-identical package contents under a new version number is just
-      # noise on npm, even though the git tag/CHANGELOG entry for it is
-      # still real and worth keeping. Only applies to the tag-push trigger;
-      # a manual workflow_dispatch run is an explicit "publish anyway".
+      # One version number covers every npm package, the Python build tool and the site badge, so many
+      # tagged releases change nothing npm ships. Skip the publish for those (re-publishing identical
+      # contents under a new version is noise); the tag and changelog entry still stand. This applies to
+      # tag pushes only: a manual workflow_dispatch run publishes anyway.
       - name: Check whether this release actually changed the npm package
         id: pkg-diff
         if: github.event_name == 'push'
@@ -44,19 +36,28 @@ jobs:
           if [ -z "$prev_tag" ]; then
             echo "No previous tag found - publishing (first release)."
             echo "changed=true" >> "$GITHUB_OUTPUT"
-          elif git diff --quiet "$prev_tag" "${{ github.ref_name }}" -- js/src js/README.md js/LICENSE; then
+          elif git diff --quiet "$prev_tag" "${{ github.ref_name }}" -- js/src js/README.md js/LICENSE tools/build_npm_packages.js LICENSE-DATA third-party; then
             echo "js/ unchanged since $prev_tag - skipping npm publish."
             echo "changed=false" >> "$GITHUB_OUTPUT"
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
 
-      # Publishing is off until the repository variable NPM_PUBLISH_ENABLED is set to "true"
-      # (Settings -> Secrets and variables -> Actions -> Variables). It is held while the npm package is
-      # being split into an engine plus one data package per language; the tag, changelog and site
-      # deploy still happen without it.
-      - name: Publish js/ to npm
+      # Off until the repository variable NPM_PUBLISH_ENABLED is "true". The engine (js/) and each data
+      # package (built into dist-npm/) share one version; a package whose version is already on npm is
+      # skipped, so a re-run after a partial failure publishes only what is missing.
+      - name: Publish the engine and data packages to npm
         if: >-
           vars.NPM_PUBLISH_ENABLED == 'true' &&
           (github.event_name == 'workflow_dispatch' || steps.pkg-diff.outputs.changed == 'true')
-        run: cd js && npm publish --access public --provenance
+        run: |
+          node tools/build_npm_packages.js
+          for dir in js dist-npm/*/; do
+            name=$(node -p "require('./$dir/package.json').name")
+            version=$(node -p "require('./$dir/package.json').version")
+            if npm view "$name@$version" version >/dev/null 2>&1; then
+              echo "$name@$version is already on npm - skipping."
+            else
+              (cd "$dir" && npm publish --access public --provenance)
+            fi
+          done

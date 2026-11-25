@@ -31,6 +31,9 @@ import { createStrokeWriter, STROKE_LIBRARY } from "../js/src/index.js";
  * @property {string} glyphData       Path to the language's glyph-data file.
  * @property {string} strokeData      Processed strokes - awaited before the first trace.
  * @property {string} strokeDataRaw   Raw strokes - fetched but not awaited (see ensureLanguage).
+ * @property {string} [fontStrokes]   The designers' own pen strokes, chosen per letter from fonts. If set, a
+ *   "Strokes" switch offers Handwriting or Font-based. Font-based uses only these strokes: a cluster the fonts
+ *   do not cover is drawn as an outline, and the page says which, rather than borrowing handwriting.
  * @property {number} strokeWidth     Initial ink thickness (fraction of unitsPerEm).
  * @property {number} [speed]         Writer base pen speed; omit for index.js's default.
  * @property {{word: string, speed: number}} [logo]
@@ -44,23 +47,74 @@ const LANGUAGES = [
     code: "ml",
     tabLabel: "മലയാളം · Malayalam",
     tagline: "Malayalam handwriting, animated stroke by stroke",
-    sub: "Type any word and watch it be written.",
+    sub:
+      "Type any word and watch it be written, as handwriting or with the designers' own pen strokes " +
+      "from the Manjari, Chilanka and Nupuram fonts. The letter browser below traces one letter at a time.",
     defaultWord: "നന്ദി",
     words: [
-      "അമ്മ",
-      "നന്ദി",
-      "മലയാളം",
-      "ആലയം",
-      "ക്ഷമിക്കണം",
-      "ജയശ്രീ",
-      "നോവ്",
-      "ധൃഷ്ടദ്യുമ്നൻ",
-      "പ്രദ്യുമ്നൻ",
+      { word: "അമ്മ", label: "അമ്മ (mother)" },
+      { word: "അച്ഛൻ", label: "അച്ഛൻ (father)" },
+      { word: "നന്ദി", label: "നന്ദി (thanks)" },
+      { word: "മലയാളം", label: "മലയാളം (Malayalam)" },
+      { word: "കേരളം", label: "കേരളം (Kerala)" },
+      { word: "ഫലം", label: "ഫലം (fruit)" },
+      { word: "ഭാഷ", label: "ഭാഷ (language)" },
+      { word: "പുസ്തകം", label: "പുസ്തകം (book)" },
+      { word: "വിദ്യാലയം", label: "വിദ്യാലയം (school)" },
+      { word: "സ്നേഹം", label: "സ്നേഹം (love)" },
+      { word: "ക്ഷമിക്കണം", label: "ക്ഷമിക്കണം (sorry)" },
+      { word: "ആലയം", label: "ആലയം (abode)" },
+      { word: "ജയശ്രീ", label: "ജയശ്രീ (Jayasree)" },
+      { word: "ധൃഷ്ടദ്യുമ്നൻ", label: "ധൃഷ്ടദ്യുമ്നൻ" },
+      { word: "പ്രദ്യുമ്നൻ", label: "പ്രദ്യുമ്നൻ" },
+      { word: "പൃഥ്വി", label: "പൃഥ്വി (earth)" },
+      { word: "ബൃഹത്", label: "ബൃഹത് (large)" },
+      { word: "മൃഗം", label: "മൃഗം (animal)" },
+      { word: "വൃക്ഷം", label: "വൃക്ഷം (tree)" },
+    ],
+    letters: [
+      ...["അ", "ആ", "ഇ", "ഈ", "ഉ", "ഊ", "ഋ", "എ", "ഏ", "ഐ", "ഒ", "ഓ", "ഔ"],
+      ...[
+        "ക",
+        "ഖ",
+        "ഗ",
+        "ഘ",
+        "ങ",
+        "ച",
+        "ഛ",
+        "ജ",
+        "ഝ",
+        "ഞ",
+        "ട",
+        "ഠ",
+        "ഡ",
+        "ഢ",
+        "ണ",
+      ],
+      ...["ത", "ഥ", "ദ", "ധ", "ന", "പ", "ഫ", "ബ", "ഭ", "മ", "യ", "ര", "ല", "വ"],
+      ...["ശ", "ഷ", "സ", "ഹ", "ള", "ഴ", "റ"],
+      ...["ൺ", "ൻ", "ർ", "ൽ", "ൾ", "ൿ"],
+      ...[
+        "ക്ഷ",
+        "ങ്ക",
+        "ഞ്ച",
+        "ണ്ട",
+        "ന്ത",
+        "മ്പ",
+        "ത്ത",
+        "ല്ല",
+        "ള്ള",
+        "സ്ത",
+        "ശ്ര",
+        "ന്ന",
+      ],
+      ...["ക്ക", "ച്ച", "പ്പ", "ട്ട", "യ്യ", "ദ്ധ", "ച്ഛ"],
     ],
     speechLang: "ml-IN",
     glyphData: "../js/src/glyph-data.json",
     strokeData: "../js/src/stroke-data.json",
     strokeDataRaw: "../js/src/stroke-data.raw.json",
+    fontStrokes: "../js/src/stroke-data.font.json",
     strokeWidth: 0.022,
   },
   {
@@ -126,6 +180,10 @@ const speedVal = $("speedVal");
 const thicknessCtl = $("thicknessCtl");
 const thicknessVal = $("thicknessVal");
 const countCtl = $("countCtl");
+const strokeLabel = $("strokeLabel");
+const strokeCtl = $("strokeCtl");
+const strokeNote = $("strokeNote");
+const strokeCoverage = $("strokeCoverage");
 
 // ---------------------------------------------------------------------------
 // Per-language state
@@ -143,6 +201,8 @@ const countCtl = $("countCtl");
  * @property {ReturnType<typeof createStrokeWriter> | null} writer
  * @property {number} strokeWidth   Current thickness for this language.
  * @property {string} word          Last word in the input for this language.
+ * @property {"handwriting" | "font"} strokeMode  Which stroke set a language with `fontStrokes` is showing.
+ * @property {{hand: object, font: object} | null} sets  Both stroke sets, once loaded (only with `fontStrokes`).
  */
 
 /** @type {Map<string, LanguageState>} */
@@ -163,6 +223,8 @@ for (const config of LANGUAGES) {
     writer: null,
     strokeWidth: config.strokeWidth,
     word: config.defaultWord,
+    strokeMode: "handwriting",
+    sets: null,
   });
 }
 
@@ -171,8 +233,13 @@ let active = states.get(LANGUAGES[0].code);
 
 /** Build a writer for a language at its current thickness. */
 function makeWriter(state) {
-  const options = { glyphData: state.glyphData, strokeWidth: state.strokeWidth };
+  const options = {
+    glyphData: state.glyphData,
+    strokeWidth: state.strokeWidth,
+  };
   if (state.config.speed !== undefined) options.speed = state.config.speed;
+  // A language with two stroke sets shows only what the chosen set has: nothing is traced in their place.
+  if (state.config.fontStrokes) options.outlineFallback = false;
   return createStrokeWriter(state.stageEl, options);
 }
 
@@ -215,6 +282,11 @@ function ensureLanguage(state) {
   state.ready ??= (async () => {
     await ensureGlyphData(state);
     const { config } = state;
+    if (config.fontStrokes) {
+      state.sets = await loadStrokeSets(config);
+      applyStrokeMode(state);
+      return;
+    }
     await state.writer.loadStrokes(`${config.strokeData}?v=${Date.now()}`);
     state.writer.loadStrokes(`${config.strokeDataRaw}?v=${Date.now()}`);
   })().catch((err) => {
@@ -222,6 +294,53 @@ function ensureLanguage(state) {
     throw err;
   });
   return state.ready;
+}
+
+/**
+ * Fetch a language's handwriting and font-based stroke sets.
+ *
+ * Handwriting is the processed file with the raw file filling what it lacks, the way the runtime merges them.
+ *
+ * @param {LanguageConfig} config
+ * @returns {Promise<{hand: object, font: object}>}
+ */
+async function loadStrokeSets(config) {
+  const get = async (url) => {
+    const resp = await fetch(`${url}?v=${Date.now()}`);
+    if (!resp.ok) throw new Error(`Failed to load ${url}: ${resp.status}`);
+    return resp.json();
+  };
+  const [processed, raw, font] = await Promise.all([
+    get(config.strokeData),
+    get(config.strokeDataRaw),
+    get(config.fontStrokes),
+  ]);
+  const hand = {};
+  for (const [cluster, entry] of Object.entries({ ...raw, ...processed })) {
+    if (!cluster.startsWith("_")) hand[cluster] = entry;
+  }
+  return { hand, font };
+}
+
+/**
+ * Put the language's chosen stroke set into the shared STROKE_LIBRARY.
+ *
+ * Font-based means only the designers' strokes: no handwriting is mixed in, and the engine builds combinations
+ * (a letter with a vowel sign, say) from the font strokes. The library is shared by all languages, so only
+ * Malayalam's clusters are cleared.
+ * All of them are cleared, not just the two sets' keys: the engine caches every cluster it composes (a letter
+ * with a vowel sign, say) back into the library, and a cluster composed from the other set's strokes would
+ * otherwise stay.
+ *
+ * @param {LanguageState} state
+ */
+function applyStrokeMode(state) {
+  const { hand, font } = state.sets;
+  const isMalayalam = (cluster) => /[\u0d00-\u0d7f]/.test(cluster);
+  for (const cluster of Object.keys(STROKE_LIBRARY)) {
+    if (isMalayalam(cluster)) delete STROKE_LIBRARY[cluster];
+  }
+  Object.assign(STROKE_LIBRARY, state.strokeMode === "font" ? font : hand);
 }
 
 // ---------------------------------------------------------------------------
@@ -356,6 +475,56 @@ thicknessCtl.addEventListener("change", () => {
   traceWord(input.value);
 });
 
+/**
+ * In font-based mode, say whether every cluster of the word came from the fonts, and name those that did not.
+ *
+ * @param {LanguageState} state
+ * @param {string} word
+ */
+function showCoverage(state, word) {
+  const font = state.strokeMode === "font";
+  strokeCoverage.hidden = !state.config.fontStrokes;
+  if (!state.config.fontStrokes) return;
+  // the writer resolves which clusters lack strokes while it builds the stage, just after play() starts
+  setTimeout(() => {
+    if (state !== active || state.word !== word) return;
+    const missing = [...new Set(state.writer.getFallbackClusters())];
+    strokeCoverage.classList.toggle("partial", missing.length > 0);
+    strokeCoverage.textContent = missing.length
+      ? `No ${font ? "font" : "handwriting"} strokes for these, so they are left blank: ${missing.join("  ")}`
+      : font
+        ? "Every letter here is drawn from the fonts' strokes."
+        : "Every letter here is drawn from the recorded handwriting.";
+  }, 50);
+}
+
+/** Show the Strokes switch (and its note) for a language that has font-based strokes. */
+function showStrokeControl(state) {
+  const has = Boolean(state.config.fontStrokes);
+  strokeLabel.hidden = !has;
+  strokeNote.hidden = !has;
+  strokeCoverage.hidden = true;
+  if (!has) return;
+  strokeCtl.value = state.strokeMode;
+  strokeNote.textContent =
+    state.strokeMode === "font"
+      ? "Font-based: only the pen strokes drawn by the designers of the Manjari, Chilanka and Nupuram fonts " +
+        "(Swathanthra Malayalam Computing, SIL Open Font License), chosen letter by letter. No handwriting " +
+        "is mixed in, and nothing is traced in place of a missing stroke."
+      : "Handwriting: strokes recorded by hand, one letter at a time.";
+}
+
+strokeCtl.addEventListener("change", () => {
+  const state = active;
+  if (!state.sets) return;
+  state.strokeMode = strokeCtl.value;
+  applyStrokeMode(state);
+  showStrokeControl(state);
+  state.writer?.cancel();
+  state.writer = makeWriter(state);
+  traceWord(input.value);
+});
+
 // ---------------------------------------------------------------------------
 // Trace
 // ---------------------------------------------------------------------------
@@ -375,7 +544,9 @@ async function traceWord(word) {
   try {
     await ensureLanguage(state);
     if (state !== active) return; // the user switched tabs while this loaded
-    await state.writer.play(word, playOptions());
+    const playing = state.writer.play(word, playOptions());
+    showCoverage(state, word);
+    await playing;
   } catch (err) {
     if (state === active) status.textContent = err.message;
   } finally {
@@ -388,7 +559,9 @@ form.addEventListener("submit", (e) => {
   traceWord(input.value);
 });
 
-$("replay").addEventListener("click", () => active.writer?.replay(playOptions()));
+$("replay").addEventListener("click", () =>
+  active.writer?.replay(playOptions()),
+);
 
 // ---------------------------------------------------------------------------
 // Tabs
@@ -396,9 +569,12 @@ $("replay").addEventListener("click", () => active.writer?.replay(playOptions())
 
 /** (Re)build a row of suggestion-chip buttons, optionally led by a text label. */
 function fillChips(container, items, prefix = "") {
-  container.replaceChildren(...(prefix ? [document.createTextNode(prefix)] : []));
+  container.replaceChildren(
+    ...(prefix ? [document.createTextNode(prefix)] : []),
+  );
   for (const item of items) {
-    const { word, label } = typeof item === "string" ? { word: item, label: item } : item;
+    const { word, label } =
+      typeof item === "string" ? { word: item, label: item } : item;
     const b = document.createElement("button");
     b.type = "button";
     b.dataset.word = word;
@@ -456,6 +632,7 @@ function activate(code) {
   letterBrowser.hidden = !config.letters;
   if (config.letters) fillChips(letterChips, config.letters);
   showThickness(state.strokeWidth);
+  showStrokeControl(state);
   status.textContent = "";
 
   // Keep the URL shareable without adding a history entry per tab click.
@@ -487,7 +664,8 @@ window.addEventListener("hashchange", () => {
 // Firefox doesn't implement it at all. The button stays `hidden` (see
 // index.html) on any browser where neither exists, rather than showing a
 // control that would just fail on click.
-const SpeechRecognitionAPI = window.SpeechRecognition ?? window.webkitSpeechRecognition;
+const SpeechRecognitionAPI =
+  window.SpeechRecognition ?? window.webkitSpeechRecognition;
 const speakBtn = $("speakBtn");
 
 if (SpeechRecognitionAPI && speakBtn) {
@@ -570,14 +748,18 @@ function loadLibrary(file) {
       libDrop.style.borderColor = "#6d28d9";
       active.writer?.replay();
     } catch {
-      libStatus.textContent = "Could not parse JSON - is this a stroke-data export?";
+      libStatus.textContent =
+        "Could not parse JSON - is this a stroke-data export?";
     }
   };
   reader.readAsText(file);
 }
 
 libDrop.addEventListener("click", () => libFile.click());
-libFile.addEventListener("change", () => libFile.files[0] && loadLibrary(libFile.files[0]));
+libFile.addEventListener(
+  "change",
+  () => libFile.files[0] && loadLibrary(libFile.files[0]),
+);
 libDrop.addEventListener("dragover", (e) => {
   e.preventDefault();
   libDrop.style.borderColor = "#6d28d9";

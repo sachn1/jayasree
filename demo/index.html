@@ -52,6 +52,17 @@
       <div id="letterChips" class="chips"></div>
     </details>
 
+    <!-- Only shown for a language whose config has `fontStrokes` (Malayalam). -->
+    <label id="strokeLabel" hidden>
+      Strokes
+      <select id="strokeCtl">
+        <option value="handwriting" selected>Handwriting</option>
+        <option value="font">Font-based</option>
+      </select>
+    </label>
+    <p id="strokeNote" hidden></p>
+    <p id="strokeCoverage" hidden></p>
+
     <div id="status"></div>
     <div id="stage"></div>
     <button id="replay" type="button">↺ Replay</button>
