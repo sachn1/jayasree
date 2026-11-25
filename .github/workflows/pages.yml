@@ -21,18 +21,10 @@ permissions:
   id-token: write
 
 jobs:
-  deploy:
+  build:
     # A release run that was skipped or cancelled (a PR closed without merging) deploys nothing.
     if: github.event_name == 'workflow_dispatch' || contains(fromJSON('["success", "failure"]'), github.event.workflow_run.conclusion)
-    # Never run two deploys concurrently; the latest run wins. Set on the job, not the workflow, so a skipped
-    # run (the `if` above) never joins the group and cancels a deploy in flight.
-    concurrency:
-      group: pages
-      cancel-in-progress: true
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v7
 
@@ -56,5 +48,19 @@ jobs:
         with:
           path: _site
 
+  # A separate job, so the artifact is fully stored before the deploy looks for it. In one job the deploy
+  # step sometimes ran within a second of the upload and found no artifact.
+  deploy:
+    needs: build
+    # Never run two deploys concurrently; the latest run wins. Set on the job, not the workflow, so a skipped
+    # run (the build's `if`) never joins the group and cancels a deploy in flight.
+    concurrency:
+      group: pages
+      cancel-in-progress: true
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
       - id: deployment
         uses: actions/deploy-pages@v5
