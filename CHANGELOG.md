@@ -1,3 +1,15 @@
+## v1.0.0 (2026-11-25)
+
+### BREAKING CHANGE
+
+- jayasree no longer bundles Malayalam data. Install @jayasree-stroke/ml (or /hi, /ml-font) and pass its glyphData and strokeData to load() and loadStrokes().
+
+### Feat
+
+- **js**: font-based Malayalam strokes, and the npm package split (1.0.0) (#79)
+- **js**: publish the engine and each language's data as separate npm packages
+- **js**: font-based Malayalam strokes, chosen per letter, with an outlineFallback option
+
 ## v0.8.0 (2026-11-23)
 
 ### Feat
