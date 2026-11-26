@@ -230,16 +230,9 @@ def _process_stroke(
             d,
             refs,
             curve_refs if _CURVE_STRAIGHTEN_ENABLED else None,
-            # Hindi-only: reject a reference segment too short to actually
-            # represent the piece being matched - see
-            # ghost_reference.REF_LENGTH_MATCH_RATIO's docstring for the
-            # confirmed bug this fixes (a long curved "bridge" stroke
-            # collapsing onto an unrelated short straight edge) and why
-            # it's opt-in rather than on by default (367 of Malayalam's
-            # 1721 already-committed clusters change if enabled
-            # unconditionally - Malayalam's own call here never passes
-            # this, so its output is untouched by construction).
-            ghost_reference.REF_LENGTH_MATCH_RATIO if lang_code == "hi" else 0.0,
+            # Reject a reference segment too short to represent the piece being matched: without
+            # this a long stroke (a flat bar, a tall stem) collapses onto an unrelated short edge.
+            ghost_reference.REF_LENGTH_MATCH_RATIO,
         )
 
     return d
@@ -329,8 +322,9 @@ def _process_cluster_strokes(
 ) -> list[dict]:
     """Run one hand-recorded cluster's strokes through the stages `args` enables."""
     # For a cluster the glyph data knows, the stages are guided by that cluster's own font outline
-    # (its distance field, and the straight edges detected on it); for one it does not know, only
-    # the stages that need no outline run. This is the per-cluster body of :func:`main`, kept as one
+    # (its distance field, and the straight edges detected on it), or, for a Malayalam suffix mark,
+    # by the mark's own outline; for one it does not know, only the stages that need no outline run.
+    # This is the per-cluster body of :func:`main`, kept as one
     # function so that the Malayalam freeze test (``python/tests/test_malayalam_freeze.py``) runs
     # exactly the code `main()` runs, not a copy that could drift from it.
     #
@@ -347,6 +341,13 @@ def _process_cluster_strokes(
     # `contextualForms` carries the font's own outline for it - clean against that.
     if cluster_info is None and lang_code == "hi":
         cluster_info = glyph_data.get("contextualForms", {}).get(cluster, {}).get("ghost")
+
+    # A suffix mark with no cluster of its own (്വ, ്യ, ്ല) is guided by the outline of the mark.
+    mark_outline = None
+    mark = glyph_data.get("marks", {}).get(cluster)
+    if cluster_info is None and mark and not mark["prefix"] and lang_code == "ml":
+        mark_outline = mark["suffix"]
+        cluster_info = {"glyphs": mark_outline}
 
     # Hindi only: the language is the switch, so Malayalam can never reach this branch.
     if lang_code == "hi" and cluster_info is not None:
@@ -365,7 +366,9 @@ def _process_cluster_strokes(
     refs: list[dict] = []
     curve_refs: list[dict] = []
     if (args.center or args.straighten) and cluster_info is not None:
-        ref_glyphs = _reference_glyphs(cluster, cluster_info, glyph_data.get("marks", {}))
+        ref_glyphs = mark_outline or _reference_glyphs(
+            cluster, cluster_info, glyph_data.get("marks", {})
+        )
         field = centering.make_dist_field(ref_glyphs)
         if args.straighten:
             refs = ghost_reference.build_reference_segments(ref_glyphs, field)

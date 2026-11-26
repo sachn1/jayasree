@@ -38,14 +38,8 @@ DIST_MATCH_TOLERANCE: float = 45.0
 #: reference an order of magnitude shorter than what it's being asked to
 #: represent.
 #:
-#: Opt-in only (`match_reference`'s `min_length_ratio` defaults to 0.0,
-#: i.e. disabled) - turning this on unconditionally changes 367 of
-#: Malayalam's 1721 already-published clusters, which is exactly the kind
-#: of already-approved-data change this project requires discussing
-#: explicitly rather than folding into a routine fix. `tools/
-#: process_strokes.py` passes this value only for `lang_code == "hi"`,
-#: same gating convention as `geometry.smooth_points`'s
-#: `sparse_piece_fallback`.
+#: `match_reference` defaults to 0.0 (disabled), so a direct caller keeps the old behaviour;
+#: `tools/process_strokes.py` passes this value for every language.
 REF_LENGTH_MATCH_RATIO: float = 0.5
 
 # -- Curved outline edges / hand-drawn arcs (opt-in via --curve-straighten) --
@@ -493,15 +487,8 @@ def match_reference(
     min_length_ratio : float
         Reject a reference shorter than this fraction of the piece's own
         length (see :data:`REF_LENGTH_MATCH_RATIO`'s docstring for why).
-        Defaults to ``0.0`` (disabled, i.e. every existing caller/committed
-        cluster keeps the exact behavior this function always had,
-        byte-for-byte) - `tools/process_strokes.py` opts a language in by
-        passing :data:`REF_LENGTH_MATCH_RATIO` explicitly, the same
-        `lang_code`-gated pattern as `geometry.smooth_points`'s
-        `sparse_piece_fallback`. Confirmed this genuinely changes output
-        for already-committed Malayalam clusters (367 of 1721) if enabled
-        unconditionally - not something to flip on by default without
-        that being an explicit, discussed decision.
+        Defaults to ``0.0`` (disabled); `tools/process_strokes.py` passes
+        :data:`REF_LENGTH_MATCH_RATIO`.
 
     Returns
     -------
@@ -639,9 +626,7 @@ def refine_stroke(
         `None` (the default) disables curved-run matching entirely.
     ref_length_match_ratio : float, optional
         Passed through to :func:`match_reference` as `min_length_ratio`.
-        `0.0` (the default) disables the check entirely - see
-        :data:`REF_LENGTH_MATCH_RATIO`'s docstring for why this is opt-in
-        rather than always on.
+        `0.0` (the default) disables the check entirely.
 
     Returns
     -------
