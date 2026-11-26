@@ -114,6 +114,8 @@ const LANGUAGES = [
     glyphData: "../js/src/glyph-data.json",
     strokeData: "../js/src/stroke-data.json",
     strokeDataRaw: "../js/src/stroke-data.raw.json",
+    // Half of index.js's default pen speed (6000, unchanged there); the speed slider reads "1x" at this pace.
+    speed: 3000,
     fontStrokes: "../js/src/stroke-data.font.json",
     strokeWidth: 0.022,
   },
@@ -144,10 +146,10 @@ const LANGUAGES = [
     // Slightly thicker than index.js's default (0.022, unchanged there), to suit
     // Noto Sans Devanagari's heavier ink.
     strokeWidth: 0.03,
-    // A quarter of index.js's default pen speed (6000, unchanged there):
+    // An eighth of index.js's default pen speed (6000, unchanged there):
     // some strokes were too fast to watch, especially single letters. The
-    // speed slider still reads "1x" at this pace.
-    speed: 1500,
+    // speed slider reads "1x" at this pace.
+    speed: 750,
     // "Jayasree" in Devanagari: ज य श्री.
     logo: { word: "जयश्री", speed: 42000 },
   },
