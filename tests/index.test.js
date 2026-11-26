@@ -790,3 +790,18 @@ describe("drawMode", () => {
     expect(_internal.drawMode(null, true, false)).toBe("outline");
   });
 });
+
+describe("clusterAdvance", () => {
+  it("is the glyph's advance less the trim when the strokes ask for nothing", () => {
+    expect(_internal.clusterAdvance(1000, undefined, 40)).toBe(960);
+    expect(_internal.clusterAdvance(1000, { strokes: [] }, 40)).toBe(960);
+  });
+
+  it("makes room when the strokes ask for more than the glyph has", () => {
+    expect(_internal.clusterAdvance(1000, { advance: 1500 }, 40)).toBe(1460);
+  });
+
+  it("ignores a stroke advance narrower than the glyph's", () => {
+    expect(_internal.clusterAdvance(1000, { advance: 800 }, 40)).toBe(960);
+  });
+});

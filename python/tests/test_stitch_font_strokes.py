@@ -80,3 +80,36 @@ def test_close_gaps_leaves_a_part_that_is_already_close() -> None:
     """Ensure that a part nearer than the gap is not pushed away."""
     out = sfs.close_gaps([["M 0 0 L 100 0"], ["M 120 0 L 200 0"]], 50)
     assert parse_path(out[1]).bbox()[0] == pytest.approx(120)
+
+
+SIGN = "\u0d41"  # ു
+
+
+def _sign_data() -> dict:
+    return {"clusters": {"a": {"glyphs": []}, "a" + SIGN: {"glyphs": []}, "b": {"glyphs": []}}}
+
+
+def test_sign_clusters_picks_a_letter_and_sign_that_are_not_chosen() -> None:
+    """Ensure that a letter followed by a sign is found, whatever its width."""
+    atoms = {SIGN: {"strokes": []}}
+    baked = {"a": {"strokes": [{"d": "M 0 0 L 1 1"}]}, SIGN: {"strokes": []}}
+    assert sfs.sign_clusters(_sign_data(), atoms, baked) == ["a" + SIGN]
+
+
+def test_sign_clusters_skips_a_chosen_cluster_and_a_letter_without_strokes() -> None:
+    """Ensure that a cluster the owner chose, or one whose letter has no strokes, is left alone."""
+    baked = {"a": {"strokes": [{"d": "M 0 0 L 1 1"}]}}
+    assert sfs.sign_clusters(_sign_data(), {SIGN: {}, "a" + SIGN: {}}, baked) == []
+    assert sfs.sign_clusters(_sign_data(), {SIGN: {}}, {}) == []
+
+
+def test_stitch_sign_leaves_a_gap_between_letter_sign_and_the_next_letter() -> None:
+    """Ensure that the sign sits a gap right of the letter, in a cluster wide enough for both."""
+    cluster = "a" + SIGN
+    data = {"clusters": {cluster: {"glyphs": [_glyph(BAR)], "advance": 600.0}}, "marks": {}}
+    atoms = {SIGN: {"strokes": [{"d": "M 900 150 L 1200 150"}]}}
+    baked = {"a": {"strokes": [{"d": "M 0 150 L 600 150"}]}}
+    strokes, advance = sfs.stitch_sign(cluster, data, atoms, baked)
+    base, sign = (parse_path(d).bbox() for d in strokes)
+    assert sign[0] - base[1] == pytest.approx(sfs.SIGN_CLEARANCE, abs=sfs.SLIDE)
+    assert advance == pytest.approx(sign[1] + sfs.ATOM_GAP)
