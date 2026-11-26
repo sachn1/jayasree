@@ -1,3 +1,15 @@
+## v1.0.1 (2026-11-26)
+
+### Fix
+
+- straighten Malayalam handwriting correctly and space font-based marks (#81)
+- **tools**: draw ൂ in font-based Malayalam as one stroke, not two overlapping ones
+- **tools**: leave room around ു ൂ ൃ wherever they follow a letter in font-based Malayalam
+- **demo**: make the former 0.5x pen speed the 1x speed
+- **tools**: leave a gap between a base, its sign and the next letter in font-based Malayalam
+- **js**: let a stroke entry ask for more room than its glyph has
+- **tools**: stop straightening snapping long strokes to short edges, and guide marks with no cluster outline
+
 ## v1.0.0 (2026-11-25)
 
 ### BREAKING CHANGE

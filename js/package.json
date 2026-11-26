@@ -1,6 +1,6 @@
 {
   "name": "jayasree",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Animated stroke-trace widget for Indic scripts - draws a script's letters as handwriting. The engine only: install a data package such as @jayasree-stroke/ml beside it",
   "type": "module",
   "main": "src/index.js",

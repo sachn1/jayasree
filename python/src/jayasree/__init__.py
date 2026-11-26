@@ -2,6 +2,6 @@
 
 from .strokes import MAX_WORD_LENGTH, Glyph, StrokeTrace, shape_word
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 __all__ = ["MAX_WORD_LENGTH", "Glyph", "StrokeTrace", "__version__", "shape_word"]
