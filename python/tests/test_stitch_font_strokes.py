@@ -80,3 +80,44 @@ def test_close_gaps_leaves_a_part_that_is_already_close() -> None:
     """Ensure that a part nearer than the gap is not pushed away."""
     out = sfs.close_gaps([["M 0 0 L 100 0"], ["M 120 0 L 200 0"]], 50)
     assert parse_path(out[1]).bbox()[0] == pytest.approx(120)
+
+
+def _ligature_data(advance: float) -> dict:
+    return {
+        "clusters": {
+            "a": {"glyphs": [_glyph(BAR)], "advance": 600.0},
+            "ab": {"glyphs": [_glyph(BAR)], "advance": advance},
+        },
+        "marks": {"b": {"prefix": [], "suffix": [_glyph(BAR)], "shift": 0.0}},
+    }
+
+
+def test_ligature_clusters_picks_a_sign_that_adds_no_width() -> None:
+    """Ensure that a base + sign drawn in the base's own width is found."""
+    atoms = {"a": {"strokes": []}, "b": {"strokes": []}}
+    assert sfs.ligature_clusters(_ligature_data(620.0), atoms, {}) == ["ab"]
+
+
+def test_ligature_clusters_leaves_a_sign_that_sits_beside_its_base() -> None:
+    """Ensure that a sign the font draws beside the base, which composes fine, is left alone."""
+    atoms = {"a": {"strokes": []}, "b": {"strokes": []}}
+    assert sfs.ligature_clusters(_ligature_data(1100.0), atoms, {}) == []
+
+
+def test_ligature_clusters_skips_a_cluster_that_is_already_baked() -> None:
+    """Ensure that a cluster with strokes is not stitched again."""
+    atoms = {"a": {"strokes": []}, "b": {"strokes": []}}
+    assert sfs.ligature_clusters(_ligature_data(620.0), atoms, {"ab": {}}) == []
+
+
+def test_stitch_ligature_leaves_a_gap_between_base_sign_and_the_next_letter() -> None:
+    """Ensure that the sign sits a gap right of the base and the cluster is wide enough for both."""
+    data = {"clusters": {"ab": {"glyphs": [_glyph(BAR)], "advance": 600.0}}, "marks": {}}
+    atoms = {
+        "a": {"strokes": [{"d": "M 0 150 L 600 150"}]},
+        "b": {"strokes": [{"d": "M 900 150 L 1200 150"}]},
+    }
+    strokes, advance = sfs.stitch_ligature("ab", data, atoms)
+    base, sign = (parse_path(d).bbox() for d in strokes)
+    assert sign[0] - base[1] == pytest.approx(sfs.SIGN_CLEARANCE, abs=sfs.SLIDE)
+    assert advance == pytest.approx(sign[1] + sfs.ATOM_GAP)

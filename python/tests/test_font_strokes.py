@@ -308,3 +308,24 @@ def test_every_chosen_letter_is_in_the_font_data() -> None:
     font = json.loads((ROOT / "js/src/stroke-data.font.json").read_text("utf-8"))
     chosen = json.loads((ROOT / "tools/font-stroke-choices.ml.json").read_text("utf-8"))
     assert [k for k in chosen if k not in font] == []
+
+
+def test_bake_spaces_a_sign_the_font_draws_inside_its_base() -> None:
+    """Ensure that a base + sign in the base's own width is baked with a gap and a wider advance."""
+    bar = "M 0 0 L 600 0 L 600 300 L 0 300 Z"
+    glyph = {"d": bar, "x": 0.0, "y": 0.0}
+    data = {
+        "clusters": {
+            "a": {"glyphs": [glyph], "advance": 600.0},
+            "b": {"glyphs": [glyph], "advance": 600.0},
+            "ab": {"glyphs": [glyph], "advance": 600.0},
+        },
+        "marks": {"b": {"prefix": [], "suffix": [glyph], "shift": 0.0}},
+    }
+    atoms = {
+        "a": {"strokes": [{"d": "M 50 150 L 550 150"}]},
+        "b": {"strokes": [{"d": "M 50 150 L 550 150"}]},
+    }
+    full, _ = bfs.bake(data, atoms)
+    assert len(full["ab"]["strokes"]) == 2
+    assert full["ab"]["advance"] > 600

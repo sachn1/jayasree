@@ -54,6 +54,14 @@ MIN_INSIDE = 0.8
 PART_GAPS = {"\u0d37\u0d4d\u0d30": 100}  # ഷ്ര
 #: A letter may overlap the ones already placed by up to this share of its ink.
 MAX_OVERLAP = 0.15
+#: The space left after a ligature cluster, before the next letter (font units).
+ATOM_GAP = 150.0
+#: How far the sign is moved at a time while it closes in on its base (font units).
+SLIDE = 10.0
+#: The least distance between a base's strokes and its sign's: small, but clear of the ink.
+SIGN_CLEARANCE = 75.0
+#: A base + sign cluster at most this much wider than its base is one ligature glyph (font units).
+LIGATURE_GAIN = 200.0
 #: Scales tried for each letter, coarse then fine (the letter drawn smaller inside a conjunct).
 COARSE_SCALES = np.arange(0.4, 1.21, 0.1)
 FINE_SCALE_STEP = 0.025
@@ -318,6 +326,77 @@ def stitch_cluster(
     if share < min_cover:
         return None, share, f"its letters cover only {share:.0%} of it"
     return strokes, share, "stitched"
+
+
+def ligature_clusters(glyph_data: dict, atoms: dict, baked: dict) -> list[str]:
+    """Return the base + sign clusters the font draws as one glyph, with the sign inside the base.
+
+    Parameters
+    ----------
+    glyph_data : dict
+        Jayasree's ``glyph-data.json``.
+    atoms : dict
+        The chosen strokes, ``{cluster: {"strokes": [...]}}``.
+    baked : dict
+        The clusters already baked from the atoms, which are left out.
+
+    Returns
+    -------
+    list[str]
+        The clusters (such as ``"മൃ"``) whose outline is hardly wider than the base's. Composing
+        one from its base and sign, as the engine does, puts the sign past the end of the cluster,
+        on top of the next letter.
+    """
+    clusters, marks = glyph_data["clusters"], glyph_data.get("marks", {})
+    return [
+        c
+        for c, info in clusters.items()
+        if c not in baked
+        and len(c) == 2
+        and c[0] in atoms
+        and c[1] in marks
+        and c[1] in atoms
+        and info["advance"] - clusters[c[0]]["advance"] < LIGATURE_GAIN
+    ]
+
+
+def _distance(a: np.ndarray, b: np.ndarray) -> float:
+    """Return the least distance between any point of `a` and any point of `b`."""
+    return float(np.sqrt(((a[:, None, :] - b[None, :, :]) ** 2).sum(axis=2).min()))
+
+
+def stitch_ligature(cluster: str, glyph_data: dict, atoms: dict) -> tuple[list[str], float]:
+    """Write a base + sign cluster the font draws as one glyph: base, a gap, sign, a gap.
+
+    Parameters
+    ----------
+    cluster : str
+        A cluster from :func:`ligature_clusters`, such as ``"മൃ"``.
+    glyph_data : dict
+        Jayasree's ``glyph-data.json``.
+    atoms : dict
+        The chosen strokes, ``{cluster: {"strokes": [...]}}``.
+
+    Returns
+    -------
+    tuple[list[str], float]
+        The base's strokes, then the sign's, slid left until ``SIGN_CLEARANCE`` from the base's, and
+        the width the cluster needs: the sign's right edge plus ``ATOM_GAP`` (at least its own).
+    """
+    base, sign = cluster
+    base_strokes = [s["d"] for s in atoms[base]["strokes"]]
+    base_pts = bfs._sample(base_strokes)
+    sign_pts = bfs._sample([s["d"] for s in atoms[sign]["strokes"]])
+    # start clear of the base, then slide the sign left until it is SIGN_CLEARANCE from the base
+    shift = base_pts[:, 0].max() + SIGN_CLEARANCE - sign_pts[:, 0].min()
+    while shift > -4000 and _distance(base_pts, sign_pts + np.array([shift - SLIDE, 0.0])) >= (
+        SIGN_CLEARANCE
+    ):
+        shift -= SLIDE
+    matrix = (1.0, 0.0, 0.0, 1.0, shift, 0.0)
+    moved = [bfs.path_d(s["d"], matrix) for s in atoms[sign]["strokes"]]
+    right = max(parse_path(d).bbox()[1] for d in moved)
+    return base_strokes + moved, max(right + ATOM_GAP, glyph_data["clusters"][cluster]["advance"])
 
 
 def main() -> None:
