@@ -1062,6 +1062,19 @@ function drawMode(authored, outlineOnly, outlineFallback) {
 // ---------------------------------------------------------------------------
 
 /**
+ * The width a cluster takes: its glyph's advance, or the stroke entry's own `advance` if that asks for
+ * more (strokes written with gaps between their parts need the room), less the spacing trim.
+ *
+ * @param {number} glyphAdvance
+ * @param {{ advance?: number } | undefined} strokeEntry
+ * @param {number} tightenUnits
+ * @returns {number}
+ */
+function clusterAdvance(glyphAdvance, strokeEntry, tightenUnits) {
+  return Math.max(0, Math.max(glyphAdvance, strokeEntry?.advance ?? 0) - tightenUnits);
+}
+
+/**
  * Create a stroke-writer bound to `container`.
  *
  * @param {HTMLElement} container - The DOM element that will hold the SVG stage.
@@ -1175,10 +1188,12 @@ export function createStrokeWriter(container, options = {}) {
     for (const { cluster, entry } of segs) {
       // Universal chars use their own fixed advance as-is - `tighten` only
       // compensates for a font's own sidebearing looseness, which doesn't
-      // apply to a hand-picked width that was never font-shaped.
+      // apply to a hand-picked width that was never font-shaped. A stroke
+      // entry may ask for more room than the glyph has (`advance`), so strokes
+      // written with gaps between their parts never touch the next letter.
       const advance = entry.universal
         ? entry.advanceFraction * meta.unitsPerEm
-        : Math.max(0, entry.advance - tightenUnits);
+        : clusterAdvance(entry.advance, STROKE_LIBRARY[cluster], tightenUnits);
       segGroups.push({
         cluster,
         components: entry.glyphs.map((g) => ({ d: g.d, x: penX + g.x, y: g.y })),
@@ -1653,6 +1668,7 @@ export const _internal = {
   findDotUnits,
   isDotSized,
   nudgeMarkStrokes,
+  clusterAdvance,
   normalizeChillus,
   legacyAtoms,
   penProgress,
