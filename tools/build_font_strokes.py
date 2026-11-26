@@ -708,15 +708,15 @@ def bake(glyph_data: dict, atoms: dict) -> tuple[dict, list[str]]:
         The atoms plus every composed cluster (the same step ``process_strokes.py --expand`` runs
         on the recorded handwriting), and the clusters this step could not compose. The engine
         composes some of those too, as it does for handwriting, so this is a superset of the
-        clusters that really cannot be written. A base + sign that the font draws as one glyph is
-        written base, gap, sign, gap, with the ``advance`` it needs (``stitch_ligature``), not
-        left for the engine, which would put the sign on the next letter.
+        clusters that really cannot be written. A letter and a sign (ു ൂ ൃ) are written letter, gap,
+        sign, gap, with the ``advance`` they need (``stitch_sign``), so the sign never touches the
+        letter or the next one.
     """
     import stitch_font_strokes  # it imports this module, so only when needed
 
     full, _, _ = stroke_compose.compose_all(glyph_data, atoms)
-    for cluster in stitch_font_strokes.ligature_clusters(glyph_data, atoms, full):
-        strokes, advance = stitch_font_strokes.stitch_ligature(cluster, glyph_data, atoms)
+    for cluster in stitch_font_strokes.sign_clusters(glyph_data, atoms, full):
+        strokes, advance = stitch_font_strokes.stitch_sign(cluster, glyph_data, atoms, full)
         full[cluster] = {"strokes": [{"d": d} for d in strokes], "advance": advance}
     missing = sorted(c for c in glyph_data["clusters"] if not full.get(c, {}).get("strokes"))
     return full, missing

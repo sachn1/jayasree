@@ -310,22 +310,23 @@ def test_every_chosen_letter_is_in_the_font_data() -> None:
     assert [k for k in chosen if k not in font] == []
 
 
-def test_bake_spaces_a_sign_the_font_draws_inside_its_base() -> None:
-    """Ensure that a base + sign in the base's own width is baked with a gap and a wider advance."""
+def test_bake_spaces_a_sign_from_its_letter() -> None:
+    """Ensure that a letter and a sign are baked with a gap and a wider advance."""
     bar = "M 0 0 L 600 0 L 600 300 L 0 300 Z"
     glyph = {"d": bar, "x": 0.0, "y": 0.0}
+    sign = "\u0d41"
     data = {
         "clusters": {
             "a": {"glyphs": [glyph], "advance": 600.0},
-            "b": {"glyphs": [glyph], "advance": 600.0},
-            "ab": {"glyphs": [glyph], "advance": 600.0},
+            sign: {"glyphs": [glyph], "advance": 600.0},
+            "a" + sign: {"glyphs": [glyph], "advance": 600.0},
         },
-        "marks": {"b": {"prefix": [], "suffix": [glyph], "shift": 0.0}},
+        "marks": {sign: {"prefix": [], "suffix": [glyph], "shift": 0.0}},
     }
     atoms = {
         "a": {"strokes": [{"d": "M 50 150 L 550 150"}]},
-        "b": {"strokes": [{"d": "M 50 150 L 550 150"}]},
+        sign: {"strokes": [{"d": "M 50 150 L 550 150"}]},
     }
     full, _ = bfs.bake(data, atoms)
-    assert len(full["ab"]["strokes"]) == 2
-    assert full["ab"]["advance"] > 600
+    assert len(full["a" + sign]["strokes"]) == 2
+    assert full["a" + sign]["advance"] > 600
